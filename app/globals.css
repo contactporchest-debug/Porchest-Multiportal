@@ -1,0 +1,388 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Slate color scheme for dark theme */
+    --slate-900: 222 84% 5%;
+    --slate-800: 217 33% 17%;
+    --slate-700: 215 25% 27%;
+    --slate-600: 215 19% 35%;
+    --slate-500: 215 16% 47%;
+    --slate-400: 215 20% 65%;
+    --slate-300: 213 27% 84%;
+    --slate-200: 214 32% 91%;
+    --slate-100: 210 40% 96%;
+    --slate-50: 210 40% 98%;
+
+    /* Orange accent (#ff7a00) */
+    --orange-50: 33 100% 96%;
+    --orange-100: 34 100% 92%;
+    --orange-200: 32 98% 83%;
+    --orange-300: 31 97% 72%;
+    --orange-400: 27 96% 61%;
+    --orange-500: 25 95% 53%;
+    --orange-600: 21 90% 48%;
+    --orange-700: 17 88% 40%;
+    --orange-800: 15 79% 34%;
+    --orange-900: 15 75% 28%;
+
+    /* Coral (#FF6B6B) */
+    --coral-500: 0 85% 70%;
+    --coral-400: 0 85% 75%;
+    --coral-600: 0 85% 65%;
+
+    /* Standard variables */
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 25 95% 53%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 25 95% 53%;
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-black text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Custom color classes */
+@layer utilities {
+  .text-coral-400 {
+    color: hsl(0 85% 75%);
+  }
+  .text-coral-500 {
+    color: hsl(0 85% 70%);
+  }
+  .text-coral-600 {
+    color: hsl(0 85% 65%);
+  }
+  .bg-coral-400 {
+    background-color: hsl(0 85% 75%);
+  }
+  .bg-coral-500 {
+    background-color: hsl(0 85% 70%);
+  }
+  .bg-coral-600 {
+    background-color: hsl(0 85% 65%);
+  }
+  .border-coral-400 {
+    border-color: hsl(0 85% 75%);
+  }
+  .border-coral-500 {
+    border-color: hsl(0 85% 70%);
+  }
+  .from-coral-400 {
+    --tw-gradient-from: hsl(0 85% 75%);
+  }
+  .to-coral-500 {
+    --tw-gradient-to: hsl(0 85% 70%);
+  }
+  .from-coral-500 {
+    --tw-gradient-from: hsl(0 85% 70%);
+  }
+  .to-coral-600 {
+    --tw-gradient-to: hsl(0 85% 65%);
+  }
+
+  /* Updated layout spacing for centered content with equal spacing on all sides */
+  .main-content {
+    padding-top: 4rem; /* 64px for top navbar height */
+    margin-left: 0;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .main-content {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .main-content {
+      padding-left: 3rem;
+      padding-right: 3rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .main-content {
+      padding-left: 4rem;
+      padding-right: 4rem;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .main-content {
+      padding-left: 6rem;
+      padding-right: 6rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .main-content {
+      margin-left: 0;
+      padding-top: 4rem;
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(0 0% 0%);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ff7a00;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #e66a00;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Added smooth text rotation animation for hero section */
+@keyframes textFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+}
+
+.animate-text-rotation {
+  animation: textFadeIn 3s ease-in-out infinite;
+}
+
+@keyframes pulse-slow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes bounce-slow {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes float-reverse {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(20px);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes grid-move {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(50px, 50px);
+  }
+}
+
+@keyframes gradient {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes blob {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 4s ease-in-out infinite;
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 3s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: float-reverse 8s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+.animate-gradient {
+  background-size: 400% 400%;
+  animation: gradient 3s ease infinite;
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Gradient backgrounds */
+.bg-gradient-radial {
+  background: radial-gradient(circle, var(--tw-gradient-stops));
+}
+
+/* Glass effect */
+.backdrop-blur-glass {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Text selection */
+::selection {
+  background-color: rgba(255, 122, 0, 0.3);
+  color: hsl(0 0% 98%);
+}
+
+/* Focus styles */
+.focus-visible:focus-visible {
+  outline: 2px solid #ff7a00;
+  outline-offset: 2px;
+}
+
+/* Calendar styling for dark theme */
+.rdp {
+  --rdp-cell-size: 40px;
+  --rdp-accent-color: #ff7a00;
+  --rdp-background-color: hsl(0 0% 3.9%);
+  --rdp-accent-color-dark: #e66a00;
+  --rdp-background-color-dark: hsl(0 0% 3.9%);
+  --rdp-outline: 2px solid #ff7a00;
+  --rdp-outline-selected: 3px solid #ff7a00;
+}
+
+.rdp-day_selected {
+  background-color: #ff7a00 !important;
+  color: hsl(0 0% 9%) !important;
+}
+
+.rdp-day_today {
+  color: #ff7a00 !important;
+  font-weight: bold;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
