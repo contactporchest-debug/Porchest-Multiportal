@@ -1,48 +1,91 @@
-import { NextResponse } from "next/server"
-import bcrypt from "bcryptjs"
-import clientPromise from "@/lib/mongodb"
+import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import clientPromise from "@/lib/mongodb";
 
 export async function POST(req: Request) {
   try {
-    const { name, email, password, role } = await req.json()
+    const { name, email, password, role, phone, company } = await req.json();
 
+    // Validation
     if (!email || !password || !role) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Email, password, and role are required" },
+        { status: 400 }
+      );
     }
 
-    const client = await clientPromise
-    const db = client.db("porchestDB") // 👈 IMPORTANT FIX — make sure it uses your actual DB name
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
+    }
 
-    const existing = await db.collection("users").findOne({ email })
+    // Password strength validation
+    if (password.length < 8) {
+      return NextResponse.json(
+        { error: "Password must be at least 8 characters long" },
+        { status: 400 }
+      );
+    }
+
+    const client = await clientPromise;
+    const db = client.db("porchestDB");
+
+    // Check if user already exists
+    const existing = await db.collection("users").findOne({ email });
     if (existing) {
-      return NextResponse.json({ error: "User already exists" }, { status: 400 })
+      return NextResponse.json({ error: "User already exists" }, { status: 400 });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10)
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    await db.collection("users").insertOne({
-      name,
-      email,
-      password: hashedPassword,
-      role: role.toUpperCase(),
-      status: role === "brand" || role === "influencer" ? "PENDING" : "ACTIVE",
-      createdAt: new Date(),
-    })
+    // Determine status based on role
+    // Brand and Influencer accounts require admin approval
+    const requiresApproval = ["brand", "influencer"].includes(role.toLowerCase());
+    const status = requiresApproval ? "PENDING" : "ACTIVE";
 
-    const redirectTo =
-      role === "brand"
-        ? "/brand"
-        : role === "influencer"
-        ? "/influencer"
-        : role === "client"
-        ? "/client"
-        : role === "employee"
-        ? "/employee"
-        : "/admin"
+    // Insert new user
+    const result = await db.collection("users").insertOne({
+      full_name: name,
+      email: email.toLowerCase(),
+      password_hash: hashedPassword,
+      role: role.toLowerCase(),
+      status,
+      verified: !requiresApproval,
+      verified_at: requiresApproval ? null : new Date(),
+      phone: phone || null,
+      company: company || null,
+      profile_completed: false,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
 
-    return NextResponse.json({ redirectTo })
+    if (!result.acknowledged) {
+      throw new Error("Failed to create user");
+    }
+
+    // Send response based on status
+    if (requiresApproval) {
+      return NextResponse.json({
+        success: true,
+        message: "Account created successfully. Please wait for admin approval.",
+        requiresApproval: true,
+        redirectTo: "/auth/pending-approval",
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Account created successfully. Please log in.",
+      requiresApproval: false,
+      redirectTo: "/login",
+    });
   } catch (err) {
-    console.error(err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Registration error:", err);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

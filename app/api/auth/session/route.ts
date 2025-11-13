@@ -1,26 +1,32 @@
-import { NextResponse } from "next/server"
-import { verifyToken } from "@/lib/verifyToken"
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 
 export async function GET() {
   try {
-    const user = verifyToken()
+    const session = await auth();
 
-    if (!user) {
-      // Token invalid or expired
-      return NextResponse.json({ user: null }, {
-        status: 401,
-        headers: {
-          "Cache-Control": "no-store, must-revalidate",
-        },
-      })
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { user: null },
+        {
+          status: 401,
+          headers: {
+            "Cache-Control": "no-store, must-revalidate",
+          },
+        }
+      );
     }
 
-    // ✅ Return user info with short cache lifetime
+    // Return user info with short cache lifetime
     return NextResponse.json(
       {
         user: {
-          email: user.email,
-          role: user.role,
+          id: session.user.id,
+          email: session.user.email,
+          name: session.user.name,
+          role: session.user.role,
+          status: session.user.status,
+          image: session.user.image,
         },
       },
       {
@@ -29,9 +35,9 @@ export async function GET() {
           "Cache-Control": "private, max-age=60", // cache for 1 minute
         },
       }
-    )
+    );
   } catch (error) {
-    console.error("Session error:", error)
-    return NextResponse.json({ user: null }, { status: 500 })
+    console.error("Session error:", error);
+    return NextResponse.json({ user: null }, { status: 500 });
   }
 }

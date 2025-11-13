@@ -1,50 +1,79 @@
-import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
-import jwt from "jsonwebtoken"
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { auth } from "@/lib/auth";
 
-const JWT_SECRET = process.env.JWT_SECRET || "porchest_secret"
+export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
 
-export function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl
-  const token = req.cookies.get("token")?.value
+  // Get session using Auth.js
+  const session = await auth();
+
+  // Define public routes that don't require authentication
+  const publicRoutes = [
+    "/",
+    "/login",
+    "/signup",
+    "/auth",
+    "/services",
+    "/about",
+    "/contact",
+    "/api/auth",
+  ];
+
+  const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
+
+  // If user is logged in and trying to access login/signup, redirect to their portal
+  if (session?.user && (pathname === "/login" || pathname === "/signup")) {
+    const role = session.user.role?.toLowerCase();
+    return NextResponse.redirect(new URL(`/${role}`, req.url));
+  }
 
   // Allow public routes
-  const publicRoutes = ["/", "/login", "/auth", "/api/auth/login", "/api/auth/logout"]
-  if (publicRoutes.some((route) => pathname.startsWith(route))) {
-    if (pathname === "/login" && token) {
-      try {
-        const decoded = jwt.verify(token, JWT_SECRET) as { role: string }
-        const redirectUrl = new URL(`/${decoded.role.toLowerCase()}`, req.url)
-        return NextResponse.redirect(redirectUrl)
-      } catch {
-        // invalid token — let them stay on login
-      }
+  if (isPublicRoute) {
+    return NextResponse.next();
+  }
+
+  // Protected routes - require authentication
+  if (!session?.user) {
+    const loginUrl = new URL("/login", req.url);
+    loginUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Check if user account is active
+  if (session.user.status !== "ACTIVE") {
+    return NextResponse.redirect(new URL("/auth/pending-approval", req.url));
+  }
+
+  // Role-based route protection
+  const userRole = session.user.role?.toLowerCase();
+  const roleBasedRoutes = [
+    { path: "/brand", role: "brand" },
+    { path: "/influencer", role: "influencer" },
+    { path: "/client", role: "client" },
+    { path: "/employee", role: "employee" },
+    { path: "/admin", role: "admin" },
+  ];
+
+  for (const route of roleBasedRoutes) {
+    if (pathname.startsWith(route.path) && userRole !== route.role) {
+      // User trying to access wrong portal, redirect to their portal
+      return NextResponse.redirect(new URL(`/${userRole}`, req.url));
     }
-    return NextResponse.next()
   }
 
-  // Protected routes
-  if (!token) {
-    return NextResponse.redirect(new URL("/login", req.url))
-  }
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { role: string }
-
-    // Optional: role-based route protection
-    const lowerRole = decoded.role.toLowerCase()
-    if (pathname.startsWith("/brand") && lowerRole !== "brand") {
-      return NextResponse.redirect(new URL(`/${lowerRole}`, req.url))
-    }
-
-    return NextResponse.next()
-  } catch {
-    return NextResponse.redirect(new URL("/login", req.url))
-  }
+  return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.jpg$).*)",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder files
+     */
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.jpg$|.*\\.svg$|.*\\.ico$).*)",
   ],
-}
+};
