@@ -36,37 +36,37 @@ export default function LoginPage() {
   const [isLoadingGoogle, setIsLoadingGoogle] = useState(false)
   const [isLoadingDemo, setIsLoadingDemo] = useState<string | null>(null)
 
-  // 🔹 Email/password login
+  // 🔹 Email/password login using Auth.js
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setIsLoadingEmail(true)
 
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include", // ✅ save JWT cookie
-        body: JSON.stringify({ email, password }),
+      const { signIn } = await import("next-auth/react")
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
       })
 
-      const data = await res.json()
-      console.log("✅ Login response:", data)
+      if (result?.error) {
+        throw new Error(result.error)
+      }
 
-      if (!res.ok) throw new Error(data?.error || "Login failed")
+      // Get session to determine redirect
+      const sessionRes = await fetch("/api/auth/session")
+      const session = await sessionRes.json()
 
-      // ✅ ensure cookie persistence before redirect
-      if (data.redirectTo) {
-        setTimeout(() => {
-          window.location.href = data.redirectTo
-        }, 400)
+      if (session?.user?.role) {
+        const role = session.user.role.toLowerCase()
+        window.location.href = `/${role}`
       } else {
-        router.push("/")
+        window.location.href = "/"
       }
     } catch (err: any) {
       console.error("Login error:", err)
       setError(err.message || "Something went wrong. Please try again.")
-    } finally {
       setIsLoadingEmail(false)
     }
   }
@@ -105,14 +105,18 @@ export default function LoginPage() {
     }
   }
 
-  // 🔹 Google login placeholder (not implemented)
+  // 🔹 Google login using Auth.js
   const handleGoogle = async () => {
     setError("")
     setIsLoadingGoogle(true)
-    setTimeout(() => {
-      setError("Google login is not configured yet.")
+    try {
+      const { signIn } = await import("next-auth/react")
+      await signIn("google", { callbackUrl: "/" })
+    } catch (err: any) {
+      console.error("Google login error:", err)
+      setError(err.message || "Google login failed.")
       setIsLoadingGoogle(false)
-    }, 1200)
+    }
   }
 
   return (

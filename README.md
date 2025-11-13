@@ -1,30 +1,95 @@
-# wittygowebsite
+# 🚀 Porchest Multiportal Platform
 
-*Automatically synced with your [v0.app](https://v0.app) deployments*
+A comprehensive multi-tenant platform connecting brands, influencers, software clients, employees, and administrators. Built with Next.js 14, MongoDB, and AI-powered features.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/ayeshanadeem2408-9339s-projects/v0-wittygowebsite)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/projects/U9lUefLcbQH)
+![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
+![Next.js](https://img.shields.io/badge/Next.js-14-black.svg)
+![MongoDB](https://img.shields.io/badge/MongoDB-7.0-green.svg)
 
-## Overview
+## ✨ Features
 
-This repository will stay in sync with your deployed chats on [v0.app](https://v0.app).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.app](https://v0.app).
+- 🤖 **AI-Powered Influencer Discovery** - Smart recommendations with chatbot interface
+- 📊 **Campaign Management** - Create, track, and analyze marketing campaigns
+- 💰 **Earnings & Withdrawals** - Automated payment processing for influencers
+- 📈 **Real-time Analytics** - Comprehensive dashboards with visualization
+- 🔐 **Multi-tenant Auth** - Secure authentication with role-based access
+- 🎯 **ROI Prediction** - ML-based campaign performance forecasting
+- 🚨 **Fraud Detection** - AI-powered anomaly detection
+- 💬 **Sentiment Analysis** - NLP-based comment analysis
 
-## Deployment
+## 🛠 Tech Stack
 
-Your project is live at:
+- **Next.js 14** - React framework
+- **TypeScript** - Type safety
+- **MongoDB** - Database
+- **Auth.js v5** - Authentication
+- **Tailwind CSS** - Styling
+- **Python Flask** - AI microservice
+- **Docker** - Containerization
 
-**[https://vercel.com/ayeshanadeem2408-9339s-projects/v0-wittygowebsite](https://vercel.com/ayeshanadeem2408-9339s-projects/v0-wittygowebsite)**
+## 🚀 Quick Start
 
-## Build your app
+```bash
+# Install dependencies
+npm install
 
-Continue building your app on:
+# Set up environment
+cp .env.example .env.local
 
-**[https://v0.app/chat/projects/U9lUefLcbQH](https://v0.app/chat/projects/U9lUefLcbQH)**
+# Start development server
+npm run dev
 
-## How It Works
+# Open http://localhost:3000
+```
 
-1. Create and modify your project using [v0.app](https://v0.app)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+## 📚 Documentation
+
+- [Deployment Guide](./DEPLOYMENT.md) - Comprehensive deployment instructions
+- [API Documentation](./docs/API.md) - Complete API reference
+
+## 🧪 Testing
+
+```bash
+npm test              # Run tests
+npm run test:watch    # Watch mode
+npm run test:coverage # Coverage report
+```
+
+## 📦 Project Structure
+
+```
+app/
+├── api/           # API routes
+├── brand/         # Brand portal
+├── influencer/    # Influencer portal
+├── admin/         # Admin portal
+├── employee/      # Employee portal
+└── client/        # Client portal
+
+components/
+├── brand/         # Brand components
+├── charts/        # Chart components
+└── ui/            # UI components
+
+lib/
+├── auth.ts        # Auth configuration
+├── analytics.ts   # Analytics utilities
+└── mongodb.ts     # Database connection
+```
+
+## 🎯 Portals
+
+1. **Brand Portal** - Campaign creation, influencer discovery
+2. **Influencer Portal** - Profile management, earnings
+3. **Client Portal** - Project tracking
+4. **Employee Portal** - Daily reports
+5. **Admin Portal** - User verification, oversight
+
+## 📄 License
+
+Proprietary - Porchest © 2025
+
+## 📞 Support
+
+- Email: support@porchest.com
+- GitHub: [Issues](https://github.com/contactporchest-debug/Porchest-Multiportal/issues)
