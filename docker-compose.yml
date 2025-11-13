@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: porchest-mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: porchestDB
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+
+  # Next.js Frontend/Backend
+  nextjs-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: porchest-app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/porchestDB
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+    depends_on:
+      - mongodb
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+
+  # AI Microservice (Python Flask)
+  ai-service:
+    build:
+      context: ./ai-microservice
+      dockerfile: Dockerfile
+    container_name: porchest-ai
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/porchestDB
+      - FLASK_ENV=production
+
+volumes:
+  mongodb_data:
