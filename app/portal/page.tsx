@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
-import { auth, getPortalPath } from "@/lib/auth"
+import { auth } from "@/lib/auth"
+import { getPortalPath } from "@/lib/auth-helpers"
 
 export default async function PortalRouterPage() {
   const session = await auth()
