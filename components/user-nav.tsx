@@ -60,8 +60,8 @@ export function UserNav() {
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" })
-      window.location.href = "/login"
+      const { signOut } = await import("next-auth/react")
+      await signOut({ callbackUrl: "/login" })
     } catch (err) {
       console.error("Logout failed:", err)
     }
