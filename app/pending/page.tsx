@@ -14,7 +14,7 @@ export default function PendingPage() {
           <Link href="/">Back to Home</Link>
         </Button>
         <Button variant="secondary" asChild>
-          <Link href="/signin">Switch Account</Link>
+          <Link href="/login">Switch Account</Link>
         </Button>
       </div>
     </main>
