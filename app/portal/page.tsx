@@ -1,9 +1,13 @@
 import { redirect } from "next/navigation"
-import { getUserFromCookies } from "@/lib/auth"
-import { nextPathAfterLogin } from "@/lib/routes"
+import { auth, getPortalPath } from "@/lib/auth"
 
-export default function PortalRouterPage() {
-  const { role, status } = getUserFromCookies()
-  if (!role) redirect("/signin")
-  redirect(nextPathAfterLogin(role, status))
+export default async function PortalRouterPage() {
+  const session = await auth()
+
+  if (!session?.user) {
+    redirect("/login")
+  }
+
+  const portalPath = getPortalPath(session.user.role || "brand")
+  redirect(portalPath)
 }
