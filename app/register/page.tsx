@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react"
-import type { UserRole } from "@/lib/auth"
+import type { UserRole } from "@/lib/types"
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
