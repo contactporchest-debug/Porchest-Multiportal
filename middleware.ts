@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth-middleware";
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Get session using Auth.js
+  // Get session using Edge-compatible auth (no MongoDB)
   const session = await auth();
 
   // Define public routes that don't require authentication
