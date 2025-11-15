@@ -60,12 +60,16 @@ export default function RegisterPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        setError(data.error || "Registration failed")
+        setError(data.error?.message || "Registration failed")
         return
       }
 
-      // Redirect to user's portal
-      router.push(data.redirectTo)
+      // Redirect to user's portal based on API response
+      if (data.data?.redirectTo) {
+        router.push(data.data.redirectTo)
+      } else {
+        router.push("/login")
+      }
     } catch (error) {
       setError("Network error. Please try again.")
     } finally {
