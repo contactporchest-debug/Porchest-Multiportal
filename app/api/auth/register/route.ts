@@ -1,91 +1,84 @@
-import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import clientPromise from "@/lib/mongodb";
+import { collections } from "@/lib/db";
+import {
+  successResponse,
+  conflictResponse,
+  handleApiError,
+  createdResponse,
+} from "@/lib/api-response";
+import { validateRequest, registerSchema } from "@/lib/validations";
 
+/**
+ * POST /api/auth/register
+ * Register a new user account
+ * Brands and influencers require admin approval (PENDING status)
+ * Clients and employees are activated immediately (ACTIVE status)
+ */
 export async function POST(req: Request) {
   try {
-    const { name, email, password, role, phone, company } = await req.json();
+    // Parse and validate request body
+    const body = await req.json();
+    const validatedData = validateRequest(registerSchema, body);
 
-    // Validation
-    if (!email || !password || !role) {
-      return NextResponse.json(
-        { error: "Email, password, and role are required" },
-        { status: 400 }
-      );
-    }
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
-    }
-
-    // Password strength validation
-    if (password.length < 8) {
-      return NextResponse.json(
-        { error: "Password must be at least 8 characters long" },
-        { status: 400 }
-      );
-    }
-
-    const client = await clientPromise;
-    const db = client.db("porchestDB");
+    // Get users collection
+    const usersCollection = await collections.users();
 
     // Check if user already exists
-    const existing = await db.collection("users").findOne({ email });
-    if (existing) {
-      return NextResponse.json({ error: "User already exists" }, { status: 400 });
+    const existingUser = await usersCollection.findOne({
+      email: validatedData.email.toLowerCase(),
+    });
+
+    if (existingUser) {
+      return conflictResponse("An account with this email already exists");
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Hash password with bcrypt (10 salt rounds)
+    const hashedPassword = await bcrypt.hash(validatedData.password, 10);
 
     // Determine status based on role
-    // Brand and Influencer accounts require admin approval
-    const requiresApproval = ["brand", "influencer"].includes(role.toLowerCase());
+    // Brand and Influencer accounts require admin approval for verification
+    const requiresApproval = ["brand", "influencer"].includes(
+      validatedData.role.toLowerCase()
+    );
     const status = requiresApproval ? "PENDING" : "ACTIVE";
 
     // Insert new user
-    const result = await db.collection("users").insertOne({
-      full_name: name,
-      email: email.toLowerCase(),
+    const result = await usersCollection.insertOne({
+      full_name: validatedData.name,
+      email: validatedData.email.toLowerCase(),
       password_hash: hashedPassword,
-      role: role.toLowerCase(),
-      status,
+      role: validatedData.role.toLowerCase() as "admin" | "brand" | "influencer" | "client" | "employee",
+      status: status as "PENDING" | "ACTIVE",
       verified: !requiresApproval,
-      verified_at: requiresApproval ? null : new Date(),
-      phone: phone || null,
-      company: company || null,
+      verified_at: requiresApproval ? undefined : new Date(),
+      phone: validatedData.phone,
+      company: validatedData.company,
       profile_completed: false,
       created_at: new Date(),
       updated_at: new Date(),
     });
 
     if (!result.acknowledged) {
-      throw new Error("Failed to create user");
+      throw new Error("Failed to create user account");
     }
 
-    // Send response based on status
+    // Return appropriate response based on approval status
     if (requiresApproval) {
-      return NextResponse.json({
-        success: true,
+      return createdResponse({
         message: "Account created successfully. Please wait for admin approval.",
         requiresApproval: true,
         redirectTo: "/auth/pending-approval",
+        userId: result.insertedId.toString(),
       });
     }
 
-    return NextResponse.json({
-      success: true,
-      message: "Account created successfully. Please log in.",
+    return createdResponse({
+      message: "Account created successfully. You can now log in.",
       requiresApproval: false,
       redirectTo: "/login",
+      userId: result.insertedId.toString(),
     });
-  } catch (err) {
-    console.error("Registration error:", err);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error);
   }
 }

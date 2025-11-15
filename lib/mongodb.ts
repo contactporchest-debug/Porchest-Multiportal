@@ -11,7 +11,39 @@ const options = {
   tls: true,
   serverSelectionTimeoutMS: 10000, // Timeout after 10s if no server found
   connectTimeoutMS: 10000,         // Fail early if connection cannot establish
+  maxPoolSize: 10,                 // Maximum connection pool size
+  minPoolSize: 2,                  // Minimum connection pool size
+  retryWrites: true,               // Automatically retry write operations
+  retryReads: true,                // Automatically retry read operations
 };
+
+// --- RETRY LOGIC WITH EXPONENTIAL BACKOFF --- //
+async function connectWithRetry(
+  client: MongoClient,
+  maxRetries: number = 4,
+  baseDelay: number = 2000
+): Promise<MongoClient> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const connectedClient = await client.connect();
+      return connectedClient;
+    } catch (error) {
+      const isLastAttempt = attempt === maxRetries;
+
+      if (isLastAttempt) {
+        console.error(`❌ MongoDB connection failed after ${maxRetries + 1} attempts:`, error);
+        throw error;
+      }
+
+      const delay = baseDelay * Math.pow(2, attempt); // Exponential backoff: 2s, 4s, 8s, 16s
+      console.warn(`⚠️ MongoDB connection attempt ${attempt + 1} failed. Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  // TypeScript exhaustiveness check
+  throw new Error("Unreachable: retry loop should have returned or thrown");
+}
 
 // --- LAZY INITIALIZATION --- //
 // This ensures MongoDB connection is only attempted at runtime, not during build
@@ -35,8 +67,7 @@ function getMongoClientPromise(): Promise<MongoClient> {
   if (process.env.NODE_ENV === "development") {
     if (!global._mongoClientPromise) {
       const client = new MongoClient(uri, options);
-      global._mongoClientPromise = client
-        .connect()
+      global._mongoClientPromise = connectWithRetry(client)
         .then((connectedClient) => {
           console.log("✅ MongoDB Connected (development)");
           return connectedClient;
@@ -49,8 +80,7 @@ function getMongoClientPromise(): Promise<MongoClient> {
     clientPromise = global._mongoClientPromise;
   } else {
     const client = new MongoClient(uri, options);
-    clientPromise = client
-      .connect()
+    clientPromise = connectWithRetry(client)
       .then((connectedClient) => {
         console.log("✅ MongoDB Connected (production)");
         return connectedClient;

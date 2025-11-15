@@ -1,10 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   images: {
     domains: ['placeholder.svg'],
@@ -19,7 +19,6 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: [
       'mongodb',
-      'mongoose',
       'bcryptjs',
     ],
   },
@@ -29,7 +28,6 @@ const nextConfig = {
       config.resolve.fallback = {
         ...config.resolve.fallback,
         mongodb: false,
-        mongoose: false,
         fs: false,
         net: false,
         tls: false,
