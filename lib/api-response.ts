@@ -6,6 +6,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { formatValidationError } from "@/lib/validations";
+import { logger } from "@/lib/logger";
 
 /**
  * Standard API response format
@@ -128,9 +129,12 @@ export function internalServerErrorResponse(
   message: string = "Internal server error",
   details?: any
 ): NextResponse<ApiResponse> {
-  // Log the error for debugging (will be replaced with proper logging in Phase 7)
+  // Log the error using structured logging
   if (details) {
-    console.error("Internal Server Error:", details);
+    logger.error("Internal Server Error", details instanceof Error ? details : undefined, {
+      message,
+      details: details instanceof Error ? undefined : details,
+    });
   }
 
   // Don't expose internal details in production

@@ -1,5 +1,14 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import {
+  successResponse,
+  unauthorizedResponse,
+  badRequestResponse,
+  handleApiError,
+} from "@/lib/api-response";
+import { validateRequest } from "@/lib/validations";
+import { withRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
+import { z } from "zod";
 
 /**
  * Sentiment Analysis API
@@ -7,21 +16,41 @@ import { auth } from "@/lib/auth";
  * In production, this would call a Python microservice with BERT/DistilBERT
  */
 
-export async function POST(req: Request) {
+// Validation schema for sentiment analysis request
+const sentimentAnalysisSchema = z.object({
+  text: z.string().optional(),
+  comments: z.array(z.string()).optional(),
+}).refine(
+  (data) => data.text || (data.comments && data.comments.length > 0),
+  {
+    message: "Either text or comments array is required",
+  }
+);
+
+/**
+ * POST /api/ai/sentiment-analysis
+ * Analyze sentiment of text or comments (authenticated users only)
+ *
+ * RATE LIMIT: 10 requests per minute per IP
+ */
+async function sentimentAnalysisHandler(req: Request) {
   try {
+    // Check authentication
     const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!session || !session.user) {
+      return unauthorizedResponse("Authentication required");
     }
 
-    const { text, comments } = await req.json();
+    // Parse and validate request body
+    const body = await req.json();
+    const validatedData = validateRequest(sentimentAnalysisSchema, body);
 
-    if (!text && (!comments || comments.length === 0)) {
-      return NextResponse.json(
-        { error: "Text or comments array is required" },
-        { status: 400 }
-      );
-    }
+    logger.debug("Sentiment analysis requested", {
+      userId: session.user.id,
+      userRole: session.user.role,
+      hasText: !!validatedData.text,
+      commentsCount: validatedData.comments?.length || 0,
+    });
 
     // In production, this would call Python microservice:
     // const response = await fetch('http://ai-service:5000/analyze-sentiment', {
@@ -65,18 +94,27 @@ export async function POST(req: Request) {
 
     let results: any = {};
 
-    if (text) {
+    if (validatedData.text) {
       // Single text analysis
+      const sentiment = analyzeSentiment(validatedData.text);
+      const confidence = 0.75 + Math.random() * 0.2; // Mock confidence
+
       results = {
-        sentiment: analyzeSentiment(text),
-        confidence: 0.75 + Math.random() * 0.2, // Mock confidence
+        sentiment,
+        confidence: Math.round(confidence * 100) / 100,
       };
-    } else if (comments) {
+
+      logger.info("Single text sentiment analyzed", {
+        sentiment,
+        confidence,
+        textLength: validatedData.text.length,
+      });
+    } else if (validatedData.comments) {
       // Batch analysis
-      const analyzed = comments.map((comment: string) => ({
+      const analyzed = validatedData.comments.map((comment: string) => ({
         text: comment,
         sentiment: analyzeSentiment(comment),
-        confidence: 0.75 + Math.random() * 0.2,
+        confidence: Math.round((0.75 + Math.random() * 0.2) * 100) / 100,
       }));
 
       const sentimentCounts = {
@@ -86,11 +124,11 @@ export async function POST(req: Request) {
       };
 
       results = {
-        total_analyzed: comments.length,
+        total_analyzed: validatedData.comments.length,
         sentiment_breakdown: sentimentCounts,
-        positive_percentage: (sentimentCounts.positive / comments.length) * 100,
-        negative_percentage: (sentimentCounts.negative / comments.length) * 100,
-        neutral_percentage: (sentimentCounts.neutral / comments.length) * 100,
+        positive_percentage: Math.round((sentimentCounts.positive / validatedData.comments.length) * 100 * 10) / 10,
+        negative_percentage: Math.round((sentimentCounts.negative / validatedData.comments.length) * 100 * 10) / 10,
+        neutral_percentage: Math.round((sentimentCounts.neutral / validatedData.comments.length) * 100 * 10) / 10,
         overall_sentiment:
           sentimentCounts.positive > sentimentCounts.negative
             ? "positive"
@@ -99,18 +137,22 @@ export async function POST(req: Request) {
             : "neutral",
         analyzed_comments: analyzed,
       };
+
+      logger.info("Batch sentiment analysis completed", {
+        totalAnalyzed: validatedData.comments.length,
+        overallSentiment: results.overall_sentiment,
+        breakdown: sentimentCounts,
+      });
     }
 
-    return NextResponse.json({
-      success: true,
+    return successResponse({
       ...results,
       note: "Using rule-based analysis. In production, integrate BERT/DistilBERT model.",
     });
   } catch (error) {
-    console.error("Sentiment analysis error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }
+
+// Export with rate limiting applied
+export const POST = withRateLimit(sentimentAnalysisHandler, RATE_LIMIT_CONFIGS.ai);
