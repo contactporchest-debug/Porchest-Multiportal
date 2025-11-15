@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { PortalLayout } from "@/components/portal-layout"
-import { AdminSidebar } from "@/components/admin-sidebar"
+import AdminSidebar from "@/components/admin-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -20,6 +20,11 @@ import { Search, Loader2, Shield } from "lucide-react"
 interface AuditLog {
   _id: string
   user_id?: string
+  user_info?: {
+    email: string
+    full_name?: string
+    role: string
+  }
   action: string
   entity_type: string
   entity_id?: string
@@ -47,11 +52,20 @@ export default function AuditLogsPage() {
   const fetchLogs = async () => {
     try {
       setLoading(true)
-      // Note: This endpoint needs to be created - for now using mock structure
-      // In real implementation: const response = await fetch('/api/admin/audit-logs')
+      const params = new URLSearchParams({
+        limit: "100",
+      })
 
-      // Mock data for demonstration
-      setLogs([])
+      if (actionFilter && actionFilter !== "all") {
+        params.append("action", actionFilter)
+      }
+
+      const response = await fetch(`/api/admin/audit-logs?${params.toString()}`)
+      const data = await response.json()
+
+      if (data.success) {
+        setLogs(data.data.logs || [])
+      }
     } catch (err) {
       console.error("Error fetching audit logs:", err)
     } finally {
@@ -149,7 +163,16 @@ export default function AuditLogsPage() {
                             <Badge variant="outline">{log.action}</Badge>
                           </TableCell>
                           <TableCell>{log.entity_type}</TableCell>
-                          <TableCell>{log.user_id || "System"}</TableCell>
+                          <TableCell>
+                            {log.user_info ? (
+                              <div>
+                                <div className="font-medium">{log.user_info.full_name || log.user_info.email}</div>
+                                <div className="text-xs text-muted-foreground">{log.user_info.role}</div>
+                              </div>
+                            ) : (
+                              "System"
+                            )}
+                          </TableCell>
                           <TableCell>
                             <Badge variant={log.success ? "default" : "destructive"}>
                               {log.success ? "Success" : "Failed"}
