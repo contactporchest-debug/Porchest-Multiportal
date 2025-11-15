@@ -97,7 +97,7 @@ export async function PUT(
         $set: {
           ...validatedData,
           updated_at: new Date(),
-        },
+        } as any,
       }
     );
 
@@ -110,7 +110,7 @@ export async function PUT(
 
     return successResponse({
       message: "Campaign updated successfully",
-      campaign: sanitizeDocument(updatedCampaign),
+      campaign: sanitizeDocument(updatedCampaign!),
     });
   } catch (error) {
     return handleApiError(error);

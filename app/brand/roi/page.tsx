@@ -71,7 +71,7 @@ export default function ROIPredictions() {
 
   return (
     <PortalLayout
-      sidebarContent={<BrandSidebar />}
+      sidebar={<BrandSidebar />}
       title="ROI Predictions"
       userRole="Brand Manager"
       breadcrumbs={[{ label: "Dashboard", href: "/brand" }, { label: "ROI Predictions" }]}

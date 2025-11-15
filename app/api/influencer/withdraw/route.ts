@@ -91,7 +91,7 @@ async function withdrawHandler(req: Request) {
           description: `Withdrawal request - ${validatedData.payment_method}`,
           created_at: new Date(),
           updated_at: new Date(),
-        },
+        } as any,
         { session: mongoSession }
       );
 

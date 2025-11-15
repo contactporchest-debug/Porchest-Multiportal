@@ -12,8 +12,8 @@ import { z } from "zod";
 
 // Validation schema for query parameters
 const getPendingUsersSchema = z.object({
-  page: z.string().optional().default("1").transform(Number),
-  limit: z.string().optional().default("20").transform(Number),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
   role: z.enum(["brand", "influencer", "client", "employee"]).optional(),
 });
 

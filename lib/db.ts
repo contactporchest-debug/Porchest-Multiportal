@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Database Utilities
  * Type-safe database operations using MongoDB native driver

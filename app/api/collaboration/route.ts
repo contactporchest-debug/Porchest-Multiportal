@@ -141,7 +141,7 @@ async function createCollaborationHandler(req: Request) {
       influencer_id: influencerObjectId,
       status: "pending",
       offer_amount: validatedData.offer_amount,
-      deliverables: validatedData.deliverables,
+      deliverables: validatedData.deliverables || [],
       deadline: validatedData.deadline ? new Date(validatedData.deadline) : undefined,
       message: validatedData.message,
     });

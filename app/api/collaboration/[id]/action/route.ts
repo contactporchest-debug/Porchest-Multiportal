@@ -135,5 +135,12 @@ async function collaborationActionHandler(
   }
 }
 
+// Wrapper to make handler compatible with rate limiter
+const wrappedHandler = (req: Request) => {
+  const url = new URL(req.url);
+  const id = url.pathname.split('/').slice(-2)[0];
+  return collaborationActionHandler(req, { params: { id } });
+};
+
 // Export with rate limiting applied
-export const POST = withRateLimit(collaborationActionHandler, RATE_LIMIT_CONFIGS.default);
+export const POST = withRateLimit(wrappedHandler, RATE_LIMIT_CONFIGS.default);

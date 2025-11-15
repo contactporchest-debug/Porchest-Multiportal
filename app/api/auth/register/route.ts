@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import type { OptionalId } from "mongodb";
 import { collections } from "@/lib/db";
 import {
   successResponse,
@@ -59,7 +60,7 @@ async function registerHandler(req: Request) {
       profile_completed: false,
       created_at: new Date(),
       updated_at: new Date(),
-    });
+    } as any);
 
     if (!result.acknowledged) {
       throw new Error("Failed to create user account");

@@ -35,7 +35,7 @@ const campaignPerformance = [
 export default function Analytics() {
   return (
     <PortalLayout
-      sidebarContent={<BrandSidebar />}
+      sidebar={<BrandSidebar />}
       title="Analytics Dashboard"
       userRole="Brand Manager"
       breadcrumbs={[{ label: "Dashboard", href: "/brand" }, { label: "Analytics" }]}

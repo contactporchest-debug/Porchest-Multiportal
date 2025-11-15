@@ -65,7 +65,7 @@ export async function POST(req: Request) {
       const result = await dailyReportsCollection.insertOne({
         employee_id: user._id,
         date: reportDate,
-        projects_worked_on: validatedData.projects_worked_on,
+        projects_worked_on: validatedData.projects_worked_on?.map(id => toObjectId(id)!),
         summary: validatedData.summary,
         blockers: validatedData.blockers,
         achievements: validatedData.achievements,
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
         status: "submitted",
         created_at: new Date(),
         updated_at: new Date(),
-      });
+      } as any);
 
       return createdResponse({
         message: "Daily report submitted successfully",

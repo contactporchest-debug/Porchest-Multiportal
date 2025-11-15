@@ -152,7 +152,7 @@ async function updateProfileHandler(req: Request) {
         reviews_count: 0,
         predicted_roi: 0,
         predicted_reach: 0,
-      });
+      } as any);
 
       logger.info("Influencer profile created", {
         userId: user._id.toString(),

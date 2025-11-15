@@ -33,7 +33,7 @@ export default function InfluencerSearch() {
 
   return (
     <PortalLayout
-      sidebarContent={<BrandSidebar />}
+      sidebar={<BrandSidebar />}
       title="Influencer Search"
       userRole="Brand Manager"
       breadcrumbs={[{ label: "Dashboard", href: "/brand" }, { label: "Influencer Search" }]}

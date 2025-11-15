@@ -106,7 +106,7 @@ export default function InfluencerDiscovery() {
 
   return (
     <PortalLayout
-      sidebarContent={<BrandSidebar />}
+      sidebar={<BrandSidebar />}
       title="AI Influencer Discovery"
       userRole="Brand Manager"
       breadcrumbs={[

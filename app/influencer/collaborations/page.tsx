@@ -98,7 +98,7 @@ export default function CollaborationRequests() {
 
   return (
     <PortalLayout
-      sidebarContent={<InfluencerSidebar />}
+      sidebar={<InfluencerSidebar />}
       title="Collaboration Requests"
       userRole="Content Creator"
       breadcrumbs={[{ label: "Dashboard", href: "/influencer" }, { label: "Collaboration Requests" }]}
