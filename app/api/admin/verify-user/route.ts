@@ -93,6 +93,28 @@ async function verifyUserHandler(req: Request) {
       return badRequestResponse("Failed to update user status");
     }
 
+    // Create audit log
+    const auditLogsCollection = await collections.auditLogs();
+    await auditLogsCollection.insertOne({
+      user_id: adminUser._id,
+      action: `user.${validatedData.action}`,
+      entity_type: "user",
+      entity_id: userObjectId,
+      changes: {
+        before: {
+          status: user.status,
+          verified: user.verified,
+        },
+        after: {
+          status: updateData.status,
+          verified: updateData.verified || false,
+          rejection_reason: updateData.rejection_reason,
+        },
+      },
+      success: true,
+      timestamp: new Date(),
+    } as any);
+
     // Log the action
     logger.info(`User ${validatedData.action}d successfully`, {
       userId: validatedData.userId,
@@ -100,6 +122,22 @@ async function verifyUserHandler(req: Request) {
       adminEmail: session.user.email,
       userEmail: user.email,
     });
+
+    // Create notification for the user
+    const notificationsCollection = await collections.notifications();
+    await notificationsCollection.insertOne({
+      user_id: userObjectId,
+      type: validatedData.action === "approve" ? "success" : "warning",
+      title: validatedData.action === "approve" ? "Account Approved" : "Account Rejected",
+      message:
+        validatedData.action === "approve"
+          ? "Your account has been approved! You can now access the platform."
+          : `Your account has been rejected. Reason: ${validatedData.reason || "No reason provided"}`,
+      read: false,
+      action_url: validatedData.action === "approve" ? "/portal" : undefined,
+      action_label: validatedData.action === "approve" ? "Go to Dashboard" : undefined,
+      created_at: new Date(),
+    } as any);
 
     // TODO: Send email notification to user
     // This should be implemented with nodemailer in a future phase
