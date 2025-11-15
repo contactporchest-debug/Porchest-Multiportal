@@ -42,21 +42,16 @@ export default function LoginPage() {
         email,
         password,
         redirect: false,
+        callbackUrl: "/portal",
       })
 
       if (result?.error) {
         throw new Error(result.error)
       }
 
-      // Get session to determine redirect
-      const sessionRes = await fetch("/api/auth/session")
-      const session = await sessionRes.json()
-
-      if (session?.user?.role) {
-        const role = session.user.role.toLowerCase()
-        window.location.href = `/${role}`
-      } else {
-        window.location.href = "/"
+      if (result?.ok) {
+        // Use Next.js router for client-side navigation
+        router.push("/portal")
       }
     } catch (err: any) {
       setError(err.message || "Invalid email or password. Please try again.")
@@ -70,7 +65,7 @@ export default function LoginPage() {
     setIsLoadingGoogle(true)
     try {
       const { signIn } = await import("next-auth/react")
-      await signIn("google", { callbackUrl: "/" })
+      await signIn("google", { callbackUrl: "/portal" })
     } catch (err: any) {
       setError(err.message || "Google login failed.")
       setIsLoadingGoogle(false)
