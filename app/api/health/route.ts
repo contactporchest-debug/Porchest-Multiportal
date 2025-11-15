@@ -1,3 +1,9 @@
+// Force dynamic rendering - API routes must NEVER be statically generated
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const fetchCache = "force-no-store";
+
+
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 

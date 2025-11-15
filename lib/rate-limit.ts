@@ -230,6 +230,16 @@ export function withRateLimit(
 ) {
   return async (req: Request): Promise<Response> => {
     try {
+      // Disable rate limiting during Vercel build or any build process
+      // This prevents rate limit errors during static page generation
+      if (
+        process.env.NEXT_PHASE === "phase-production-build" ||
+        process.env.IS_BUILD === "true" ||
+        process.env.NODE_ENV === "test"
+      ) {
+        return handler(req);
+      }
+
       // Get identifier (IP or user ID)
       let identifier: string;
 

@@ -1,6 +1,9 @@
+// Force dynamic rendering - API routes must NEVER be statically generated
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const fetchCache = "force-no-store";
+
+
 import { handlers } from "@/lib/auth";
 
 export const { GET, POST } = handlers;
-
-// Ensure this route runs in the Node.js runtime (required for MongoDB)
-export const runtime = "nodejs";

@@ -1,3 +1,9 @@
+// Force dynamic rendering - API routes must NEVER be statically generated
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const fetchCache = "force-no-store";
+
+
 import { auth } from "@/lib/auth";
 import { collections, getUserByEmail } from "@/lib/db";
 import {
