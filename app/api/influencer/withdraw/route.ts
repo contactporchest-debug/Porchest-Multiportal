@@ -112,6 +112,48 @@ async function withdrawHandler(req: Request) {
       return transactionResult.insertedId;
     });
 
+    // Create audit log
+    const auditLogsCollection = await collections.auditLogs();
+    await auditLogsCollection.insertOne({
+      user_id: user._id,
+      action: "withdrawal.request",
+      entity_type: "transaction",
+      entity_id: transactionId,
+      changes: {
+        after: {
+          amount: validatedData.amount,
+          payment_method: validatedData.payment_method,
+          status: "pending",
+        },
+      },
+      success: true,
+      timestamp: new Date(),
+    } as any);
+
+    // Notify admins about withdrawal request
+    const usersCollection = await collections.users();
+    const admins = await usersCollection.find({ role: "admin" }).toArray();
+
+    const notificationsCollection = await collections.notifications();
+    const adminNotifications = admins.map((admin) => ({
+      user_id: admin._id,
+      type: "info",
+      title: "New Withdrawal Request",
+      message: `${user.full_name || user.email} requested a withdrawal of $${validatedData.amount}`,
+      read: false,
+      action_url: `/admin/payments`,
+      action_label: "Review Request",
+      related_entity: {
+        type: "transaction",
+        id: transactionId,
+      },
+      created_at: new Date(),
+    }));
+
+    if (adminNotifications.length > 0) {
+      await notificationsCollection.insertMany(adminNotifications as any);
+    }
+
     // Transaction successful
     return successResponse(
       {

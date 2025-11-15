@@ -65,7 +65,29 @@ async function getProfileHandler(req: Request) {
     }
 
     // Get influencer profile
-    const profile = await getInfluencerProfile(user._id);
+    let profile = await getInfluencerProfile(user._id);
+
+    // If profile doesn't exist, create a default one (auto-creation)
+    if (!profile) {
+      await createInfluencerProfile({
+        user_id: user._id,
+        social_media: {},
+        total_followers: 0,
+        avg_engagement_rate: 0,
+        content_categories: [],
+        total_earnings: 0,
+        available_balance: 0,
+        completed_campaigns: 0,
+        rating: 0,
+        reviews_count: 0,
+      } as any);
+
+      profile = await getInfluencerProfile(user._id);
+
+      logger.info("Influencer profile auto-created", {
+        userId: user._id.toString(),
+      });
+    }
 
     logger.debug("Influencer profile retrieved", {
       userId: user._id.toString(),
