@@ -6,6 +6,7 @@ import {
   handleApiError,
 } from "@/lib/api-response";
 import { validateRequest } from "@/lib/validations";
+import { withRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit";
 import { z } from "zod";
 
 // Validation schema for influencer recommendation request
@@ -21,8 +22,10 @@ const recommendInfluencersSchema = z.object({
  * POST /api/brand/recommend-influencers
  * Get AI-powered influencer recommendations based on criteria
  * Brand-only endpoint
+ *
+ * RATE LIMIT: 10 requests per minute per IP
  */
-export async function POST(req: Request) {
+async function recommendHandler(req: Request) {
   try {
     // Check authentication
     const session = await auth();
@@ -153,3 +156,6 @@ export async function POST(req: Request) {
     return handleApiError(error);
   }
 }
+
+// Export handler with rate limiting applied
+export const POST = withRateLimit(recommendHandler, RATE_LIMIT_CONFIGS.ai);

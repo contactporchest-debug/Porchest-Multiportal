@@ -1,5 +1,6 @@
 import "server-only";
 import { MongoClient } from "mongodb";
+import { logger } from "./logger";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -31,12 +32,17 @@ async function connectWithRetry(
       const isLastAttempt = attempt === maxRetries;
 
       if (isLastAttempt) {
-        console.error(`❌ MongoDB connection failed after ${maxRetries + 1} attempts:`, error);
+        logger.error(`MongoDB connection failed after ${maxRetries + 1} attempts`, error, {
+          attempts: maxRetries + 1,
+        });
         throw error;
       }
 
       const delay = baseDelay * Math.pow(2, attempt); // Exponential backoff: 2s, 4s, 8s, 16s
-      console.warn(`⚠️ MongoDB connection attempt ${attempt + 1} failed. Retrying in ${delay}ms...`);
+      logger.warn(`MongoDB connection attempt ${attempt + 1} failed. Retrying in ${delay}ms`, {
+        attempt: attempt + 1,
+        delay,
+      });
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
@@ -69,11 +75,11 @@ function getMongoClientPromise(): Promise<MongoClient> {
       const client = new MongoClient(uri, options);
       global._mongoClientPromise = connectWithRetry(client)
         .then((connectedClient) => {
-          console.log("✅ MongoDB Connected (development)");
+          logger.info("MongoDB Connected (development)");
           return connectedClient;
         })
         .catch((err) => {
-          console.error("❌ MongoDB connection failed:", err.message);
+          logger.error("MongoDB connection failed", err);
           throw err;
         });
     }
@@ -82,11 +88,11 @@ function getMongoClientPromise(): Promise<MongoClient> {
     const client = new MongoClient(uri, options);
     clientPromise = connectWithRetry(client)
       .then((connectedClient) => {
-        console.log("✅ MongoDB Connected (production)");
+        logger.info("MongoDB Connected (production)");
         return connectedClient;
       })
       .catch((err) => {
-        console.error("❌ MongoDB connection failed:", err.message);
+        logger.error("MongoDB connection failed", err);
         throw err;
       });
   }

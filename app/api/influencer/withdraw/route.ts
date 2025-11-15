@@ -8,6 +8,7 @@ import {
   handleApiError,
 } from "@/lib/api-response";
 import { validateRequest } from "@/lib/validations";
+import { withRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit";
 import { z } from "zod";
 
 // Validation schema for withdrawal request
@@ -28,8 +29,10 @@ const withdrawalSchema = z.object({
  * POST /api/influencer/withdraw
  * Create a withdrawal request (influencer only)
  * Uses MongoDB transaction to prevent race conditions
+ *
+ * RATE LIMIT: 5 requests per minute per IP
  */
-export async function POST(req: Request) {
+async function withdrawHandler(req: Request) {
   try {
     // Check authentication
     const session = await auth();
@@ -138,7 +141,7 @@ export async function POST(req: Request) {
  * GET /api/influencer/withdraw
  * Get withdrawal history (influencer only)
  */
-export async function GET(req: Request) {
+async function getWithdrawalsHandler(req: Request) {
   try {
     // Check authentication
     const session = await auth();
@@ -178,3 +181,7 @@ export async function GET(req: Request) {
     return handleApiError(error);
   }
 }
+
+// Export handlers with rate limiting applied
+export const POST = withRateLimit(withdrawHandler, RATE_LIMIT_CONFIGS.financial);
+export const GET = withRateLimit(getWithdrawalsHandler, RATE_LIMIT_CONFIGS.default);

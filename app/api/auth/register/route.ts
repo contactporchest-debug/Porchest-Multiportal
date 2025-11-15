@@ -7,14 +7,17 @@ import {
   createdResponse,
 } from "@/lib/api-response";
 import { validateRequest, registerSchema } from "@/lib/validations";
+import { withRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit";
 
 /**
  * POST /api/auth/register
  * Register a new user account
  * Brands and influencers require admin approval (PENDING status)
  * Clients and employees are activated immediately (ACTIVE status)
+ *
+ * RATE LIMIT: 3 requests per hour per IP
  */
-export async function POST(req: Request) {
+async function registerHandler(req: Request) {
   try {
     // Parse and validate request body
     const body = await req.json();
@@ -82,3 +85,6 @@ export async function POST(req: Request) {
     return handleApiError(error);
   }
 }
+
+// Export with rate limiting applied
+export const POST = withRateLimit(registerHandler, RATE_LIMIT_CONFIGS.register);
