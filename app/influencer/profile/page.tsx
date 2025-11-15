@@ -46,7 +46,7 @@ export default function ProfileManagement() {
 
   return (
     <PortalLayout
-      sidebarContent={<InfluencerSidebar />}
+      sidebar={<InfluencerSidebar />}
       title="Profile Management"
       userRole="Content Creator"
       breadcrumbs={[{ label: "Dashboard", href: "/influencer" }, { label: "Profile Management" }]}

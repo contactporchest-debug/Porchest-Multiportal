@@ -13,7 +13,7 @@ export function NotAuthorized({
       <p className="text-muted-foreground mt-2">{message}</p>
       <div className="mt-6">
         <Button asChild>
-          <Link href="/signin">Go to Sign In</Link>
+          <Link href="/login">Go to Sign In</Link>
         </Button>
       </div>
     </div>

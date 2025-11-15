@@ -1,55 +1,54 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import clientPromise from "@/lib/mongodb";
+import { collections, paginate, sanitizeDocuments } from "@/lib/db";
+import {
+  successResponse,
+  unauthorizedResponse,
+  handleApiError,
+  paginatedResponse,
+} from "@/lib/api-response";
+import { validateQuery, getUsersFilterSchema } from "@/lib/validations";
 
-// GET - List all users (admin only)
+/**
+ * GET /api/admin/users
+ * List all users with optional filters (admin only)
+ */
 export async function GET(req: Request) {
   try {
+    // Check authentication and authorization
     const session = await auth();
     if (!session || session.user.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      return unauthorizedResponse(
+        "Admin access required to view all users"
+      );
     }
 
+    // Parse and validate query parameters
     const { searchParams } = new URL(req.url);
-    const role = searchParams.get("role");
-    const status = searchParams.get("status");
+    const filters = validateQuery(getUsersFilterSchema, searchParams);
 
-    const client = await clientPromise;
-    const db = client.db("porchestDB");
+    // Build MongoDB filter (now type-safe and validated)
+    const filter: any = {};
+    if (filters.role) filter.role = filters.role;
+    if (filters.status) filter.status = filters.status;
 
-    // Build filter
-    let filter: any = {};
-    if (role) filter.role = role;
-    if (status) filter.status = status;
+    // Get paginated users
+    const usersCollection = await collections.users();
+    const result = await paginate(
+      usersCollection,
+      filter,
+      filters.page,
+      filters.limit,
+      { sort: { created_at: -1 } }
+    );
 
-    const users = await db
-      .collection("users")
-      .find(filter)
-      .sort({ created_at: -1 })
-      .toArray();
+    // Sanitize user data (removes sensitive fields)
+    const sanitizedUsers = sanitizeDocuments(result.items);
 
-    // Remove sensitive data
-    const sanitizedUsers = users.map((user) => ({
-      id: user._id.toString(),
-      full_name: user.full_name,
-      email: user.email,
-      role: user.role,
-      status: user.status,
-      verified: user.verified,
-      phone: user.phone,
-      company: user.company,
-      profile_completed: user.profile_completed,
-      created_at: user.created_at,
-      last_login: user.last_login,
-    }));
-
-    return NextResponse.json({
-      success: true,
-      users: sanitizedUsers,
-      total: sanitizedUsers.length,
+    return paginatedResponse({
+      items: sanitizedUsers,
+      pagination: result.pagination,
     });
   } catch (error) {
-    console.error("Get users error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error);
   }
 }

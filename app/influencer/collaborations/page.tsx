@@ -89,16 +89,16 @@ export default function CollaborationRequests() {
   const [selectedRequest, setSelectedRequest] = useState<any>(null)
 
   const handleAccept = (requestId: number) => {
-    console.log("Accepted request:", requestId)
+    // TODO: Implement API call to accept collaboration request
   }
 
   const handleDecline = (requestId: number) => {
-    console.log("Declined request:", requestId)
+    // TODO: Implement API call to decline collaboration request
   }
 
   return (
     <PortalLayout
-      sidebarContent={<InfluencerSidebar />}
+      sidebar={<InfluencerSidebar />}
       title="Collaboration Requests"
       userRole="Content Creator"
       breadcrumbs={[{ label: "Dashboard", href: "/influencer" }, { label: "Collaboration Requests" }]}

@@ -163,8 +163,7 @@ export default function CommunicationPage() {
 
   const sendMessage = () => {
     if (newMessage.trim()) {
-      // Handle sending message
-      console.log("[v0] Sending message:", newMessage)
+      // TODO: Implement API call to send message
       setNewMessage("")
     }
   }

@@ -91,7 +91,6 @@ export default function InfluencerDiscovery() {
         throw new Error(data.error);
       }
     } catch (error: any) {
-      console.error("Search error:", error);
       setChatHistory((prev) => [
         ...prev,
         {
@@ -107,7 +106,7 @@ export default function InfluencerDiscovery() {
 
   return (
     <PortalLayout
-      sidebarContent={<BrandSidebar />}
+      sidebar={<BrandSidebar />}
       title="AI Influencer Discovery"
       userRole="Brand Manager"
       breadcrumbs={[
@@ -271,12 +270,10 @@ export default function InfluencerDiscovery() {
                       key={influencer.id}
                       influencer={influencer}
                       onViewProfile={() => {
-                        // Handle view profile
-                        console.log("View profile:", influencer.id);
+                        // Handle view profile - TODO: implement modal or navigation
                       }}
                       onSendRequest={() => {
-                        // Handle send request
-                        console.log("Send request to:", influencer.id);
+                        // Handle send request - TODO: implement collaboration request
                       }}
                     />
                   ))}

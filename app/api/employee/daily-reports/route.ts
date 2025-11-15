@@ -1,122 +1,156 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import clientPromise from "@/lib/mongodb";
-import { ObjectId } from "mongodb";
+import { collections, getUserByEmail, toObjectId, sanitizeDocuments } from "@/lib/db";
+import {
+  successResponse,
+  unauthorizedResponse,
+  notFoundResponse,
+  conflictResponse,
+  handleApiError,
+  createdResponse,
+} from "@/lib/api-response";
+import { validateRequest, validateQuery } from "@/lib/validations";
+import { z } from "zod";
 
+// Validation schema for daily report submission
+const dailyReportSchema = z.object({
+  date: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "Invalid date format",
+  }),
+  projects_worked_on: z.array(z.string()).optional().default([]),
+  summary: z.string().min(10, "Summary must be at least 10 characters"),
+  blockers: z.string().optional().default(""),
+  achievements: z.array(z.string()).optional().default([]),
+  next_day_plan: z.string().optional().default(""),
+  total_hours: z.number().min(0).max(24, "Total hours must be between 0 and 24").optional().default(0),
+});
+
+// Validation schema for GET query params
+const getDailyReportsSchema = z.object({
+  employeeId: z.string().optional(),
+});
+
+/**
+ * POST /api/employee/daily-reports
+ * Submit a daily report (employee only)
+ * Uses unique index to prevent duplicate submissions for same date
+ */
 export async function POST(req: Request) {
   try {
+    // Check authentication
     const session = await auth();
-    if (!session || session.user.role !== "employee") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!session || !session.user || session.user.role !== "employee") {
+      return unauthorizedResponse("Employee access required");
     }
 
+    // Parse and validate request body
     const body = await req.json();
-    const {
-      date,
-      projects_worked_on,
-      summary,
-      blockers,
-      achievements,
-      next_day_plan,
-      total_hours,
-    } = body;
+    const validatedData = validateRequest(dailyReportSchema, body);
 
-    if (!date || !summary) {
-      return NextResponse.json(
-        { error: "Date and summary are required" },
-        { status: 400 }
-      );
-    }
-
-    const client = await clientPromise;
-    const db = client.db("porchestDB");
-
-    const user = await db.collection("users").findOne({ email: session.user.email });
+    // Get user
+    const user = await getUserByEmail(session.user.email!);
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return notFoundResponse("User");
     }
 
-    // Check if report already exists for this date
-    const existingReport = await db.collection("daily_reports").findOne({
-      employee_id: user._id,
-      date: new Date(date),
-    });
-
-    if (existingReport) {
-      return NextResponse.json(
-        { error: "Report already submitted for this date" },
-        { status: 400 }
-      );
-    }
+    // Parse date
+    const reportDate = new Date(validatedData.date);
+    reportDate.setHours(0, 0, 0, 0); // Normalize to start of day
 
     // Create report
-    const result = await db.collection("daily_reports").insertOne({
-      employee_id: user._id,
-      date: new Date(date),
-      projects_worked_on: projects_worked_on || [],
-      summary,
-      blockers: blockers || "",
-      achievements: achievements || [],
-      next_day_plan: next_day_plan || "",
-      total_hours: total_hours || 0,
-      status: "submitted",
-      created_at: new Date(),
-    });
+    // NOTE: MongoDB should have a unique index on {employee_id: 1, date: 1}
+    // This prevents duplicate submissions at the database level
+    const dailyReportsCollection = await collections.dailyReports();
 
-    return NextResponse.json({
-      success: true,
-      report_id: result.insertedId.toString(),
-      message: "Daily report submitted successfully",
-    });
+    try {
+      const result = await dailyReportsCollection.insertOne({
+        employee_id: user._id,
+        date: reportDate,
+        projects_worked_on: validatedData.projects_worked_on?.map(id => toObjectId(id)!),
+        summary: validatedData.summary,
+        blockers: validatedData.blockers,
+        achievements: validatedData.achievements,
+        next_day_plan: validatedData.next_day_plan,
+        total_hours: validatedData.total_hours,
+        status: "submitted",
+        created_at: new Date(),
+        updated_at: new Date(),
+      } as any);
+
+      return createdResponse({
+        message: "Daily report submitted successfully",
+        report_id: result.insertedId.toString(),
+        date: reportDate.toISOString(),
+      });
+    } catch (error: any) {
+      // Handle MongoDB duplicate key error (E11000)
+      if (error.code === 11000) {
+        return conflictResponse(
+          `You have already submitted a daily report for ${reportDate.toLocaleDateString()}`
+        );
+      }
+      throw error;
+    }
   } catch (error) {
-    console.error("Submit daily report error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error);
   }
 }
 
+/**
+ * GET /api/employee/daily-reports
+ * Get daily reports
+ * - Employees can only see their own reports
+ * - Admins can see all reports or filter by employee
+ */
 export async function GET(req: Request) {
   try {
+    // Check authentication
     const session = await auth();
-    if (!session || !["employee", "admin"].includes(session.user.role)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!session || !session.user || !["employee", "admin"].includes(session.user.role)) {
+      return unauthorizedResponse("Employee or admin access required");
     }
 
+    // Parse and validate query parameters
     const { searchParams } = new URL(req.url);
-    const employeeId = searchParams.get("employeeId");
+    const queryParams = validateQuery(getDailyReportsSchema, searchParams);
 
-    const client = await clientPromise;
-    const db = client.db("porchestDB");
-
-    const user = await db.collection("users").findOne({ email: session.user.email });
+    // Get user
+    const user = await getUserByEmail(session.user.email!);
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return notFoundResponse("User");
     }
 
-    // Build filter
-    let filter: any = {};
+    // Build filter based on role
+    const filter: Record<string, any> = {};
+
     if (session.user.role === "employee") {
+      // Employees can only see their own reports
       filter.employee_id = user._id;
-    } else if (employeeId) {
-      filter.employee_id = new ObjectId(employeeId);
+    } else if (session.user.role === "admin" && queryParams.employeeId) {
+      // Admins can filter by specific employee
+      const employeeObjectId = toObjectId(queryParams.employeeId);
+      if (!employeeObjectId) {
+        return notFoundResponse("Employee");
+      }
+      filter.employee_id = employeeObjectId;
     }
+    // If admin without filter, return all reports (no filter)
 
-    const reports = await db
-      .collection("daily_reports")
+    // Get daily reports
+    const dailyReportsCollection = await collections.dailyReports();
+    const reports = await dailyReportsCollection
       .find(filter)
       .sort({ date: -1 })
-      .limit(30)
+      .limit(30) // Limit to 30 most recent reports
       .toArray();
 
-    return NextResponse.json({
-      success: true,
-      reports: reports.map((r) => ({
-        ...r,
-        _id: r._id.toString(),
-        employee_id: r.employee_id.toString(),
-      })),
+    // Sanitize reports
+    const sanitizedReports = sanitizeDocuments(reports);
+
+    return successResponse({
+      reports: sanitizedReports,
+      count: sanitizedReports.length,
     });
   } catch (error) {
-    console.error("Get daily reports error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error);
   }
 }

@@ -1,14 +1,11 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Menu, Bell } from "lucide-react"
 import { UserNav } from "@/components/user-nav"
-import { jwtDecode } from "jwt-decode"
-
-
 
 export interface PortalLayoutProps {
   children: React.ReactNode
@@ -26,37 +23,6 @@ export function PortalLayout({
   breadcrumbs,
 }: PortalLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-
-  // ✅ Decode JWT from localStorage or cookie
-  useEffect(() => {
-    try {
-      const token =
-        localStorage.getItem("token") ||
-        document.cookie
-          .split("; ")
-          .find((row) => row.startsWith("token="))
-          ?.split("=")[1]
-
-      if (token) {
-        const decoded: any = jwtDecode(token)
-        setUser(decoded)
-      }
-    } catch (err) {
-      console.error("Invalid token:", err)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-      </div>
-    )
-  }
 
   const roleDisplay = (r?: string) => {
     if (!r) return ""
@@ -95,10 +61,10 @@ export function PortalLayout({
 
           <div className="flex items-center space-x-4">
             <div className="font-bold text-xl text-primary">Porchest</div>
-            {(userRole || user) && (
+            {userRole && (
               <div className="hidden sm:block">
                 <span className="text-sm text-muted-foreground">
-                  {userRole || roleDisplay(user?.role)} Portal
+                  {roleDisplay(userRole)} Portal
                 </span>
               </div>
             )}

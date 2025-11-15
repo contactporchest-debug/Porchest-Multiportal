@@ -1,103 +1,187 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import clientPromise from "@/lib/mongodb";
+import { collections, toObjectId, withTransaction, getUserByEmail, sanitizeDocument } from "@/lib/db";
+import {
+  successResponse,
+  unauthorizedResponse,
+  notFoundResponse,
+  badRequestResponse,
+  handleApiError,
+} from "@/lib/api-response";
+import { validateRequest } from "@/lib/validations";
+import { withRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit";
+import { z } from "zod";
 
-export async function POST(req: Request) {
+// Validation schema for withdrawal request
+const withdrawalSchema = z.object({
+  amount: z.number().positive("Amount must be positive").min(1, "Minimum withdrawal is $1"),
+  payment_method: z.enum(["bank_transfer", "paypal", "stripe"], {
+    errorMap: () => ({ message: "Invalid payment method" }),
+  }),
+  payment_details: z.object({
+    account_number: z.string().optional(),
+    routing_number: z.string().optional(),
+    paypal_email: z.string().email().optional(),
+    stripe_account_id: z.string().optional(),
+  }).optional(),
+});
+
+/**
+ * POST /api/influencer/withdraw
+ * Create a withdrawal request (influencer only)
+ * Uses MongoDB transaction to prevent race conditions
+ *
+ * RATE LIMIT: 5 requests per minute per IP
+ */
+async function withdrawHandler(req: Request) {
   try {
+    // Check authentication
     const session = await auth();
-    if (!session || session.user.role !== "influencer") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!session || !session.user || session.user.role !== "influencer") {
+      return unauthorizedResponse("Influencer access required");
     }
 
-    const { amount, payment_method, payment_details } = await req.json();
+    // Parse and validate request body
+    const body = await req.json();
+    const validatedData = validateRequest(withdrawalSchema, body);
 
-    if (!amount || !payment_method) {
-      return NextResponse.json(
-        { error: "Amount and payment method are required" },
-        { status: 400 }
-      );
-    }
-
-    const client = await clientPromise;
-    const db = client.db("porchestDB");
-
-    const user = await db.collection("users").findOne({ email: session.user.email });
+    // Get user
+    const user = await getUserByEmail(session.user.email!);
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return notFoundResponse("User");
     }
 
-    // Get influencer profile
-    const profile = await db.collection("influencer_profiles").findOne({ user_id: user._id });
-    if (!profile) {
-      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
-    }
+    // --- USE TRANSACTION TO PREVENT RACE CONDITIONS --- //
+    // This ensures atomic execution:
+    // 1. Check balance
+    // 2. Create transaction record
+    // 3. Update balance
+    // If any step fails, entire operation is rolled back
+    const transactionId = await withTransaction(async (mongoSession) => {
+      const profilesCollection = await collections.influencerProfiles();
+      const transactionsCollection = await collections.transactions();
 
-    // Check balance
-    if (profile.available_balance < amount) {
-      return NextResponse.json({ error: "Insufficient balance" }, { status: 400 });
-    }
+      // Get influencer profile with lock (within transaction)
+      const profile = await profilesCollection.findOne(
+        { user_id: user._id },
+        { session: mongoSession }
+      );
 
-    // Create transaction
-    const result = await db.collection("transactions").insertOne({
-      user_id: user._id,
-      type: "withdrawal",
-      amount,
-      currency: "USD",
-      status: "pending",
-      payment_method,
-      payment_details,
-      description: `Withdrawal request - ${payment_method}`,
-      created_at: new Date(),
+      if (!profile) {
+        throw new Error("Profile not found");
+      }
+
+      // Check balance
+      const availableBalance = profile.available_balance || 0;
+      if (availableBalance < validatedData.amount) {
+        throw new Error(
+          `Insufficient balance. Available: $${availableBalance.toFixed(2)}, Requested: $${validatedData.amount.toFixed(2)}`
+        );
+      }
+
+      // Create transaction record
+      const transactionResult = await transactionsCollection.insertOne(
+        {
+          user_id: user._id,
+          type: "withdrawal",
+          amount: validatedData.amount,
+          currency: "USD",
+          status: "pending",
+          payment_method: validatedData.payment_method,
+          payment_details: validatedData.payment_details,
+          description: `Withdrawal request - ${validatedData.payment_method}`,
+          created_at: new Date(),
+          updated_at: new Date(),
+        } as any,
+        { session: mongoSession }
+      );
+
+      // Update profile balance (atomic decrement)
+      const updateResult = await profilesCollection.updateOne(
+        { user_id: user._id },
+        {
+          $inc: { available_balance: -validatedData.amount },
+          $set: { updated_at: new Date() },
+        },
+        { session: mongoSession }
+      );
+
+      if (updateResult.modifiedCount === 0) {
+        throw new Error("Failed to update balance");
+      }
+
+      return transactionResult.insertedId;
     });
 
-    // Update profile balance
-    await db.collection("influencer_profiles").updateOne(
-      { user_id: user._id },
-      { $inc: { available_balance: -amount } }
+    // Transaction successful
+    return successResponse(
+      {
+        message: "Withdrawal request submitted successfully",
+        transaction_id: transactionId.toString(),
+        amount: validatedData.amount,
+        status: "pending",
+      },
+      201
     );
-
-    return NextResponse.json({
-      success: true,
-      transaction_id: result.insertedId.toString(),
-      message: "Withdrawal request submitted successfully",
-    });
   } catch (error) {
-    console.error("Withdrawal error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    // Handle specific errors
+    if (error instanceof Error) {
+      if (error.message.includes("Insufficient balance")) {
+        return badRequestResponse(error.message);
+      }
+      if (error.message.includes("Profile not found")) {
+        return notFoundResponse("Influencer profile");
+      }
+    }
+
+    return handleApiError(error);
   }
 }
 
-export async function GET() {
+/**
+ * GET /api/influencer/withdraw
+ * Get withdrawal history (influencer only)
+ */
+async function getWithdrawalsHandler(req: Request) {
   try {
+    // Check authentication
     const session = await auth();
-    if (!session || session.user.role !== "influencer") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!session || !session.user || session.user.role !== "influencer") {
+      return unauthorizedResponse("Influencer access required");
     }
 
-    const client = await clientPromise;
-    const db = client.db("porchestDB");
-
-    const user = await db.collection("users").findOne({ email: session.user.email });
+    // Get user
+    const user = await getUserByEmail(session.user.email!);
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return notFoundResponse("User");
     }
 
-    const transactions = await db
-      .collection("transactions")
+    // Get withdrawal transactions
+    const transactionsCollection = await collections.transactions();
+    const transactions = await transactionsCollection
       .find({ user_id: user._id, type: "withdrawal" })
       .sort({ created_at: -1 })
+      .limit(50) // Limit to 50 most recent
       .toArray();
 
-    return NextResponse.json({
-      success: true,
-      transactions: transactions.map((t) => ({
-        ...t,
-        _id: t._id.toString(),
-        user_id: t.user_id.toString(),
-      })),
+    // Sanitize transactions (remove sensitive payment details in list view)
+    const sanitizedTransactions = transactions.map((t) => {
+      const sanitized = sanitizeDocument(t);
+      // Remove detailed payment info from list view
+      if (sanitized.payment_details) {
+        delete sanitized.payment_details;
+      }
+      return sanitized;
+    });
+
+    return successResponse({
+      transactions: sanitizedTransactions,
+      count: sanitizedTransactions.length,
     });
   } catch (error) {
-    console.error("Get withdrawals error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error);
   }
 }
+
+// Export handlers with rate limiting applied
+export const POST = withRateLimit(withdrawHandler, RATE_LIMIT_CONFIGS.financial);
+export const GET = withRateLimit(getWithdrawalsHandler, RATE_LIMIT_CONFIGS.default);

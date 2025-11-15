@@ -75,7 +75,7 @@ export const authConfig: NextAuthConfig = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account }) {
       // For OAuth providers, check if user needs admin approval
       if (account?.provider === "google") {
         const client = await clientPromise;
@@ -95,6 +95,21 @@ export const authConfig: NextAuthConfig = {
       }
 
       return true;
+    },
+    async redirect({ url, baseUrl }) {
+      // Always redirect to /portal after successful sign in
+      // The /portal page will handle role-based routing
+      if (url === baseUrl || url === `${baseUrl}/` || url.includes("/api/auth")) {
+        return `${baseUrl}/portal`;
+      }
+
+      // If signing in from a specific page, redirect to /portal
+      if (url.startsWith(baseUrl)) {
+        return `${baseUrl}/portal`;
+      }
+
+      // Default to portal
+      return `${baseUrl}/portal`;
     },
     async jwt({ token, user, trigger, session }) {
       if (user) {
@@ -120,7 +135,7 @@ export const authConfig: NextAuthConfig = {
     },
   },
   pages: {
-    signIn: "/auth/login",
+    signIn: "/login",
     signOut: "/auth/logout",
     error: "/auth/error",
     newUser: "/auth/welcome",

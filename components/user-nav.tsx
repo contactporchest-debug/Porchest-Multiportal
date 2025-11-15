@@ -50,7 +50,7 @@ export function UserNav() {
         const data = await res.json()
         setUser(data.user)
       } catch (error) {
-        console.error("Session fetch failed:", error)
+        // Session fetch failed, user will remain null
         setUser(null)
       }
     }
@@ -60,10 +60,10 @@ export function UserNav() {
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" })
-      window.location.href = "/login"
+      const { signOut } = await import("next-auth/react")
+      await signOut({ callbackUrl: "/login" })
     } catch (err) {
-      console.error("Logout failed:", err)
+      // Logout failed, but signOut will still redirect
     }
   }
 

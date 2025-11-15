@@ -1,10 +1,10 @@
 // Shared types that can be used on both client and server
 // This file must NOT import any server-only modules
 
-export type UserRole = "brand" | "influencer" | "client" | "employee" | "admin";
+// Re-export common types from db-types for convenience
+export type { UserRole, UserStatus } from "@/lib/db-types";
 
-export type UserStatus = "PENDING" | "ACTIVE" | "REJECTED" | "SUSPENDED";
-
+// Client-safe User interface (for session data, UI components)
 export interface User {
   id: string;
   email: string;
@@ -13,3 +13,13 @@ export interface User {
   status?: UserStatus;
   image?: string | null;
 }
+
+// Re-export campaign and collaboration status types
+export type {
+  CampaignStatus,
+  CollaborationStatus,
+  ProjectStatus,
+  TransactionType,
+  TransactionStatus,
+  NotificationType,
+} from "@/lib/db-types";

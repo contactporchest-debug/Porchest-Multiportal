@@ -1,149 +1,166 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import clientPromise from "@/lib/mongodb";
-import { ObjectId } from "mongodb";
+import { collections, toObjectId, sanitizeDocument, getUserById } from "@/lib/db";
+import {
+  successResponse,
+  unauthorizedResponse,
+  notFoundResponse,
+  forbiddenResponse,
+  handleApiError,
+  noContentResponse,
+} from "@/lib/api-response";
+import { validateRequest, updateCampaignSchema, objectIdSchema } from "@/lib/validations";
 
-// GET - Get campaign by ID
+/**
+ * GET /api/brand/campaigns/[id]
+ * Get a single campaign by ID (brand only, must own the campaign)
+ */
 export async function GET(
   req: Request,
   { params }: { params: { id: string } }
 ) {
   try {
+    // Check authentication
     const session = await auth();
     if (!session || session.user.role !== "brand") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      return unauthorizedResponse("Brand access required");
     }
 
-    const client = await clientPromise;
-    const db = client.db("porchestDB");
+    // Validate campaign ID
+    const campaignId = toObjectId(params.id);
+    if (!campaignId) {
+      return notFoundResponse("Campaign");
+    }
 
-    const campaign = await db.collection("campaigns").findOne({
-      _id: new ObjectId(params.id),
-    });
+    // Get campaign
+    const campaignsCollection = await collections.campaigns();
+    const campaign = await campaignsCollection.findOne({ _id: campaignId });
 
     if (!campaign) {
-      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+      return notFoundResponse("Campaign");
     }
 
-    // Verify ownership
-    const user = await db.collection("users").findOne({ email: session.user.email });
-    if (campaign.brand_id.toString() !== user?._id.toString()) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // Verify ownership - check brand_id matches user's ID
+    const user = await getUserById(session.user.id);
+    if (!user || campaign.brand_id.toString() !== user._id.toString()) {
+      return forbiddenResponse("You don't have access to this campaign");
     }
 
-    return NextResponse.json({
-      success: true,
-      campaign: {
-        ...campaign,
-        _id: campaign._id.toString(),
-        brand_id: campaign.brand_id.toString(),
-      },
-    });
+    // Sanitize and return
+    return successResponse(sanitizeDocument(campaign));
   } catch (error) {
-    console.error("Get campaign error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }
 
-// PUT - Update campaign
+/**
+ * PUT /api/brand/campaigns/[id]
+ * Update a campaign (brand only, must own the campaign)
+ */
 export async function PUT(
   req: Request,
   { params }: { params: { id: string } }
 ) {
   try {
+    // Check authentication
     const session = await auth();
     if (!session || session.user.role !== "brand") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      return unauthorizedResponse("Brand access required");
     }
 
-    const body = await req.json();
-    const client = await clientPromise;
-    const db = client.db("porchestDB");
+    // Validate campaign ID
+    const campaignId = toObjectId(params.id);
+    if (!campaignId) {
+      return notFoundResponse("Campaign");
+    }
 
-    // Verify ownership
-    const campaign = await db.collection("campaigns").findOne({
-      _id: new ObjectId(params.id),
-    });
+    // Parse and validate request body
+    const body = await req.json();
+    const validatedData = validateRequest(updateCampaignSchema, body);
+
+    // Get campaign and verify ownership
+    const campaignsCollection = await collections.campaigns();
+    const campaign = await campaignsCollection.findOne({ _id: campaignId });
 
     if (!campaign) {
-      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+      return notFoundResponse("Campaign");
     }
 
-    const user = await db.collection("users").findOne({ email: session.user.email });
-    if (campaign.brand_id.toString() !== user?._id.toString()) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const user = await getUserById(session.user.id);
+    if (!user || campaign.brand_id.toString() !== user._id.toString()) {
+      return forbiddenResponse("You don't have access to this campaign");
     }
 
-    // Update campaign
-    const { _id, brand_id, created_at, ...updateData } = body;
-    await db.collection("campaigns").updateOne(
-      { _id: new ObjectId(params.id) },
+    // Update campaign with validated data only
+    const result = await campaignsCollection.updateOne(
+      { _id: campaignId },
       {
         $set: {
-          ...updateData,
+          ...validatedData,
           updated_at: new Date(),
-        },
+        } as any,
       }
     );
 
-    return NextResponse.json({
-      success: true,
+    if (result.modifiedCount === 0) {
+      return successResponse({ message: "No changes made" });
+    }
+
+    // Get updated campaign
+    const updatedCampaign = await campaignsCollection.findOne({ _id: campaignId });
+
+    return successResponse({
       message: "Campaign updated successfully",
+      campaign: sanitizeDocument(updatedCampaign!),
     });
   } catch (error) {
-    console.error("Update campaign error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }
 
-// DELETE - Delete campaign
+/**
+ * DELETE /api/brand/campaigns/[id]
+ * Delete a campaign (brand only, must own the campaign)
+ */
 export async function DELETE(
   req: Request,
   { params }: { params: { id: string } }
 ) {
   try {
+    // Check authentication
     const session = await auth();
     if (!session || session.user.role !== "brand") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      return unauthorizedResponse("Brand access required");
     }
 
-    const client = await clientPromise;
-    const db = client.db("porchestDB");
+    // Validate campaign ID
+    const campaignId = toObjectId(params.id);
+    if (!campaignId) {
+      return notFoundResponse("Campaign");
+    }
 
-    // Verify ownership
-    const campaign = await db.collection("campaigns").findOne({
-      _id: new ObjectId(params.id),
-    });
+    // Get campaign and verify ownership
+    const campaignsCollection = await collections.campaigns();
+    const campaign = await campaignsCollection.findOne({ _id: campaignId });
 
     if (!campaign) {
-      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+      return notFoundResponse("Campaign");
     }
 
-    const user = await db.collection("users").findOne({ email: session.user.email });
-    if (campaign.brand_id.toString() !== user?._id.toString()) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const user = await getUserById(session.user.id);
+    if (!user || campaign.brand_id.toString() !== user._id.toString()) {
+      return forbiddenResponse("You don't have access to this campaign");
     }
 
     // Delete campaign
-    await db.collection("campaigns").deleteOne({
-      _id: new ObjectId(params.id),
-    });
+    await campaignsCollection.deleteOne({ _id: campaignId });
 
-    return NextResponse.json({
-      success: true,
-      message: "Campaign deleted successfully",
-    });
+    // Note: In production, you might want to:
+    // - Soft delete instead of hard delete
+    // - Check if campaign has active collaborations
+    // - Clean up related data (collaboration requests, etc.)
+
+    return noContentResponse();
   } catch (error) {
-    console.error("Delete campaign error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }

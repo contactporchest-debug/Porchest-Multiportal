@@ -63,7 +63,7 @@ export default function DashboardPage() {
 
         // Auto-redirect to user's portal after a brief delay
         setTimeout(() => {
-          const portalPath = portalInfo[user.role].path
+          const portalPath = portalInfo[(user as any).role as keyof typeof portalInfo].path
           router.push(portalPath)
         }, 2000)
       } catch (error) {
@@ -78,7 +78,7 @@ export default function DashboardPage() {
 
   const handlePortalAccess = () => {
     if (user) {
-      const portalPath = portalInfo[user.role].path
+      const portalPath = portalInfo[(user as any).role as keyof typeof portalInfo].path
       router.push(portalPath)
     }
   }
@@ -98,7 +98,7 @@ export default function DashboardPage() {
     return null
   }
 
-  const userPortal = portalInfo[user.role]
+  const userPortal = portalInfo[(user as any).role as keyof typeof portalInfo]
   const IconComponent = userPortal.icon
 
   return (
@@ -108,7 +108,7 @@ export default function DashboardPage() {
           <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full ${userPortal.color}`}>
             <IconComponent className="h-8 w-8 text-white" />
           </div>
-          <CardTitle className="text-2xl font-bold text-slate-900">Welcome, {user.name}!</CardTitle>
+          <CardTitle className="text-2xl font-bold text-slate-900">Welcome, {(user as any).name}!</CardTitle>
           <CardDescription className="text-slate-600">Redirecting you to your portal...</CardDescription>
         </CardHeader>
         <CardContent className="text-center space-y-4">

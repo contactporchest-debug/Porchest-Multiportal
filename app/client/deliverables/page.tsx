@@ -135,7 +135,7 @@ export default function DeliverablesPage() {
 
   return (
     <PortalLayout
-      sidebarContent={<ClientSidebar />}
+      sidebar={<ClientSidebar />}
       title="Deliverables Dashboard"
       userRole="Client"
       breadcrumbs={[{ label: "Dashboard", href: "/client" }, { label: "Deliverables" }]}

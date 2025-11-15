@@ -1,26 +1,26 @@
 // app/(shared)/ProtectedLayout.tsx
-import { verifyToken } from "@/lib/verifyToken"
+import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 
-export default function ProtectedLayout({
+export default async function ProtectedLayout({
   children,
   allowedRole,
 }: {
   children: React.ReactNode
   allowedRole: string
 }) {
-  // Verify the token from cookies (we made this in lib/verifyToken.ts)
-  const session = verifyToken()
+  // Verify authentication using NextAuth
+  const session = await auth()
 
   // 🔒 If no session → user not logged in
-  if (!session) {
-    redirect("/login") // send them to login page
+  if (!session || !session.user) {
+    redirect("/login")
   }
 
   // 🔍 Check if role matches
-  const userRole = session.role?.toLowerCase()
+  const userRole = session.user.role?.toLowerCase()
   if (userRole !== allowedRole.toLowerCase()) {
-    redirect("/unauthorized") // redirect if wrong role
+    redirect("/unauthorized")
   }
 
   // ✅ If user is logged in and role matches, render the portal content

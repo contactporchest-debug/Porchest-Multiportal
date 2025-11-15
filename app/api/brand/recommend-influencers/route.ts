@@ -1,45 +1,66 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import clientPromise from "@/lib/mongodb";
-import { ObjectId } from "mongodb";
+import { collections, sanitizeDocuments } from "@/lib/db";
+import {
+  successResponse,
+  unauthorizedResponse,
+  handleApiError,
+} from "@/lib/api-response";
+import { validateRequest } from "@/lib/validations";
+import { withRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit";
+import { z } from "zod";
 
-export async function POST(req: Request) {
+// Validation schema for influencer recommendation request
+const recommendInfluencersSchema = z.object({
+  query: z.string().optional(),
+  budget: z.number().positive().optional(),
+  targetAudience: z.string().optional(),
+  categories: z.array(z.string()).optional().default([]),
+  platform: z.enum(["instagram", "tiktok", "youtube", "twitter", "linkedin"]).optional(),
+});
+
+/**
+ * POST /api/brand/recommend-influencers
+ * Get AI-powered influencer recommendations based on criteria
+ * Brand-only endpoint
+ *
+ * RATE LIMIT: 10 requests per minute per IP
+ */
+async function recommendHandler(req: Request) {
   try {
-    // Check if user is a brand
+    // Check authentication
     const session = await auth();
-    if (!session || session.user.role !== "brand") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!session || !session.user || session.user.role !== "brand") {
+      return unauthorizedResponse("Brand access required");
     }
 
-    const { query, budget, targetAudience, categories, platform } = await req.json();
+    // Parse and validate request body
+    const body = await req.json();
+    const validatedData = validateRequest(recommendInfluencersSchema, body);
 
-    const client = await clientPromise;
-    const db = client.db("porchestDB");
-
-    // Build filter based on criteria
-    const filter: any = {};
+    // Build MongoDB filter based on validated criteria
+    const filter: Record<string, any> = {};
 
     // Filter by platform if specified
-    if (platform) {
-      filter[`social_media.${platform.toLowerCase()}.followers`] = { $gt: 0 };
+    if (validatedData.platform) {
+      filter[`social_media.${validatedData.platform.toLowerCase()}.followers`] = { $gt: 0 };
     }
 
     // Filter by categories if specified
-    if (categories && categories.length > 0) {
-      filter.content_categories = { $in: categories };
+    if (validatedData.categories && validatedData.categories.length > 0) {
+      filter.content_categories = { $in: validatedData.categories };
     }
 
-    // Get influencer profiles
-    const influencerProfiles = await db
-      .collection("influencer_profiles")
+    // Get influencer profiles from database
+    const influencerProfilesCollection = await collections.influencerProfiles();
+    const influencerProfiles = await influencerProfilesCollection
       .find(filter)
       .limit(20)
       .toArray();
 
     // Get user data for each influencer
     const influencerIds = influencerProfiles.map((p) => p.user_id);
-    const users = await db
-      .collection("users")
+    const usersCollection = await collections.users();
+    const users = await usersCollection
       .find({
         _id: { $in: influencerIds },
         status: "ACTIVE",
@@ -50,42 +71,52 @@ export async function POST(req: Request) {
     // Create a map for quick user lookup
     const userMap = new Map(users.map((u) => [u._id.toString(), u]));
 
-    // Combine and score influencers
+    // Combine profiles with user data and calculate relevance scores
     const recommendations = influencerProfiles
       .map((profile) => {
         const user = userMap.get(profile.user_id.toString());
         if (!user) return null;
 
-        // Calculate relevance score (simple algorithm)
+        // --- RELEVANCE SCORE ALGORITHM --- //
+        // Calculate a weighted score based on multiple factors (0-100)
         let score = 0;
 
-        // Budget match
-        if (budget && profile.pricing?.post) {
-          if (profile.pricing.post <= budget) {
+        // 1. Budget match (30 points max)
+        if (validatedData.budget && profile.pricing?.post) {
+          if (profile.pricing.post <= validatedData.budget) {
             score += 30;
+          } else {
+            // Partial points if within 20% of budget
+            const priceDiff = (profile.pricing.post - validatedData.budget) / validatedData.budget;
+            if (priceDiff < 0.2) {
+              score += 15;
+            }
           }
         }
 
-        // Engagement rate score
+        // 2. Engagement rate (30 points max)
+        // Higher engagement rates get more points
         if (profile.avg_engagement_rate) {
           score += Math.min(profile.avg_engagement_rate * 10, 30);
         }
 
-        // Follower count score
+        // 3. Follower count (20 points max)
+        // Scaled logarithmically to balance micro and macro influencers
         if (profile.total_followers) {
-          score += Math.min(profile.total_followers / 10000, 20);
+          score += Math.min(Math.log10(profile.total_followers) * 5, 20);
         }
 
-        // Rating score
+        // 4. Rating (20 points max)
         if (profile.rating) {
-          score += profile.rating * 4;
+          score += profile.rating * 4; // Rating is 0-5, so * 4 = 0-20 points
         }
 
-        // Calculate estimated ROI
+        // --- ESTIMATED ROI CALCULATION --- //
         const estimatedReach = profile.total_followers || 0;
         const engagementRate = profile.avg_engagement_rate || 0;
         const estimatedEngagement = estimatedReach * (engagementRate / 100);
-        const estimatedROI = profile.predicted_roi || (estimatedEngagement / (profile.pricing?.post || 1)) * 100;
+        const postPrice = profile.pricing?.post || 1;
+        const estimatedROI = profile.predicted_roi || (estimatedEngagement / postPrice) * 100;
 
         return {
           id: profile._id.toString(),
@@ -103,25 +134,28 @@ export async function POST(req: Request) {
           rating: profile.rating,
           completedCampaigns: profile.completed_campaigns,
           demographics: profile.demographics,
-          predictedROI: estimatedROI,
+          predictedROI: Math.round(estimatedROI * 100) / 100, // Round to 2 decimals
           predictedReach: estimatedReach,
-          relevanceScore: score,
+          relevanceScore: Math.round(score * 100) / 100, // Round to 2 decimals
         };
       })
-      .filter(Boolean)
-      .sort((a, b) => (b?.relevanceScore || 0) - (a?.relevanceScore || 0))
-      .slice(0, 12);
+      .filter((rec): rec is NonNullable<typeof rec> => rec !== null)
+      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .slice(0, 12); // Return top 12 recommendations
 
-    return NextResponse.json({
-      success: true,
+    return successResponse({
       recommendations,
       total: recommendations.length,
+      filters: {
+        budget: validatedData.budget,
+        platform: validatedData.platform,
+        categories: validatedData.categories,
+      },
     });
   } catch (error) {
-    console.error("Influencer recommendation error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }
+
+// Export handler with rate limiting applied
+export const POST = withRateLimit(recommendHandler, RATE_LIMIT_CONFIGS.ai);

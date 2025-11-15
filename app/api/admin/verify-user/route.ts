@@ -1,88 +1,121 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import clientPromise from "@/lib/mongodb";
-import { ObjectId } from "mongodb";
+import { collections, toObjectId, getUserByEmail } from "@/lib/db";
+import {
+  successResponse,
+  unauthorizedResponse,
+  notFoundResponse,
+  badRequestResponse,
+  handleApiError,
+} from "@/lib/api-response";
+import { validateRequest } from "@/lib/validations";
+import { withRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
+import { z } from "zod";
 
-export async function POST(req: Request) {
+// Validation schema for user verification
+const verifyUserSchema = z.object({
+  userId: z.string().min(1, "User ID is required"),
+  action: z.enum(["approve", "reject"], {
+    errorMap: () => ({ message: "Action must be 'approve' or 'reject'" }),
+  }),
+  reason: z.string().optional(),
+});
+
+/**
+ * POST /api/admin/verify-user
+ * Approve or reject a pending user (admin only)
+ *
+ * RATE LIMIT: 100 requests per minute per IP
+ */
+async function verifyUserHandler(req: Request) {
   try {
-    // Check if user is admin
+    // Check authentication
     const session = await auth();
-    if (!session || session.user.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!session || !session.user || session.user.role !== "admin") {
+      return unauthorizedResponse("Admin access required");
     }
 
-    const { userId, action, reason } = await req.json();
+    // Parse and validate request body
+    const body = await req.json();
+    const validatedData = validateRequest(verifyUserSchema, body);
 
-    if (!userId || !action) {
-      return NextResponse.json(
-        { error: "User ID and action are required" },
-        { status: 400 }
-      );
+    // Convert userId to ObjectId
+    const userObjectId = toObjectId(validatedData.userId);
+    if (!userObjectId) {
+      return badRequestResponse("Invalid user ID format");
     }
 
-    if (!["approve", "reject"].includes(action)) {
-      return NextResponse.json(
-        { error: "Action must be 'approve' or 'reject'" },
-        { status: 400 }
-      );
-    }
-
-    const client = await clientPromise;
-    const db = client.db("porchestDB");
+    // Get users collection
+    const usersCollection = await collections.users();
 
     // Check if user exists
-    const user = await db.collection("users").findOne({
-      _id: new ObjectId(userId),
-    });
+    const user = await usersCollection.findOne({ _id: userObjectId });
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return notFoundResponse("User");
+    }
+
+    // Get admin user for audit trail
+    const adminUser = await getUserByEmail(session.user.email!);
+    if (!adminUser) {
+      logger.error("Admin user not found in database", undefined, {
+        email: session.user.email,
+      });
+      return notFoundResponse("Admin user");
     }
 
     // Update user status
-    const updateData: any = {
+    const updateData: Record<string, any> = {
       updated_at: new Date(),
-      approved_by: new ObjectId(session.user.id),
+      approved_by: adminUser._id,
       approved_at: new Date(),
     };
 
-    if (action === "approve") {
+    if (validatedData.action === "approve") {
       updateData.status = "ACTIVE";
       updateData.verified = true;
       updateData.verified_at = new Date();
     } else {
       updateData.status = "REJECTED";
-      updateData.rejection_reason = reason || "No reason provided";
+      updateData.rejection_reason = validatedData.reason || "No reason provided";
     }
 
-    const result = await db.collection("users").updateOne(
-      { _id: new ObjectId(userId) },
+    const result = await usersCollection.updateOne(
+      { _id: userObjectId },
       { $set: updateData }
     );
 
     if (result.modifiedCount === 0) {
-      return NextResponse.json(
-        { error: "Failed to update user" },
-        { status: 500 }
-      );
+      logger.warn("Failed to update user verification status", {
+        userId: validatedData.userId,
+        action: validatedData.action,
+      });
+      return badRequestResponse("Failed to update user status");
     }
 
-    // TODO: Send email notification to user
-    // You can implement this later with nodemailer
+    // Log the action
+    logger.info(`User ${validatedData.action}d successfully`, {
+      userId: validatedData.userId,
+      action: validatedData.action,
+      adminEmail: session.user.email,
+      userEmail: user.email,
+    });
 
-    return NextResponse.json({
-      success: true,
-      message: `User ${action === "approve" ? "approved" : "rejected"} successfully`,
+    // TODO: Send email notification to user
+    // This should be implemented with nodemailer in a future phase
+
+    return successResponse({
+      message: `User ${validatedData.action === "approve" ? "approved" : "rejected"} successfully`,
       user: {
-        id: userId,
+        id: validatedData.userId,
+        email: user.email,
         status: updateData.status,
       },
     });
   } catch (error) {
-    console.error("Verification error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }
+
+// Export with rate limiting applied
+export const POST = withRateLimit(verifyUserHandler, RATE_LIMIT_CONFIGS.admin);

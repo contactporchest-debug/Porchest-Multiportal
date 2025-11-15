@@ -110,7 +110,7 @@ export default function EarningsDashboard() {
 
   return (
     <PortalLayout
-      sidebarContent={<InfluencerSidebar />}
+      sidebar={<InfluencerSidebar />}
       title="Earnings Dashboard"
       userRole="Content Creator"
       breadcrumbs={[{ label: "Dashboard", href: "/influencer" }, { label: "Earnings" }]}

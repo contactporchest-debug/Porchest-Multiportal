@@ -65,7 +65,7 @@ export default function ProjectTracking() {
 
   return (
     <PortalLayout
-      sidebarContent={<ClientSidebar />}
+      sidebar={<ClientSidebar />}
       title="Project Tracking"
       userRole="Client"
       breadcrumbs={[{ label: "Dashboard", href: "/client" }, { label: "Project Tracking" }]}

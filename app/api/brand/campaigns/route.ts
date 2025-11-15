@@ -1,95 +1,129 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import clientPromise from "@/lib/mongodb";
+import { collections, getUserByEmail, sanitizeDocuments, createCampaign } from "@/lib/db";
+import {
+  successResponse,
+  unauthorizedResponse,
+  forbiddenResponse,
+  notFoundResponse,
+  badRequestResponse,
+  createdResponse,
+  handleApiError,
+} from "@/lib/api-response";
+import { validateRequest } from "@/lib/validations";
+import { withRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
+import { z } from "zod";
 import { ObjectId } from "mongodb";
 
-// GET - List all campaigns for the logged-in brand
-export async function GET() {
+/**
+ * Brand Campaigns API
+ * Manage campaigns for brand users
+ */
+
+// Validation schema for creating a campaign
+const createCampaignSchema = z.object({
+  name: z.string().min(1, "Campaign name is required").max(200),
+  description: z.string().optional().default(""),
+  objectives: z.array(z.string()).optional().default([]),
+  target_audience: z.record(z.any()).optional().default({}),
+  start_date: z.string().optional(),
+  end_date: z.string().optional(),
+  budget: z.number().positive("Budget must be positive"),
+});
+
+/**
+ * GET /api/brand/campaigns
+ * List all campaigns for the logged-in brand
+ *
+ * RATE LIMIT: 100 requests per minute per IP
+ */
+async function getCampaignsHandler(req: Request) {
   try {
+    // Check authentication
     const session = await auth();
-    if (!session || session.user.role !== "brand") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!session || !session.user) {
+      return unauthorizedResponse("Authentication required");
     }
 
-    const client = await clientPromise;
-    const db = client.db("porchestDB");
+    if (session.user.role !== "brand") {
+      return forbiddenResponse("Brand access required");
+    }
 
     // Find user to get their ID
-    const user = await db.collection("users").findOne({ email: session.user.email });
+    const user = await getUserByEmail(session.user.email!);
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      logger.error("User not found in database", undefined, {
+        email: session.user.email,
+      });
+      return notFoundResponse("User");
     }
 
+    const campaignsCollection = await collections.campaigns();
+
     // Get campaigns
-    const campaigns = await db
-      .collection("campaigns")
+    const campaigns = await campaignsCollection
       .find({ brand_id: user._id })
       .sort({ created_at: -1 })
       .toArray();
 
-    return NextResponse.json({
-      success: true,
-      campaigns: campaigns.map((c) => ({
-        ...c,
-        _id: c._id.toString(),
-        brand_id: c.brand_id.toString(),
-      })),
+    logger.debug("Campaigns retrieved", {
+      userId: user._id.toString(),
+      count: campaigns.length,
+    });
+
+    // Sanitize documents
+    const sanitized = sanitizeDocuments(campaigns);
+
+    return successResponse({
+      campaigns: sanitized,
+      total: campaigns.length,
     });
   } catch (error) {
-    console.error("Get campaigns error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }
 
-// POST - Create a new campaign
-export async function POST(req: Request) {
+/**
+ * POST /api/brand/campaigns
+ * Create a new campaign
+ *
+ * RATE LIMIT: 100 requests per minute per IP
+ */
+async function createCampaignHandler(req: Request) {
   try {
+    // Check authentication
     const session = await auth();
-    if (!session || session.user.role !== "brand") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!session || !session.user) {
+      return unauthorizedResponse("Authentication required");
     }
 
+    if (session.user.role !== "brand") {
+      return forbiddenResponse("Brand access required");
+    }
+
+    // Parse and validate request body
     const body = await req.json();
-    const {
-      name,
-      description,
-      objectives,
-      target_audience,
-      start_date,
-      end_date,
-      budget,
-    } = body;
-
-    // Validation
-    if (!name || !budget) {
-      return NextResponse.json(
-        { error: "Name and budget are required" },
-        { status: 400 }
-      );
-    }
-
-    const client = await clientPromise;
-    const db = client.db("porchestDB");
+    const validatedData = validateRequest(createCampaignSchema, body);
 
     // Find user to get their ID
-    const user = await db.collection("users").findOne({ email: session.user.email });
+    const user = await getUserByEmail(session.user.email!);
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      logger.error("User not found in database", undefined, {
+        email: session.user.email,
+      });
+      return notFoundResponse("User");
     }
 
-    // Create campaign
-    const result = await db.collection("campaigns").insertOne({
+    // Create campaign using type-safe helper
+    const campaign = await createCampaign({
       brand_id: user._id,
-      name,
-      description: description || "",
-      objectives: objectives || [],
-      target_audience: target_audience || {},
-      start_date: start_date ? new Date(start_date) : null,
-      end_date: end_date ? new Date(end_date) : null,
-      budget,
+      name: validatedData.name,
+      description: validatedData.description,
+      objectives: validatedData.objectives,
+      target_audience: validatedData.target_audience,
+      start_date: validatedData.start_date ? new Date(validatedData.start_date) : undefined,
+      end_date: validatedData.end_date ? new Date(validatedData.end_date) : undefined,
+      budget: validatedData.budget,
       spent_amount: 0,
       status: "draft",
       metrics: {
@@ -108,22 +142,31 @@ export async function POST(req: Request) {
         negative: 0,
         total_comments_analyzed: 0,
       },
-      created_at: new Date(),
-      updated_at: new Date(),
     });
 
-    return NextResponse.json({
-      success: true,
+    logger.info("Campaign created", {
+      campaignId: campaign._id.toString(),
+      brandId: user._id.toString(),
+      campaignName: validatedData.name,
+      budget: validatedData.budget,
+    });
+
+    return createdResponse({
       campaign: {
-        _id: result.insertedId.toString(),
-        ...body,
+        _id: campaign._id.toString(),
+        brand_id: user._id.toString(),
+        name: validatedData.name,
+        description: validatedData.description,
+        budget: validatedData.budget,
+        status: "draft",
+        created_at: campaign.created_at.toISOString(),
       },
     });
   } catch (error) {
-    console.error("Create campaign error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }
+
+// Export with rate limiting applied
+export const GET = withRateLimit(getCampaignsHandler, RATE_LIMIT_CONFIGS.default);
+export const POST = withRateLimit(createCampaignHandler, RATE_LIMIT_CONFIGS.default);

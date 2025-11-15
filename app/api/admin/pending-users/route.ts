@@ -1,46 +1,73 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import clientPromise from "@/lib/mongodb";
+import { collections, sanitizeDocuments, paginate } from "@/lib/db";
+import {
+  successResponse,
+  unauthorizedResponse,
+  paginatedResponse,
+  handleApiError,
+} from "@/lib/api-response";
+import { validateQuery } from "@/lib/validations";
+import { withRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit";
+import { z } from "zod";
 
-export async function GET() {
+// Validation schema for query parameters
+const getPendingUsersSchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  role: z.enum(["brand", "influencer", "client", "employee"]).optional(),
+});
+
+/**
+ * GET /api/admin/pending-users
+ * Get all pending users awaiting admin approval (admin only)
+ * Supports pagination and filtering by role
+ *
+ * RATE LIMIT: 100 requests per minute per IP
+ */
+async function getPendingUsersHandler(req: Request) {
   try {
-    // Check if user is admin
+    // Check authentication
     const session = await auth();
-    if (!session || session.user.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!session || !session.user || session.user.role !== "admin") {
+      return unauthorizedResponse("Admin access required");
     }
 
-    const client = await clientPromise;
-    const db = client.db("porchestDB");
+    // Parse and validate query parameters
+    const { searchParams } = new URL(req.url);
+    const queryParams = validateQuery(getPendingUsersSchema, searchParams);
 
-    // Fetch all pending users
-    const pendingUsers = await db
-      .collection("users")
-      .find({ status: "PENDING" })
-      .sort({ created_at: -1 })
-      .toArray();
+    // Build filter
+    const filter: Record<string, any> = {
+      status: "PENDING",
+    };
 
-    // Remove sensitive information
-    const sanitizedUsers = pendingUsers.map((user) => ({
-      id: user._id.toString(),
-      full_name: user.full_name,
-      email: user.email,
-      role: user.role,
-      status: user.status,
-      phone: user.phone,
-      company: user.company,
-      created_at: user.created_at,
-    }));
+    // Add role filter if provided
+    if (queryParams.role) {
+      filter.role = queryParams.role;
+    }
 
-    return NextResponse.json({
-      users: sanitizedUsers,
-      total: sanitizedUsers.length,
+    // Get users collection
+    const usersCollection = await collections.users();
+
+    // Fetch pending users with pagination
+    const result = await paginate(
+      usersCollection,
+      filter,
+      queryParams.page,
+      queryParams.limit
+    );
+
+    // Sanitize users (remove password_hash and other sensitive fields)
+    const sanitizedUsers = sanitizeDocuments(result.items);
+
+    return paginatedResponse({
+      items: sanitizedUsers,
+      pagination: result.pagination,
     });
   } catch (error) {
-    console.error("Fetch pending users error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }
+
+// Export with rate limiting applied
+export const GET = withRateLimit(getPendingUsersHandler, RATE_LIMIT_CONFIGS.admin);
