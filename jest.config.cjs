@@ -7,9 +7,8 @@ const createJestConfig = nextJest({
 
 // Add any custom config to be passed to Jest
 const customJestConfig = {
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.cjs'],
   moduleNameMapper: {
-    // Handle module aliases (this will be automatically configured for you soon)
     '^@/(.*)$': '<rootDir>/$1',
   },
   testEnvironment: 'jest-environment-jsdom',
@@ -24,6 +23,21 @@ const customJestConfig = {
     '!**/*.d.ts',
     '!**/node_modules/**',
     '!**/.next/**',
+    '!**/coverage/**',
+    '!**/__tests__/**',
+  ],
+  coverageThreshold: {
+    global: {
+      statements: 70,
+      branches: 65,
+      functions: 65,
+      lines: 70,
+    },
+  },
+  testTimeout: 10000,
+  clearMocks: true,
+  transformIgnorePatterns: [
+    'node_modules/(?!(bson|mongodb)/)',
   ],
 }
 

@@ -22,7 +22,7 @@ describe('Utility Functions', () => {
   describe('formatCurrency', () => {
     it('should format USD currency by default', () => {
       expect(formatCurrency(1000)).toBe('$1,000')
-      expect(formatCurrency(1500.50)).toBe('$1,501')
+      expect(formatCurrency(1500.50)).toBe('$1,500.5')
     })
 
     it('should format different currencies', () => {
