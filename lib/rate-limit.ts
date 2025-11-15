@@ -11,6 +11,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { tooManyRequestsResponse } from "./api-response";
+import { logger } from "./logger";
 
 // --- RATE LIMIT CONFIGURATION --- //
 
@@ -273,7 +274,9 @@ export function withRateLimit(
       return newResponse;
     } catch (error) {
       // If rate limiting fails, allow the request (fail open)
-      console.error("Rate limiting error:", error);
+      logger.error("Rate limiting error", error instanceof Error ? error : undefined, {
+        error: error instanceof Error ? undefined : error,
+      });
       return handler(req);
     }
   };

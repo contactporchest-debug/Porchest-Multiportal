@@ -89,11 +89,11 @@ export default function CollaborationRequests() {
   const [selectedRequest, setSelectedRequest] = useState<any>(null)
 
   const handleAccept = (requestId: number) => {
-    console.log("Accepted request:", requestId)
+    // TODO: Implement API call to accept collaboration request
   }
 
   const handleDecline = (requestId: number) => {
-    console.log("Declined request:", requestId)
+    // TODO: Implement API call to decline collaboration request
   }
 
   return (

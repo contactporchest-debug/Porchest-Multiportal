@@ -1,6 +1,11 @@
 // Learn more: https://github.com/testing-library/jest-dom
 require('@testing-library/jest-dom')
 
+// Polyfill Web APIs for Next.js
+const { ReadableStream, TransformStream } = require('stream/web')
+global.ReadableStream = ReadableStream
+global.TransformStream = TransformStream
+
 // Mock environment variables
 process.env.NEXTAUTH_URL = 'http://localhost:3000'
 process.env.NEXTAUTH_SECRET = 'test-secret-key-minimum-32-characters-long-for-production'

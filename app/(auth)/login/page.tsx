@@ -59,7 +59,6 @@ export default function LoginPage() {
         window.location.href = "/"
       }
     } catch (err: any) {
-      console.error("Login error:", err)
       setError(err.message || "Invalid email or password. Please try again.")
       setIsLoadingEmail(false)
     }
@@ -73,7 +72,6 @@ export default function LoginPage() {
       const { signIn } = await import("next-auth/react")
       await signIn("google", { callbackUrl: "/" })
     } catch (err: any) {
-      console.error("Google login error:", err)
       setError(err.message || "Google login failed.")
       setIsLoadingGoogle(false)
     }
