@@ -100,7 +100,7 @@ export default function CollaborationRequests() {
     <PortalLayout
       sidebar={<InfluencerSidebar />}
       title="Collaboration Requests"
-      userRole="Content Creator"
+      userRole="Influencer"
       breadcrumbs={[{ label: "Dashboard", href: "/influencer" }, { label: "Collaboration Requests" }]}
     >
       <div className="space-y-6">

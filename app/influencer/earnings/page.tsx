@@ -111,9 +111,9 @@ export default function EarningsDashboard() {
   return (
     <PortalLayout
       sidebar={<InfluencerSidebar />}
-      title="Earnings Dashboard"
-      userRole="Content Creator"
-      breadcrumbs={[{ label: "Dashboard", href: "/influencer" }, { label: "Earnings" }]}
+      title="Earnings & Withdrawals"
+      userRole="Influencer"
+      breadcrumbs={[{ label: "Dashboard", href: "/influencer" }, { label: "Earnings & Withdrawals" }]}
     >
       <div className="space-y-6">
         {/* Header Actions */}
