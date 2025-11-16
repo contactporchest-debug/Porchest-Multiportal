@@ -1,219 +1,347 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { PortalLayout } from "@/components/portal-layout"
+import { EmployeeSidebar } from "@/components/employee-sidebar"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts"
-import { CheckCircle, Clock, AlertCircle, MessageSquare, FileText, Users } from "lucide-react"
-import PortalLayout from "@/components/portal-layout"
-import EmployeeSidebar from "@/components/employee-sidebar"
-import { mockData } from "@/lib/mock-data"
+import {
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  TrendingUp,
+  ClipboardList,
+  Award,
+  Calendar,
+  ArrowRight,
+} from "lucide-react"
+
+// Recent tasks
+const recentTasks = [
+  {
+    id: "1",
+    title: "Complete Q2 Performance Review",
+    status: "completed",
+    dueDate: "2025-06-15",
+    completedDate: "2025-06-14",
+  },
+  {
+    id: "2",
+    title: "Submit Weekly Progress Report",
+    status: "pending",
+    dueDate: "2025-06-20",
+  },
+  {
+    id: "3",
+    title: "Update Client Project Documentation",
+    status: "in_progress",
+    dueDate: "2025-06-22",
+  },
+  {
+    id: "4",
+    title: "Team Meeting Notes - E-Commerce Project",
+    status: "completed",
+    dueDate: "2025-06-13",
+    completedDate: "2025-06-13",
+  },
+]
+
+// Upcoming deadlines
+const upcomingDeadlines = [
+  {
+    id: "1",
+    title: "Monthly Sales Report",
+    dueDate: "2025-06-30",
+    priority: "high",
+  },
+  {
+    id: "2",
+    title: "Client Presentation Prep",
+    dueDate: "2025-06-25",
+    priority: "medium",
+  },
+  {
+    id: "3",
+    title: "Training Module Completion",
+    dueDate: "2025-07-05",
+    priority: "low",
+  },
+]
 
 export default function EmployeeDashboard() {
-  const [selectedPeriod, setSelectedPeriod] = useState("week")
-
-  const taskStats = {
-    total: 24,
-    completed: 18,
-    inProgress: 4,
-    pending: 2,
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "completed":
+        return (
+          <Badge className="bg-green-500">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Completed
+          </Badge>
+        )
+      case "in_progress":
+        return (
+          <Badge className="bg-blue-500">
+            <Clock className="h-3 w-3 mr-1" />
+            In Progress
+          </Badge>
+        )
+      case "pending":
+        return (
+          <Badge className="bg-yellow-500">
+            <Clock className="h-3 w-3 mr-1" />
+            Pending
+          </Badge>
+        )
+      default:
+        return <Badge variant="secondary">{status}</Badge>
+    }
   }
 
-  const weeklyProgress = [
-    { day: "Mon", completed: 3, assigned: 5 },
-    { day: "Tue", completed: 4, assigned: 6 },
-    { day: "Wed", completed: 2, assigned: 4 },
-    { day: "Thu", completed: 5, assigned: 7 },
-    { day: "Fri", completed: 4, assigned: 5 },
-  ]
-
-  const performanceData = [
-    { month: "Jan", efficiency: 85, quality: 92 },
-    { month: "Feb", efficiency: 88, quality: 89 },
-    { month: "Mar", efficiency: 92, quality: 94 },
-    { month: "Apr", efficiency: 87, quality: 91 },
-    { month: "May", efficiency: 94, quality: 96 },
-  ]
+  const getPriorityBadge = (priority: string) => {
+    switch (priority) {
+      case "high":
+        return <Badge className="bg-red-500">High</Badge>
+      case "medium":
+        return <Badge className="bg-yellow-500">Medium</Badge>
+      case "low":
+        return <Badge className="bg-blue-500">Low</Badge>
+      default:
+        return <Badge variant="secondary">{priority}</Badge>
+    }
+  }
 
   return (
-    <PortalLayout sidebar={<EmployeeSidebar />}>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Employee Dashboard</h1>
-            <p className="text-muted-foreground">Track your tasks, performance, and team collaboration</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <FileText className="h-4 w-4 mr-2" />
-              Submit Report
-            </Button>
-            <Button size="sm">
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Team Chat
-            </Button>
-          </div>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <PortalLayout
+      sidebar={<EmployeeSidebar />}
+      title="Dashboard"
+      userRole="Employee"
+    >
+      <div className="grid grid-cols-1 gap-6">
+        {/* Quick Stats */}
+        <div className="grid md:grid-cols-4 gap-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{taskStats.total}</div>
-              <p className="text-xs text-muted-foreground">+2 from last week</p>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                  <ClipboardList className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Tasks</p>
+                  <p className="text-2xl font-bold">24</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completed</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{taskStats.completed}</div>
-              <p className="text-xs text-muted-foreground">75% completion rate</p>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                  <CheckCircle className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Completed</p>
+                  <p className="text-2xl font-bold">18</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-              <Clock className="h-4 w-4 text-orange-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600">{taskStats.inProgress}</div>
-              <p className="text-xs text-muted-foreground">2 due today</p>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                  <Clock className="h-6 w-6 text-yellow-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">In Progress</p>
+                  <p className="text-2xl font-bold">6</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending</CardTitle>
-              <AlertCircle className="h-4 w-4 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">{taskStats.pending}</div>
-              <p className="text-xs text-muted-foreground">Awaiting review</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Weekly Progress */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Weekly Progress</CardTitle>
-              <CardDescription>Tasks completed vs assigned this week</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={weeklyProgress}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="day" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="assigned" fill="#e2e8f0" name="Assigned" />
-                  <Bar dataKey="completed" fill="#f97316" name="Completed" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Performance Trends */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Performance Trends</CardTitle>
-              <CardDescription>Efficiency and quality scores over time</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={performanceData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="efficiency" stroke="#f97316" name="Efficiency %" />
-                  <Line type="monotone" dataKey="quality" stroke="#1e293b" name="Quality %" />
-                </LineChart>
-              </ResponsiveContainer>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
+                  <TrendingUp className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Performance</p>
+                  <p className="text-2xl font-bold">92%</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Recent Tasks & Team Updates */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid lg:grid-cols-2 gap-6">
           {/* Recent Tasks */}
           <Card>
             <CardHeader>
-              <CardTitle>Recent Tasks</CardTitle>
-              <CardDescription>Your latest assignments and progress</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {mockData.employee.recentTasks.map((task) => (
-                <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex-1">
-                    <h4 className="font-medium">{task.title}</h4>
-                    <p className="text-sm text-muted-foreground">{task.project}</p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Badge
-                        variant={
-                          task.status === "completed"
-                            ? "default"
-                            : task.status === "in-progress"
-                              ? "secondary"
-                              : "outline"
-                        }
-                      >
-                        {task.status}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">Due: {task.dueDate}</span>
-                    </div>
-                  </div>
-                  <div className="ml-4">
-                    <Progress value={task.progress} className="w-20" />
-                    <span className="text-xs text-muted-foreground">{task.progress}%</span>
-                  </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Recent Tasks</CardTitle>
+                  <CardDescription>Your latest task submissions and updates</CardDescription>
                 </div>
-              ))}
+                <Button variant="ghost" size="sm" asChild>
+                  <a href="/employee/reporting">
+                    View All
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </a>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {recentTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-start justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
+                  >
+                    <div className="flex-1">
+                      <h4 className="font-medium mb-2">{task.title}</h4>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          Due: {task.dueDate}
+                        </div>
+                        {task.completedDate && (
+                          <div className="flex items-center gap-1">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            Completed: {task.completedDate}
+                        </div>
+                        )}
+                      </div>
+                    </div>
+                    <div>{getStatusBadge(task.status)}</div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
 
-          {/* Team Updates */}
+          {/* Upcoming Deadlines */}
           <Card>
             <CardHeader>
-              <CardTitle>Team Updates</CardTitle>
-              <CardDescription>Latest messages and announcements</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {mockData.employee.teamUpdates.map((update) => (
-                <div key={update.id} className="flex items-start gap-3 p-3 border rounded-lg">
-                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                    <Users className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{update.author}</span>
-                      <span className="text-xs text-muted-foreground">{update.time}</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1">{update.message}</p>
-                    {update.type && (
-                      <Badge variant="outline" className="mt-2">
-                        {update.type}
-                      </Badge>
-                    )}
-                  </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Upcoming Deadlines</CardTitle>
+                  <CardDescription>Tasks that need your attention</CardDescription>
                 </div>
-              ))}
+                <Button variant="ghost" size="sm" asChild>
+                  <a href="/employee/reporting">
+                    View All
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </a>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {upcomingDeadlines.map((deadline) => (
+                  <div
+                    key={deadline.id}
+                    className="flex items-start justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
+                  >
+                    <div className="flex-1">
+                      <h4 className="font-medium mb-2">{deadline.title}</h4>
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Calendar className="h-4 w-4" />
+                        Due: {deadline.dueDate}
+                      </div>
+                    </div>
+                    <div>{getPriorityBadge(deadline.priority)}</div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Performance Overview */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-purple-600" />
+              <CardTitle>Performance Overview</CardTitle>
+            </div>
+            <CardDescription>Quick glance at your performance metrics</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-3 gap-6">
+              <div className="flex flex-col items-center p-6 bg-accent rounded-lg">
+                <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center mb-3">
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                </div>
+                <p className="text-3xl font-bold mb-1">92%</p>
+                <p className="text-sm text-muted-foreground">Task Completion Rate</p>
+              </div>
+
+              <div className="flex flex-col items-center p-6 bg-accent rounded-lg">
+                <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center mb-3">
+                  <TrendingUp className="h-8 w-8 text-blue-600" />
+                </div>
+                <p className="text-3xl font-bold mb-1">4.5</p>
+                <p className="text-sm text-muted-foreground">Average Rating</p>
+              </div>
+
+              <div className="flex flex-col items-center p-6 bg-accent rounded-lg">
+                <div className="h-16 w-16 rounded-full bg-purple-100 flex items-center justify-center mb-3">
+                  <Award className="h-8 w-8 text-purple-600" />
+                </div>
+                <p className="text-3xl font-bold mb-1">8</p>
+                <p className="text-sm text-muted-foreground">Achievements Earned</p>
+              </div>
+            </div>
+
+            <div className="mt-6 text-center">
+              <Button asChild>
+                <a href="/employee/performance">
+                  View Detailed Performance
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>Common tasks and shortcuts</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-3 gap-4">
+              <Button className="h-24 flex-col gap-2" variant="outline" asChild>
+                <a href="/employee/reporting">
+                  <ClipboardList className="h-6 w-6" />
+                  <span>Submit Daily Report</span>
+                </a>
+              </Button>
+              <Button className="h-24 flex-col gap-2" variant="outline" asChild>
+                <a href="/employee/profile">
+                  <CheckCircle className="h-6 w-6" />
+                  <span>Update Profile</span>
+                </a>
+              </Button>
+              <Button className="h-24 flex-col gap-2" variant="outline" asChild>
+                <a href="/employee/performance">
+                  <TrendingUp className="h-6 w-6" />
+                  <span>Track Performance</span>
+                </a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </PortalLayout>
   )
