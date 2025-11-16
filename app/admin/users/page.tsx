@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -16,22 +16,64 @@ import {
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Search, Filter, UserPlus, MoreHorizontal, Edit, Trash2, Ban } from "lucide-react"
+import { Search, Filter, UserPlus, MoreHorizontal, Edit, Trash2, Ban, Loader2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import PortalLayout from "@/components/portal-layout"
 import AdminSidebar from "@/components/admin-sidebar"
-import { mockData } from "@/lib/mock-data"
+
+type User = {
+  _id: string
+  full_name: string
+  email: string
+  role: string
+  status: string
+  created_at: string
+  updated_at: string
+}
 
 export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedFilter, setSelectedFilter] = useState("all")
+  const [users, setUsers] = useState<User[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState("")
 
-  const filteredUsers = mockData.admin.users.filter((user) => {
+  // Fetch real users from API
+  useEffect(() => {
+    fetchUsers()
+  }, [selectedFilter])
+
+  const fetchUsers = async () => {
+    try {
+      setIsLoading(true)
+      setError("")
+
+      const params = new URLSearchParams()
+      if (selectedFilter !== "all") {
+        params.append("role", selectedFilter)
+      }
+
+      const response = await fetch(`/api/admin/users?${params.toString()}`)
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || "Failed to fetch users")
+      }
+
+      setUsers(data.data?.items || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load users")
+      setUsers([])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const filteredUsers = users.filter((user) => {
     const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesFilter = selectedFilter === "all" || user.type === selectedFilter
-    return matchesSearch && matchesFilter
+    return matchesSearch
   })
 
   return (
@@ -82,7 +124,7 @@ export default function UserManagement() {
               <CardTitle className="text-sm font-medium">Total Users</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockData.admin.users.length}</div>
+              <div className="text-2xl font-bold">{isLoading ? "..." : users.length}</div>
             </CardContent>
           </Card>
           <Card>
@@ -91,7 +133,7 @@ export default function UserManagement() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {mockData.admin.users.filter((u) => u.status === "active").length}
+                {isLoading ? "..." : users.filter((u) => u.status === "ACTIVE").length}
               </div>
             </CardContent>
           </Card>
@@ -101,7 +143,7 @@ export default function UserManagement() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">
-                {mockData.admin.users.filter((u) => u.status === "pending").length}
+                {isLoading ? "..." : users.filter((u) => u.status === "PENDING").length}
               </div>
             </CardContent>
           </Card>
@@ -111,7 +153,7 @@ export default function UserManagement() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">
-                {mockData.admin.users.filter((u) => u.status === "suspended").length}
+                {isLoading ? "..." : users.filter((u) => u.status === "SUSPENDED").length}
               </div>
             </CardContent>
           </Card>
@@ -150,74 +192,91 @@ export default function UserManagement() {
             <CardDescription>Complete list of platform users</CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead>Last Active</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{user.name}</p>
-                          <p className="text-sm text-muted-foreground">{user.email}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {user.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          user.status === "active" ? "default" : user.status === "pending" ? "secondary" : "destructive"
-                        }
-                      >
-                        {user.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{user.joinedDate}</TableCell>
-                    <TableCell>{user.lastActive}</TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit User
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Ban className="h-4 w-4 mr-2" />
-                            Suspend User
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete User
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md mb-4">
+                {error}
+              </div>
+            )}
+
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Loading users...</span>
+              </div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                No users found
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Joined</TableHead>
+                    <TableHead>Last Updated</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.map((user) => (
+                    <TableRow key={user._id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback>{user.full_name.charAt(0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{user.full_name}</p>
+                            <p className="text-sm text-muted-foreground">{user.email}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">
+                          {user.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            user.status === "ACTIVE" ? "default" : user.status === "PENDING" ? "secondary" : "destructive"
+                          }
+                        >
+                          {user.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell>{new Date(user.updated_at).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit User
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <Ban className="h-4 w-4 mr-2" />
+                              Suspend User
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-600">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete User
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
