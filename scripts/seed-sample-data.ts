@@ -1,6 +1,6 @@
 /**
  * MongoDB Sample Data Seed Script
- * Populates porchestDB with fully relational production-like data
+ * Populates porchest_db with fully relational production-like data
  *
  * Usage: npx ts-node scripts/seed-sample-data.ts
  */

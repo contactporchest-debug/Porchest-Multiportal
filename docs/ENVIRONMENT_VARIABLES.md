@@ -71,22 +71,22 @@ NEXTAUTH_SECRET=veryLongRandomStringAtLeast32CharactersLong123456789
 
 **MongoDB Atlas** (recommended):
 ```env
-MONGODB_URI=mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/porchestDB?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/porchest_db?retryWrites=true&w=majority
 ```
 
 **Local MongoDB**:
 ```env
-MONGODB_URI=mongodb://localhost:27017/porchestDB
+MONGODB_URI=mongodb://localhost:27017/porchest_db
 ```
 
 **Docker MongoDB**:
 ```env
-MONGODB_URI=mongodb://admin:password@mongodb:27017/porchestDB?authSource=admin
+MONGODB_URI=mongodb://admin:password@mongodb:27017/porchest_db?authSource=admin
 ```
 
 **Notes**:
 - URL-encode special characters in password
-- Database name defaults to `porchestDB`
+- Database name defaults to `porchest_db`
 - Connection pooling is automatically configured
 
 ---
@@ -370,7 +370,7 @@ RATE_LIMIT_WINDOW_MS=60000  # 1 minute
 NODE_ENV=development
 NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=dev-secret-min-32-chars-long-12345678
-MONGODB_URI=mongodb://localhost:27017/porchestDB
+MONGODB_URI=mongodb://localhost:27017/porchest_db
 LOG_LEVEL=debug
 ENABLE_EMAIL_NOTIFICATIONS=false
 ```
@@ -381,7 +381,7 @@ ENABLE_EMAIL_NOTIFICATIONS=false
 NODE_ENV=production
 NEXTAUTH_URL=https://staging.your-domain.com
 NEXTAUTH_SECRET=staging-secret-different-from-prod
-MONGODB_URI=mongodb+srv://user:pass@staging-cluster.mongodb.net/porchestDB
+MONGODB_URI=mongodb+srv://user:pass@staging-cluster.mongodb.net/porchest_db
 LOG_LEVEL=info
 ENABLE_EMAIL_NOTIFICATIONS=true
 EMAIL_FROM=staging@your-domain.com
@@ -393,7 +393,7 @@ EMAIL_FROM=staging@your-domain.com
 NODE_ENV=production
 NEXTAUTH_URL=https://your-domain.com
 NEXTAUTH_SECRET=prod-secret-very-long-and-secure-random-string
-MONGODB_URI=mongodb+srv://user:pass@prod-cluster.mongodb.net/porchestDB
+MONGODB_URI=mongodb+srv://user:pass@prod-cluster.mongodb.net/porchest_db
 LOG_LEVEL=warn
 ENABLE_EMAIL_NOTIFICATIONS=true
 EMAIL_SERVER_HOST=smtp.sendgrid.net
@@ -475,7 +475,7 @@ services:
       - NODE_ENV=production
       - NEXTAUTH_URL=https://your-domain.com
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      - MONGODB_URI=mongodb://mongodb:27017/porchestDB
+      - MONGODB_URI=mongodb://mongodb:27017/porchest_db
     env_file:
       - .env.production
 ```
@@ -514,7 +514,7 @@ NEXTAUTH_SECRET=generate-with-openssl-rand-base64-32
 # ============================================================================
 # Database
 # ============================================================================
-MONGODB_URI=mongodb://localhost:27017/porchestDB
+MONGODB_URI=mongodb://localhost:27017/porchest_db
 
 # ============================================================================
 # OAuth (Optional)

@@ -63,7 +63,7 @@ NEXTAUTH_URL=https://your-domain.com
 NEXTAUTH_SECRET=your-secret-key-min-32-characters
 
 # MongoDB
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/porchestDB
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/porchest_db
 
 # Optional: OAuth Providers
 GOOGLE_CLIENT_ID=your-google-client-id
@@ -100,7 +100,7 @@ NODE_ENV=production
 
 4. **Get Connection String**
    ```
-   mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/porchestDB?retryWrites=true&w=majority
+   mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/porchest_db?retryWrites=true&w=majority
    ```
 
 5. **Create Indexes**
@@ -128,7 +128,7 @@ NODE_ENV=production
 3. **Create Database**
    ```bash
    mongosh
-   use porchestDB
+   use porchest_db
    ```
 
 4. **Create Indexes**

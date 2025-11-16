@@ -35,7 +35,7 @@ export const authConfig: NextAuthConfig = {
         }
 
         const client = await clientPromise;
-        const db = client.db("porchestDB");
+        const db = client.db("porchest_db");
 
         const user = await db.collection("users").findOne({
           email: credentials.email,
@@ -79,7 +79,7 @@ export const authConfig: NextAuthConfig = {
       // For OAuth providers, check if user needs admin approval
       if (account?.provider === "google") {
         const client = await clientPromise;
-        const db = client.db("porchestDB");
+        const db = client.db("porchest_db");
 
         const existingUser = await db.collection("users").findOne({
           email: user.email,

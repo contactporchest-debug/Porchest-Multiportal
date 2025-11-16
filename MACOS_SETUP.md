@@ -139,10 +139,10 @@ NEXTAUTH_SECRET=YOUR_GENERATED_SECRET_HERE
 
 # MongoDB Connection
 # Option 1: Local MongoDB
-MONGODB_URI=mongodb://localhost:27017/porchestDB
+MONGODB_URI=mongodb://localhost:27017/porchest_db
 
 # Option 2: MongoDB Atlas (if using cloud)
-# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/porchestDB
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/porchest_db
 
 # Google OAuth (Optional - for Google login)
 # Get from: https://console.cloud.google.com/
@@ -255,7 +255,7 @@ You should see the Porchest homepage! 🎉
 4. **Create an admin account manually (via MongoDB):**
    ```bash
    # Connect to MongoDB
-   mongosh porchestDB
+   mongosh porchest_db
 
    # Create admin user
    db.users.insertOne({

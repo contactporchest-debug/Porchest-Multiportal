@@ -27,7 +27,7 @@ async function createIndexes() {
     await client.connect();
     console.log("✅ Connected to MongoDB");
 
-    const db = client.db("porchestDB");
+    const db = client.db("porchest_db");
 
     // --- USERS COLLECTION --- //
     console.log("\n📊 Creating indexes for 'users' collection...");
