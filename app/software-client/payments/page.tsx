@@ -1,5 +1,6 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import { PortalLayout } from "@/components/portal-layout"
 import { SoftwareClientSidebar } from "@/components/software-client-sidebar"
 import {
@@ -21,18 +22,6 @@ import {
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts"
-import {
   DollarSign,
   Download,
   FileText,
@@ -43,6 +32,40 @@ import {
   TrendingUp,
   Calendar,
 } from "lucide-react"
+
+// Dynamically import Recharts components with SSR disabled
+const BarChart = dynamic<any>(
+  () => import("recharts").then((m) => m.BarChart),
+  { ssr: false }
+)
+const Bar = dynamic<any>(
+  () => import("recharts").then((m) => m.Bar),
+  { ssr: false }
+)
+const XAxis = dynamic<any>(
+  () => import("recharts").then((m) => m.XAxis),
+  { ssr: false }
+)
+const YAxis = dynamic<any>(
+  () => import("recharts").then((m) => m.YAxis),
+  { ssr: false }
+)
+const CartesianGrid = dynamic<any>(
+  () => import("recharts").then((m) => m.CartesianGrid),
+  { ssr: false }
+)
+const Tooltip = dynamic<any>(
+  () => import("recharts").then((m) => m.Tooltip),
+  { ssr: false }
+)
+const Legend = dynamic<any>(
+  () => import("recharts").then((m) => m.Legend),
+  { ssr: false }
+)
+const ResponsiveContainer = dynamic<any>(
+  () => import("recharts").then((m) => m.ResponsiveContainer),
+  { ssr: false }
+)
 
 // Invoice data
 const invoices = [

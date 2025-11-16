@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import dynamic from "next/dynamic"
 import { PortalLayout } from "@/components/portal-layout"
 import { InfluencerSidebar } from "@/components/influencer-sidebar"
 import {
@@ -30,18 +31,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts"
-import {
   CheckCircle,
   Clock,
   XCircle,
@@ -53,6 +42,44 @@ import {
   Share2,
   Plus,
 } from "lucide-react"
+
+// Dynamically import Recharts components with SSR disabled
+const LineChart = dynamic<any>(
+  () => import("recharts").then((m) => m.LineChart),
+  { ssr: false }
+)
+const Line = dynamic<any>(
+  () => import("recharts").then((m) => m.Line),
+  { ssr: false }
+)
+const BarChart = dynamic<any>(
+  () => import("recharts").then((m) => m.BarChart),
+  { ssr: false }
+)
+const Bar = dynamic<any>(
+  () => import("recharts").then((m) => m.Bar),
+  { ssr: false }
+)
+const XAxis = dynamic<any>(
+  () => import("recharts").then((m) => m.XAxis),
+  { ssr: false }
+)
+const YAxis = dynamic<any>(
+  () => import("recharts").then((m) => m.YAxis),
+  { ssr: false }
+)
+const CartesianGrid = dynamic<any>(
+  () => import("recharts").then((m) => m.CartesianGrid),
+  { ssr: false }
+)
+const Tooltip = dynamic<any>(
+  () => import("recharts").then((m) => m.Tooltip),
+  { ssr: false }
+)
+const ResponsiveContainer = dynamic<any>(
+  () => import("recharts").then((m) => m.ResponsiveContainer),
+  { ssr: false }
+)
 
 // Sample post verification data
 const verificationRequests = [
