@@ -1,76 +1,93 @@
 "use client"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { LayoutDashboard, CheckSquare, MessageSquare, FileText, Calendar, Settings, LogOut } from "lucide-react"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  LayoutDashboard,
+  User,
+  ClipboardList,
+  TrendingUp,
+  Settings,
+  HelpCircle,
+} from "lucide-react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 
-const navigation = [
-  { name: "Dashboard", href: "/employee", icon: LayoutDashboard },
-  { name: "Task Board", href: "/employee/tasks", icon: CheckSquare, badge: "4" },
-  { name: "Team Chat", href: "/employee/chat", icon: MessageSquare, badge: "2" },
-  { name: "Reports", href: "/employee/reports", icon: FileText },
-  { name: "Calendar", href: "/employee/calendar", icon: Calendar },
-  { name: "Settings", href: "/employee/settings", icon: Settings },
+const sidebarNavItems = [
+  {
+    title: "Dashboard",
+    href: "/employee",
+    icon: LayoutDashboard,
+  },
+  {
+    title: "Profile Setup",
+    href: "/employee/profile",
+    icon: User,
+  },
+  {
+    title: "Daily Reporting",
+    href: "/employee/reporting",
+    icon: ClipboardList,
+  },
+  {
+    title: "Performance Tracking",
+    href: "/employee/performance",
+    icon: TrendingUp,
+  },
 ]
 
-export default function EmployeeSidebar() {
+const bottomNavItems = [
+  {
+    title: "Settings",
+    href: "/employee/settings",
+    icon: Settings,
+  },
+  {
+    title: "Help",
+    href: "/employee/help",
+    icon: HelpCircle,
+  },
+]
+
+export function EmployeeSidebar() {
   const pathname = usePathname()
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="p-6 border-b">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <CheckSquare className="h-4 w-4 text-primary-foreground" />
-          </div>
-          <div>
-            <h2 className="font-semibold">Employee Portal</h2>
-            <p className="text-xs text-muted-foreground">Task & Team Management</p>
-          </div>
-        </div>
+    <div className="flex h-full flex-col bg-background border-r">
+      <div className="p-6">
+        <h2 className="text-lg font-semibold text-primary">Employee Portal</h2>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2">
-        {navigation.map((item) => {
-          const isActive = pathname === item.href
-          return (
-            <Link key={item.name} href={item.href}>
-              <Button
-                variant={isActive ? "default" : "ghost"}
-                className={cn("w-full justify-start gap-3", isActive && "bg-primary text-primary-foreground")}
-              >
-                <item.icon className="h-4 w-4" />
-                <span className="flex-1 text-left">{item.name}</span>
-                {item.badge && (
-                  <Badge variant={isActive ? "secondary" : "outline"} className="ml-auto">
-                    {item.badge}
-                  </Badge>
-                )}
-              </Button>
-            </Link>
-          )
-        })}
-      </nav>
-
-      {/* User Section */}
-      <div className="p-4 border-t">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
-            <span className="text-sm font-medium">JD</span>
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-medium">John Doe</p>
-            <p className="text-xs text-muted-foreground">Software Developer</p>
-          </div>
+      <ScrollArea className="flex-1 px-3">
+        <div className="space-y-1">
+          {sidebarNavItems.map((item) => (
+            <Button
+              key={item.href}
+              variant={pathname === item.href ? "secondary" : "ghost"}
+              className={cn("w-full justify-start", pathname === item.href && "bg-secondary")}
+              asChild
+            >
+              <Link href={item.href}>
+                <item.icon className="mr-2 h-4 w-4" />
+                {item.title}
+              </Link>
+            </Button>
+          ))}
         </div>
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-          <LogOut className="h-4 w-4" />
-          Sign Out
-        </Button>
+      </ScrollArea>
+
+      <div className="p-3 border-t">
+        <div className="space-y-1">
+          {bottomNavItems.map((item) => (
+            <Button key={item.href} variant="ghost" className="w-full justify-start" asChild>
+              <Link href={item.href}>
+                <item.icon className="mr-2 h-4 w-4" />
+                {item.title}
+              </Link>
+            </Button>
+          ))}
+        </div>
       </div>
     </div>
   )

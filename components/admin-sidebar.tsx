@@ -4,16 +4,27 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { LayoutDashboard, Users, DollarSign, Shield, Activity, FileText, Settings, LogOut } from "lucide-react"
+import {
+  LayoutDashboard,
+  UserCheck,
+  UserPlus,
+  DollarSign,
+  TrendingUp,
+  FolderKanban,
+  Shield,
+  FileText,
+  LogOut
+} from "lucide-react"
 
 const navigation = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { name: "User Management", href: "/admin/users", icon: Users },
-  { name: "Contracts & Payments", href: "/admin/payments", icon: DollarSign, badge: "12" },
-  { name: "Fraud Detection", href: "/admin/fraud", icon: Shield, badge: "3" },
-  { name: "System Analytics", href: "/admin/analytics", icon: Activity },
-  { name: "Reports", href: "/admin/reports", icon: FileText },
-  { name: "Settings", href: "/admin/settings", icon: Settings },
+  { name: "User Verification", href: "/admin/verification", icon: UserCheck, badge: "8" },
+  { name: "Login Creation", href: "/admin/create-login", icon: UserPlus },
+  { name: "Contracts & Payments", href: "/admin/payments", icon: DollarSign },
+  { name: "Employee Reports", href: "/admin/employee-reports", icon: TrendingUp },
+  { name: "Software Projects", href: "/admin/projects", icon: FolderKanban },
+  { name: "Fraud Monitoring", href: "/admin/fraud", icon: Shield, badge: "3" },
+  { name: "All Contracts", href: "/admin/contracts", icon: FileText },
 ]
 
 export default function AdminSidebar() {
