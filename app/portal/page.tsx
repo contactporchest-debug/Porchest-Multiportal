@@ -32,9 +32,3 @@ export default async function PortalRouterPage() {
     redirect("/login");
   }
 }
-
-// This is a server component - no export needed for metadata
-export const metadata = {
-  title: "Portal - Redirecting...",
-  description: "Redirecting to your portal",
-};
