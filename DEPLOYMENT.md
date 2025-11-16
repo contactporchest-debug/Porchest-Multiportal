@@ -28,7 +28,7 @@ NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=<generate-with-openssl-rand-base64-32>
 
 # Database
-MONGODB_URI=mongodb://localhost:27017/porchestDB
+MONGODB_URI=mongodb://localhost:27017/porchest_db
 
 # OAuth Providers
 GOOGLE_CLIENT_ID=<your-google-client-id>
@@ -253,7 +253,7 @@ Use Zappa or AWS SAM to deploy Flask as Lambda function.
 
 2. **Get connection string:**
 ```
-mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/porchestDB?retryWrites=true&w=majority
+mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/porchest_db?retryWrites=true&w=majority
 ```
 
 3. **Create indexes for better performance:**

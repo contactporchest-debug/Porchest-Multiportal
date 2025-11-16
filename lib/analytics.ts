@@ -12,7 +12,7 @@ export class AnalyticsService {
    */
   static async getCampaignAnalytics(campaignId: string) {
     const client = await clientPromise;
-    const db = client.db("porchestDB");
+    const db = client.db("porchest_db");
 
     const pipeline = [
       {
@@ -67,7 +67,7 @@ export class AnalyticsService {
    */
   static async getInfluencerAnalytics(userId: string) {
     const client = await clientPromise;
-    const db = client.db("porchestDB");
+    const db = client.db("porchest_db");
 
     const pipeline = [
       {
@@ -125,7 +125,7 @@ export class AnalyticsService {
    */
   static async getBrandDashboard(userId: string) {
     const client = await clientPromise;
-    const db = client.db("porchestDB");
+    const db = client.db("porchest_db");
 
     // Get campaigns summary
     const campaignStats = await db
@@ -187,7 +187,7 @@ export class AnalyticsService {
    */
   static async getInfluencerGrowth(userId: string) {
     const client = await clientPromise;
-    const db = client.db("porchestDB");
+    const db = client.db("porchest_db");
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -220,7 +220,7 @@ export class AnalyticsService {
    */
   static async getTopInfluencers(limit = 10) {
     const client = await clientPromise;
-    const db = client.db("porchestDB");
+    const db = client.db("porchest_db");
 
     const pipeline = [
       {
@@ -277,7 +277,7 @@ export class AnalyticsService {
    */
   static async getCampaignEngagementBreakdown(campaignId: string) {
     const client = await clientPromise;
-    const db = client.db("porchestDB");
+    const db = client.db("porchest_db");
 
     const pipeline = [
       {
@@ -304,7 +304,7 @@ export class AnalyticsService {
    */
   static async getPlatformROI(brandId: string) {
     const client = await clientPromise;
-    const db = client.db("porchestDB");
+    const db = client.db("porchest_db");
 
     const pipeline = [
       {

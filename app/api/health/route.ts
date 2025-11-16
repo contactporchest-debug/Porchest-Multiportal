@@ -73,7 +73,7 @@ export async function GET() {
     // Check database connection
     const dbStartTime = Date.now();
     const client = await clientPromise;
-    const db = client.db("porchestDB");
+    const db = client.db("porchest_db");
 
     // Perform a simple ping to verify connection
     await db.admin().ping();
@@ -119,7 +119,7 @@ export async function GET() {
 export async function HEAD() {
   try {
     const client = await clientPromise;
-    const db = client.db("porchestDB");
+    const db = client.db("porchest_db");
     await db.admin().ping();
 
     return new NextResponse(null, { status: 200 });

@@ -14,7 +14,7 @@ import type * as Types from "@/lib/db-types";
 
 export async function getDb(): Promise<Db> {
   const client = await clientPromise;
-  return client.db("porchestDB");
+  return client.db("porchest_db");
 }
 
 // ============================================================================

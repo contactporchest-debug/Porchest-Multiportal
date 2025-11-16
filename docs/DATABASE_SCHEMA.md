@@ -6,7 +6,7 @@ Complete MongoDB database schema for Porchest Multiportal.
 
 ## Overview
 
-**Database**: `porchestDB` (MongoDB 6+)
+**Database**: `porchest_db` (MongoDB 6+)
 **Collections**: 14
 **Total Indexes**: 29
 **Driver**: MongoDB Native Driver (not Mongoose)
@@ -884,7 +884,7 @@ db.daily_reports.createIndex({ employee_id: 1, report_date: -1 })
 // Run this script to create all indexes
 // Execute: mongosh < create-indexes.js
 
-use porchestDB;
+use porchest_db;
 
 // users
 db.users.createIndex({ email: 1 }, { unique: true });
@@ -1273,20 +1273,20 @@ db.posts.aggregate([
 
 ```bash
 # Create database
-mongosh --eval "use porchestDB"
+mongosh --eval "use porchest_db"
 
 # Run index creation
-mongosh porchestDB < create-indexes.js
+mongosh porchest_db < create-indexes.js
 
 # Verify indexes
-mongosh porchestDB --eval "db.getCollectionNames().forEach(c => { print(c); db[c].getIndexes().forEach(i => print('  ' + JSON.stringify(i.key))) })"
+mongosh porchest_db --eval "db.getCollectionNames().forEach(c => { print(c); db[c].getIndexes().forEach(i => print('  ' + JSON.stringify(i.key))) })"
 ```
 
 ### Seed Data (Development)
 
 ```javascript
 // seed-dev-data.js
-use porchestDB;
+use porchest_db;
 
 // Create admin user
 const adminPassword = "$2b$10$N9qo8uLOickgx2ZMRZoMye"; // bcrypt("password")
@@ -1311,7 +1311,7 @@ print("Seed data created!");
 
 ```bash
 # Full backup
-mongodump --uri="mongodb+srv://user:pass@cluster.mongodb.net/porchestDB" --out=/backup/$(date +%Y%m%d)
+mongodump --uri="mongodb+srv://user:pass@cluster.mongodb.net/porchest_db" --out=/backup/$(date +%Y%m%d)
 
 # Single collection
 mongodump --uri="mongodb+srv://..." --collection=users --out=/backup/users-$(date +%Y%m%d)
@@ -1324,7 +1324,7 @@ mongodump --uri="mongodb+srv://..." --collection=users --out=/backup/users-$(dat
 mongorestore --uri="mongodb+srv://..." /backup/20250115
 
 # Single collection
-mongorestore --uri="mongodb+srv://..." --collection=users /backup/users-20250115/porchestDB/users.bson
+mongorestore --uri="mongodb+srv://..." --collection=users /backup/users-20250115/porchest_db/users.bson
 ```
 
 ### Automated Backups

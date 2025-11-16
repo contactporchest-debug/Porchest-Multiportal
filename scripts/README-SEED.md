@@ -176,7 +176,7 @@ After running the script:
 1. Go to **MongoDB Atlas Console**
 2. Select your cluster
 3. Click **Browse Collections**
-4. Select database: `porchestDB`
+4. Select database: `porchest_db`
 5. Verify all collections exist and have data:
    - `users` (10 documents)
    - `brand_profiles` (2 documents)
@@ -243,7 +243,7 @@ If you need to re-seed, first clear existing data:
 ### Option 2: Use MongoDB Shell
 ```bash
 mongosh "mongodb+srv://your-connection-string"
-use porchestDB
+use porchest_db
 db.users.deleteMany({})
 db.brand_profiles.deleteMany({})
 db.influencer_profiles.deleteMany({})

@@ -159,7 +159,7 @@ App Request
   ↓
 getDb() → MongoDB Client Promise
   ↓
-client.db("porchestDB")
+client.db("porchest_db")
   ↓
 collections.{collectionName}()
   ↓
