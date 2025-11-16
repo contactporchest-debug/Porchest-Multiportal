@@ -1,5 +1,6 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import { PortalLayout } from "@/components/portal-layout"
 import { InfluencerSidebar } from "@/components/influencer-sidebar"
 import {
@@ -11,21 +12,6 @@ import {
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts"
 import {
   MapPin,
   Users,
@@ -39,6 +25,60 @@ import {
   Twitter,
   Target,
 } from "lucide-react"
+
+// Dynamically import Recharts components with SSR disabled
+const LineChart = dynamic<any>(
+  () => import("recharts").then((m) => m.LineChart),
+  { ssr: false }
+)
+const Line = dynamic<any>(
+  () => import("recharts").then((m) => m.Line),
+  { ssr: false }
+)
+const BarChart = dynamic<any>(
+  () => import("recharts").then((m) => m.BarChart),
+  { ssr: false }
+)
+const Bar = dynamic<any>(
+  () => import("recharts").then((m) => m.Bar),
+  { ssr: false }
+)
+const PieChart = dynamic<any>(
+  () => import("recharts").then((m) => m.PieChart),
+  { ssr: false }
+)
+const Pie = dynamic<any>(
+  () => import("recharts").then((m) => m.Pie),
+  { ssr: false }
+)
+const Cell = dynamic<any>(
+  () => import("recharts").then((m) => m.Cell),
+  { ssr: false }
+)
+const XAxis = dynamic<any>(
+  () => import("recharts").then((m) => m.XAxis),
+  { ssr: false }
+)
+const YAxis = dynamic<any>(
+  () => import("recharts").then((m) => m.YAxis),
+  { ssr: false }
+)
+const CartesianGrid = dynamic<any>(
+  () => import("recharts").then((m) => m.CartesianGrid),
+  { ssr: false }
+)
+const Tooltip = dynamic<any>(
+  () => import("recharts").then((m) => m.Tooltip),
+  { ssr: false }
+)
+const Legend = dynamic<any>(
+  () => import("recharts").then((m) => m.Legend),
+  { ssr: false }
+)
+const ResponsiveContainer = dynamic<any>(
+  () => import("recharts").then((m) => m.ResponsiveContainer),
+  { ssr: false }
+)
 
 // Influencer Profile Data
 const influencerProfile = {
