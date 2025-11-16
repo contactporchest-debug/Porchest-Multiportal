@@ -25,6 +25,10 @@ export async function middleware(req: NextRequest) {
   // If user is logged in and trying to access login/signup, redirect to their portal
   if (session?.user && (pathname === "/login" || pathname === "/signup")) {
     const role = session.user.role?.toLowerCase();
+    // Defensive check: if role is undefined, redirect to /portal for role detection
+    if (!role) {
+      return NextResponse.redirect(new URL("/portal", req.url));
+    }
     return NextResponse.redirect(new URL(`/${role}`, req.url));
   }
 
@@ -58,6 +62,10 @@ export async function middleware(req: NextRequest) {
   for (const route of roleBasedRoutes) {
     if (pathname.startsWith(route.path) && userRole !== route.role) {
       // User trying to access wrong portal, redirect to their portal
+      // Defensive check: if userRole is undefined, redirect to /portal
+      if (!userRole) {
+        return NextResponse.redirect(new URL("/portal", req.url));
+      }
       return NextResponse.redirect(new URL(`/${userRole}`, req.url));
     }
   }
