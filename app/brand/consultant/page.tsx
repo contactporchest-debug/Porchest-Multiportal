@@ -454,7 +454,7 @@ export default function ConsultantContact() {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Critical Issues:</span>
-                    <span className="font-medium text-red-600">< 1 hour</span>
+                    <span className="font-medium text-red-600">&lt; 1 hour</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">High Priority:</span>
