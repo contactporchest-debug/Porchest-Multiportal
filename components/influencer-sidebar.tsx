@@ -6,10 +6,10 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   LayoutDashboard,
   User,
-  Briefcase,
-  DollarSign,
+  Handshake,
+  CheckCircle,
+  Wallet,
   BarChart3,
-  MessageSquare,
   Settings,
   HelpCircle,
 } from "lucide-react"
@@ -23,29 +23,29 @@ const sidebarNavItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "Profile Management",
+    title: "Profile Setup",
     href: "/influencer/profile",
     icon: User,
   },
   {
     title: "Collaboration Requests",
     href: "/influencer/collaborations",
-    icon: Briefcase,
+    icon: Handshake,
   },
   {
-    title: "Earnings",
+    title: "Post Verification",
+    href: "/influencer/verification",
+    icon: CheckCircle,
+  },
+  {
+    title: "Earnings & Withdrawals",
     href: "/influencer/earnings",
-    icon: DollarSign,
+    icon: Wallet,
   },
   {
-    title: "Analytics",
-    href: "/influencer/analytics",
+    title: "Insights Dashboard",
+    href: "/influencer/insights",
     icon: BarChart3,
-  },
-  {
-    title: "Messages",
-    href: "/influencer/messages",
-    icon: MessageSquare,
   },
 ]
 
@@ -68,7 +68,7 @@ export function InfluencerSidebar() {
   return (
     <div className="flex h-full flex-col bg-background border-r">
       <div className="p-6">
-        <h2 className="text-lg font-semibold text-primary">Creator Portal</h2>
+        <h2 className="text-lg font-semibold text-primary">Influencer Portal</h2>
       </div>
 
       <ScrollArea className="flex-1 px-3">

@@ -16,7 +16,7 @@ import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Instagram, Youtube, Twitter, Linkedin, Camera, Save, Plus, X } from "lucide-react"
 
-export default function ProfileManagement() {
+export default function ProfileSetup() {
   const [bio, setBio] = useState(
     "Fashion enthusiast and lifestyle content creator. Passionate about sustainable fashion and wellness. Collaborating with brands that align with my values.",
   )
@@ -47,9 +47,9 @@ export default function ProfileManagement() {
   return (
     <PortalLayout
       sidebar={<InfluencerSidebar />}
-      title="Profile Management"
-      userRole="Content Creator"
-      breadcrumbs={[{ label: "Dashboard", href: "/influencer" }, { label: "Profile Management" }]}
+      title="Profile Setup"
+      userRole="Influencer"
+      breadcrumbs={[{ label: "Dashboard", href: "/influencer" }, { label: "Profile Setup" }]}
     >
       <div className="space-y-6">
         <Tabs defaultValue="basic" className="space-y-4">

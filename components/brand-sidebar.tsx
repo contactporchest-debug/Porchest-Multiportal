@@ -3,7 +3,14 @@
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { LayoutDashboard, Search, Target, TrendingUp, BarChart3, Users, Settings, HelpCircle } from "lucide-react"
+import {
+  LayoutDashboard,
+  Bot,
+  Activity,
+  MessageSquare,
+  Settings,
+  HelpCircle
+} from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -14,29 +21,19 @@ const sidebarNavItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "Influencer Search",
-    href: "/brand/search",
-    icon: Search,
+    title: "AI Recommendations",
+    href: "/brand/recommendations",
+    icon: Bot,
   },
   {
-    title: "Campaign Management",
-    href: "/brand/campaigns",
-    icon: Target,
+    title: "Active Campaigns",
+    href: "/brand/active-campaigns",
+    icon: Activity,
   },
   {
-    title: "ROI Predictions",
-    href: "/brand/roi",
-    icon: TrendingUp,
-  },
-  {
-    title: "Analytics",
-    href: "/brand/analytics",
-    icon: BarChart3,
-  },
-  {
-    title: "Influencers",
-    href: "/brand/influencers",
-    icon: Users,
+    title: "Consultant Contact",
+    href: "/brand/consultant",
+    icon: MessageSquare,
   },
 ]
 
