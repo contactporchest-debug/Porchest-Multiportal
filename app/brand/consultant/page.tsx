@@ -25,128 +25,115 @@ import {
 import { Label } from "@/components/ui/label"
 import {
   MessageSquare,
-  Star,
-  Calendar,
-  Award,
-  TrendingUp,
-  Users,
+  Mail,
+  Phone,
+  MapPin,
   Send,
   Clock,
   CheckCircle2,
+  Users,
+  Briefcase,
+  Headphones,
 } from "lucide-react"
 
-interface Consultant {
+interface TeamMember {
   id: string
   name: string
   avatar: string
-  title: string
-  specialties: string[]
-  rating: number
-  totalCampaigns: number
-  avgROI: number
-  experience: string
-  availability: "available" | "busy" | "booked"
-  responseTime: string
+  role: string
+  department: string
+  email: string
+  phone: string
+  expertise: string[]
+  availability: "available" | "busy" | "offline"
 }
 
-const consultants: Consultant[] = [
+const porchestTeam: TeamMember[] = [
   {
     id: "1",
-    name: "Sarah Johnson",
+    name: "Sarah Mitchell",
     avatar: "/placeholder.svg",
-    title: "Senior Marketing Strategist",
-    specialties: ["Fashion", "Lifestyle", "E-commerce"],
-    rating: 4.9,
-    totalCampaigns: 127,
-    avgROI: 385,
-    experience: "8+ years",
+    role: "Account Manager",
+    department: "Client Success",
+    email: "sarah.mitchell@porchest.com",
+    phone: "+1 (555) 123-4567",
+    expertise: ["Campaign Strategy", "Account Management", "Brand Partnerships"],
     availability: "available",
-    responseTime: "< 2 hours",
   },
   {
     id: "2",
-    name: "Michael Chen",
+    name: "David Chen",
     avatar: "/placeholder.svg",
-    title: "Influencer Campaign Expert",
-    specialties: ["Tech", "Gaming", "Electronics"],
-    rating: 4.8,
-    totalCampaigns: 98,
-    avgROI: 412,
-    experience: "6+ years",
+    role: "Technical Support Lead",
+    department: "Support",
+    email: "david.chen@porchest.com",
+    phone: "+1 (555) 234-5678",
+    expertise: ["Platform Issues", "Technical Setup", "Integrations"],
     availability: "available",
-    responseTime: "< 4 hours",
   },
   {
     id: "3",
     name: "Emma Rodriguez",
     avatar: "/placeholder.svg",
-    title: "Social Media Growth Specialist",
-    specialties: ["Health", "Fitness", "Wellness"],
-    rating: 5.0,
-    totalCampaigns: 156,
-    avgROI: 445,
-    experience: "10+ years",
+    role: "Marketing Strategist",
+    department: "Strategy",
+    email: "emma.rodriguez@porchest.com",
+    phone: "+1 (555) 345-6789",
+    expertise: ["Influencer Selection", "Campaign Optimization", "Analytics"],
     availability: "busy",
-    responseTime: "< 24 hours",
   },
   {
     id: "4",
-    name: "David Park",
+    name: "Michael Park",
     avatar: "/placeholder.svg",
-    title: "ROI Optimization Consultant",
-    specialties: ["Finance", "Business", "SaaS"],
-    rating: 4.7,
-    totalCampaigns: 89,
-    avgROI: 398,
-    experience: "5+ years",
+    role: "Billing & Finance",
+    department: "Finance",
+    email: "michael.park@porchest.com",
+    phone: "+1 (555) 456-7890",
+    expertise: ["Invoicing", "Payment Issues", "Subscription Management"],
     availability: "available",
-    responseTime: "< 3 hours",
   },
   {
     id: "5",
-    name: "Lisa Anderson",
+    name: "Lisa Thompson",
     avatar: "/placeholder.svg",
-    title: "Brand Partnership Director",
-    specialties: ["Beauty", "Cosmetics", "Skincare"],
-    rating: 4.9,
-    totalCampaigns: 143,
-    avgROI: 421,
-    experience: "9+ years",
-    availability: "booked",
-    responseTime: "< 48 hours",
+    role: "Customer Success Manager",
+    department: "Client Success",
+    email: "lisa.thompson@porchest.com",
+    phone: "+1 (555) 567-8901",
+    expertise: ["Onboarding", "Best Practices", "Training"],
+    availability: "available",
   },
   {
     id: "6",
     name: "James Wilson",
     avatar: "/placeholder.svg",
-    title: "Content Strategy Lead",
-    specialties: ["Travel", "Food", "Hospitality"],
-    rating: 4.8,
-    totalCampaigns: 112,
-    avgROI: 367,
-    experience: "7+ years",
-    availability: "available",
-    responseTime: "< 2 hours",
+    role: "Sales Director",
+    department: "Sales",
+    email: "james.wilson@porchest.com",
+    phone: "+1 (555) 678-9012",
+    expertise: ["Enterprise Solutions", "Custom Plans", "Pricing"],
+    availability: "offline",
   },
 ]
 
 export default function ConsultantContact() {
-  const [selectedConsultant, setSelectedConsultant] = useState<Consultant | null>(null)
+  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null)
   const [formData, setFormData] = useState({
     subject: "",
     message: "",
-    preferredTime: "",
+    department: "",
     urgency: "",
   })
 
   const getAvailabilityBadge = (availability: string) => {
     switch (availability) {
       case "available":
-        return <Badge className="bg-green-500">Available Now</Badge>
+        return <Badge className="bg-green-500">Available</Badge>
       case "busy":
-        return <Badge className="bg-yellow-500">Limited Availability</Badge>
-      case "booked":
-        return <Badge className="bg-red-500">Fully Booked</Badge>
+        return <Badge className="bg-yellow-500">Busy</Badge>
+      case "offline":
+        return <Badge className="bg-gray-500">Offline</Badge>
       default:
         return <Badge variant="secondary">Unknown</Badge>
     }
@@ -155,66 +142,111 @@ export default function ConsultantContact() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     // Handle form submission - would connect to API
-    alert(`Message sent to ${selectedConsultant?.name || "consultant"}!`)
+    alert(`Message sent to ${selectedMember?.name || "Porchest team"}!`)
     setFormData({
       subject: "",
       message: "",
-      preferredTime: "",
+      department: "",
       urgency: "",
     })
-    setSelectedConsultant(null)
+    setSelectedMember(null)
   }
 
   return (
     <PortalLayout
       sidebar={<BrandSidebar />}
-      title="Consultant Contact"
+      title="Contact Porchest Team"
       userRole="Brand Manager"
-      breadcrumbs={[{ label: "Dashboard", href: "/brand" }, { label: "Consultant Contact" }]}
+      breadcrumbs={[{ label: "Dashboard", href: "/brand" }, { label: "Contact Team" }]}
     >
       <div className="grid grid-cols-1 gap-6">
         {/* Header Section */}
         <Card className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
           <CardHeader>
-            <CardTitle className="text-2xl">Get Expert Guidance</CardTitle>
+            <CardTitle className="text-2xl flex items-center gap-2">
+              <Users className="h-6 w-6" />
+              Get in Touch with Porchest
+            </CardTitle>
             <CardDescription className="text-blue-100">
-              Connect with our top marketing consultants to optimize your campaigns and maximize ROI
+              Our dedicated team is here to help you succeed with your influencer marketing campaigns
             </CardDescription>
           </CardHeader>
         </Card>
 
+        {/* Quick Contact Options */}
+        <div className="grid md:grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="p-6 text-center">
+              <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
+                <Phone className="h-6 w-6 text-blue-600" />
+              </div>
+              <h3 className="font-semibold mb-2">Phone Support</h3>
+              <p className="text-sm text-muted-foreground mb-2">Mon-Fri, 9AM-6PM EST</p>
+              <a href="tel:+15551234567" className="text-blue-600 font-medium">
+                +1 (555) 123-4567
+              </a>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6 text-center">
+              <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-3">
+                <Mail className="h-6 w-6 text-purple-600" />
+              </div>
+              <h3 className="font-semibold mb-2">Email Support</h3>
+              <p className="text-sm text-muted-foreground mb-2">24/7 Response</p>
+              <a href="mailto:support@porchest.com" className="text-purple-600 font-medium">
+                support@porchest.com
+              </a>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6 text-center">
+              <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                <MapPin className="h-6 w-6 text-green-600" />
+              </div>
+              <h3 className="font-semibold mb-2">Office Location</h3>
+              <p className="text-sm text-muted-foreground mb-2">San Francisco, CA</p>
+              <p className="text-sm font-medium">123 Market Street, Suite 500</p>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Consultant Listings */}
+          {/* Team Members */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Available Consultants ({consultants.length})</h3>
+              <h3 className="text-lg font-semibold">Our Team ({porchestTeam.length})</h3>
               <Select>
                 <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Sort by..." />
+                  <SelectValue placeholder="Filter by..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="rating">Highest Rated</SelectItem>
-                  <SelectItem value="campaigns">Most Campaigns</SelectItem>
-                  <SelectItem value="roi">Best ROI</SelectItem>
-                  <SelectItem value="availability">Availability</SelectItem>
+                  <SelectItem value="all">All Departments</SelectItem>
+                  <SelectItem value="success">Client Success</SelectItem>
+                  <SelectItem value="support">Support</SelectItem>
+                  <SelectItem value="strategy">Strategy</SelectItem>
+                  <SelectItem value="finance">Finance</SelectItem>
+                  <SelectItem value="sales">Sales</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {consultants.map((consultant) => (
+            {porchestTeam.map((member) => (
               <Card
-                key={consultant.id}
+                key={member.id}
                 className={`hover:shadow-lg transition-all cursor-pointer ${
-                  selectedConsultant?.id === consultant.id ? "ring-2 ring-blue-500" : ""
+                  selectedMember?.id === member.id ? "ring-2 ring-blue-500" : ""
                 }`}
-                onClick={() => setSelectedConsultant(consultant)}
+                onClick={() => setSelectedMember(member)}
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-start gap-4">
                     <Avatar className="h-16 w-16">
-                      <AvatarImage src={consultant.avatar} alt={consultant.name} />
+                      <AvatarImage src={member.avatar} alt={member.name} />
                       <AvatarFallback>
-                        {consultant.name
+                        {member.name
                           .split(" ")
                           .map((n) => n[0])
                           .join("")}
@@ -223,65 +255,53 @@ export default function ConsultantContact() {
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <div>
-                          <CardTitle className="text-lg">{consultant.name}</CardTitle>
-                          <CardDescription>{consultant.title}</CardDescription>
+                          <CardTitle className="text-lg">{member.name}</CardTitle>
+                          <CardDescription>{member.role}</CardDescription>
                         </div>
-                        {getAvailabilityBadge(consultant.availability)}
+                        {getAvailabilityBadge(member.availability)}
                       </div>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {consultant.specialties.map((specialty, idx) => (
-                          <Badge key={idx} variant="secondary" className="text-xs">
-                            {specialty}
-                          </Badge>
-                        ))}
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge variant="outline" className="text-xs">
+                          <Briefcase className="h-3 w-3 mr-1" />
+                          {member.department}
+                        </Badge>
                       </div>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Star className="h-4 w-4 text-yellow-500" />
-                      <div>
-                        <p className="font-semibold">{consultant.rating}</p>
-                        <p className="text-xs text-muted-foreground">Rating</p>
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      {member.expertise.map((skill, idx) => (
+                        <Badge key={idx} variant="secondary" className="text-xs">
+                          {skill}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Mail className="h-4 w-4" />
+                        <a href={`mailto:${member.email}`} className="hover:text-blue-600">
+                          {member.email}
+                        </a>
+                      </div>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Phone className="h-4 w-4" />
+                        <a href={`tel:${member.phone}`} className="hover:text-blue-600">
+                          {member.phone}
+                        </a>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-green-500" />
-                      <div>
-                        <p className="font-semibold">{consultant.avgROI}%</p>
-                        <p className="text-xs text-muted-foreground">Avg ROI</p>
-                      </div>
+                    <div className="flex items-center justify-end">
+                      <Button
+                        size="sm"
+                        onClick={() => setSelectedMember(member)}
+                        disabled={member.availability === "offline"}
+                      >
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Contact
+                      </Button>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-blue-500" />
-                      <div>
-                        <p className="font-semibold">{consultant.totalCampaigns}</p>
-                        <p className="text-xs text-muted-foreground">Campaigns</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-purple-500" />
-                      <div>
-                        <p className="font-semibold">{consultant.responseTime}</p>
-                        <p className="text-xs text-muted-foreground">Response</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Award className="h-4 w-4" />
-                      <span>{consultant.experience} experience</span>
-                    </div>
-                    <Button
-                      size="sm"
-                      onClick={() => setSelectedConsultant(consultant)}
-                      disabled={consultant.availability === "booked"}
-                    >
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Contact
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -294,158 +314,156 @@ export default function ConsultantContact() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Send className="h-5 w-5" />
-                  Contact Consultant
+                  Send Message
                 </CardTitle>
                 <CardDescription>
-                  {selectedConsultant
-                    ? `Send a message to ${selectedConsultant.name}`
-                    : "Select a consultant to send a message"}
+                  {selectedMember
+                    ? `Contact ${selectedMember.name}`
+                    : "Select a team member or send a general inquiry"}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {selectedConsultant ? (
-                  <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {selectedMember && (
                     <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10">
-                          <AvatarImage src={selectedConsultant.avatar} alt={selectedConsultant.name} />
+                          <AvatarImage src={selectedMember.avatar} alt={selectedMember.name} />
                           <AvatarFallback>
-                            {selectedConsultant.name
+                            {selectedMember.name
                               .split(" ")
                               .map((n) => n[0])
                               .join("")}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-semibold text-sm">{selectedConsultant.name}</p>
-                          <p className="text-xs text-muted-foreground">{selectedConsultant.title}</p>
+                          <p className="font-semibold text-sm">{selectedMember.name}</p>
+                          <p className="text-xs text-muted-foreground">{selectedMember.role}</p>
                         </div>
                       </div>
                     </div>
+                  )}
 
-                    <div className="space-y-2">
-                      <Label htmlFor="subject">Subject</Label>
-                      <Input
-                        id="subject"
-                        placeholder="e.g., Campaign Strategy Consultation"
-                        value={formData.subject}
-                        onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="urgency">Urgency</Label>
-                      <Select
-                        value={formData.urgency}
-                        onValueChange={(value) => setFormData({ ...formData, urgency: value })}
-                        required
-                      >
-                        <SelectTrigger id="urgency">
-                          <SelectValue placeholder="Select urgency level" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">Low - General inquiry</SelectItem>
-                          <SelectItem value="medium">Medium - Need help soon</SelectItem>
-                          <SelectItem value="high">High - Urgent assistance needed</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="preferredTime">Preferred Contact Time</Label>
-                      <Select
-                        value={formData.preferredTime}
-                        onValueChange={(value) => setFormData({ ...formData, preferredTime: value })}
-                        required
-                      >
-                        <SelectTrigger id="preferredTime">
-                          <SelectValue placeholder="Select preferred time" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="morning">Morning (9 AM - 12 PM)</SelectItem>
-                          <SelectItem value="afternoon">Afternoon (12 PM - 5 PM)</SelectItem>
-                          <SelectItem value="evening">Evening (5 PM - 8 PM)</SelectItem>
-                          <SelectItem value="anytime">Anytime</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="message">Message</Label>
-                      <Textarea
-                        id="message"
-                        placeholder="Describe your needs and how the consultant can help..."
-                        rows={6}
-                        value={formData.message}
-                        onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                        required
-                      />
-                    </div>
-
-                    <Button type="submit" className="w-full" size="lg">
-                      <Send className="h-4 w-4 mr-2" />
-                      Send Message
-                    </Button>
-
-                    <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                      <CheckCircle2 className="h-4 w-4 mt-0.5 text-green-500" />
-                      <p>
-                        Expected response time: <span className="font-semibold">{selectedConsultant.responseTime}</span>
-                      </p>
-                    </div>
-                  </form>
-                ) : (
-                  <div className="text-center py-8">
-                    <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                    <p className="text-sm text-muted-foreground">
-                      Select a consultant from the list to start a conversation
-                    </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="department">Department</Label>
+                    <Select
+                      value={formData.department}
+                      onValueChange={(value) => setFormData({ ...formData, department: value })}
+                      required
+                    >
+                      <SelectTrigger id="department">
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="success">Client Success</SelectItem>
+                        <SelectItem value="support">Technical Support</SelectItem>
+                        <SelectItem value="strategy">Marketing Strategy</SelectItem>
+                        <SelectItem value="finance">Billing & Finance</SelectItem>
+                        <SelectItem value="sales">Sales</SelectItem>
+                        <SelectItem value="general">General Inquiry</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="subject">Subject</Label>
+                    <Input
+                      id="subject"
+                      placeholder="e.g., Help with campaign setup"
+                      value={formData.subject}
+                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="urgency">Priority Level</Label>
+                    <Select
+                      value={formData.urgency}
+                      onValueChange={(value) => setFormData({ ...formData, urgency: value })}
+                      required
+                    >
+                      <SelectTrigger id="urgency">
+                        <SelectValue placeholder="Select priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Low - General question</SelectItem>
+                        <SelectItem value="medium">Medium - Need help soon</SelectItem>
+                        <SelectItem value="high">High - Urgent issue</SelectItem>
+                        <SelectItem value="critical">Critical - Service down</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="message">Message</Label>
+                    <Textarea
+                      id="message"
+                      placeholder="Describe your question or issue in detail..."
+                      rows={6}
+                      value={formData.message}
+                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <Button type="submit" className="w-full" size="lg">
+                    <Send className="h-4 w-4 mr-2" />
+                    Send Message
+                  </Button>
+
+                  <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <CheckCircle2 className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
+                    <p>We typically respond within 2-4 business hours. For urgent issues, please call us directly.</p>
+                  </div>
+                </form>
               </CardContent>
             </Card>
           </div>
         </div>
 
-        {/* Quick Tips */}
+        {/* Support Hours */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Tips for Working with Consultants</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Support Hours & Response Times
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="flex gap-3">
-                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <span className="text-blue-600 font-bold">1</span>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-sm mb-1">Be Specific</h4>
-                  <p className="text-xs text-muted-foreground">
-                    Clearly describe your goals, budget, and timeline for the best guidance
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-                  <span className="text-purple-600 font-bold">2</span>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-sm mb-1">Share Data</h4>
-                  <p className="text-xs text-muted-foreground">
-                    Provide campaign data and analytics to help consultants give accurate advice
-                  </p>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="font-semibold mb-3">Business Hours</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Monday - Friday:</span>
+                    <span className="font-medium">9:00 AM - 6:00 PM EST</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Saturday:</span>
+                    <span className="font-medium">10:00 AM - 4:00 PM EST</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Sunday:</span>
+                    <span className="font-medium">Closed</span>
+                  </div>
                 </div>
               </div>
-              <div className="flex gap-3">
-                <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                  <span className="text-green-600 font-bold">3</span>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-sm mb-1">Follow Up</h4>
-                  <p className="text-xs text-muted-foreground">
-                    Keep consultants updated on progress and results for ongoing optimization
-                  </p>
+              <div>
+                <h4 className="font-semibold mb-3">Expected Response Times</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Critical Issues:</span>
+                    <span className="font-medium text-red-600">< 1 hour</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">High Priority:</span>
+                    <span className="font-medium text-orange-600">2-4 hours</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Medium/Low Priority:</span>
+                    <span className="font-medium text-green-600">4-24 hours</span>
+                  </div>
                 </div>
               </div>
             </div>

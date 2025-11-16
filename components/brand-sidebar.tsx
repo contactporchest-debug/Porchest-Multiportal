@@ -8,9 +8,6 @@ import {
   Bot,
   Activity,
   MessageSquare,
-  Target,
-  TrendingUp,
-  BarChart3,
   Settings,
   HelpCircle
 } from "lucide-react"
@@ -37,21 +34,6 @@ const sidebarNavItems = [
     title: "Consultant Contact",
     href: "/brand/consultant",
     icon: MessageSquare,
-  },
-  {
-    title: "Campaign Management",
-    href: "/brand/campaigns",
-    icon: Target,
-  },
-  {
-    title: "ROI Predictions",
-    href: "/brand/roi",
-    icon: TrendingUp,
-  },
-  {
-    title: "Analytics",
-    href: "/brand/analytics",
-    icon: BarChart3,
   },
 ]
 
