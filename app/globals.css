@@ -4,55 +4,38 @@
 
 @layer base {
   :root {
-    /* Slate color scheme for dark theme */
-    --slate-900: 222 84% 5%;
-    --slate-800: 217 33% 17%;
-    --slate-700: 215 25% 27%;
-    --slate-600: 215 19% 35%;
-    --slate-500: 215 16% 47%;
-    --slate-400: 215 20% 65%;
-    --slate-300: 213 27% 84%;
-    --slate-200: 214 32% 91%;
-    --slate-100: 210 40% 96%;
-    --slate-50: 210 40% 98%;
+    /* Porchest Brand Colors - Orange (#FF7A00) */
+    --porchest-orange: 28 100% 50%;
+    --porchest-orange-dark: 28 100% 40%;
+    --porchest-orange-light: 28 100% 60%;
+    --porchest-white: 0 0% 100%;
+    --porchest-black: 0 0% 0%;
 
-    /* Orange accent (#ff7a00) */
-    --orange-50: 33 100% 96%;
-    --orange-100: 34 100% 92%;
-    --orange-200: 32 98% 83%;
-    --orange-300: 31 97% 72%;
-    --orange-400: 27 96% 61%;
-    --orange-500: 25 95% 53%;
-    --orange-600: 21 90% 48%;
-    --orange-700: 17 88% 40%;
-    --orange-800: 15 79% 34%;
-    --orange-900: 15 75% 28%;
+    /* Glass surface tokens for Tahoe style */
+    --glass-surface: rgba(255, 255, 255, 0.08);
+    --glass-border: rgba(255, 255, 255, 0.20);
+    --glass-glow: rgba(255, 122, 0, 0.25);
 
-    /* Coral (#FF6B6B) */
-    --coral-500: 0 85% 70%;
-    --coral-400: 0 85% 75%;
-    --coral-600: 0 85% 65%;
-
-    /* Standard variables */
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 25 95% 53%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
+    /* Standard variables - Updated for Porchest theme */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 0%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 5%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 28 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 0 0% 10%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 25 95% 53%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 20%;
+    --input: 0 0% 10%;
+    --ring: 28 100% 50%;
     --radius: 0.75rem;
   }
 }
@@ -62,48 +45,54 @@
     @apply border-border;
   }
   body {
-    @apply bg-black text-foreground;
+    @apply text-foreground;
+    background: linear-gradient(180deg, #000000 0%, #140A00 100%);
+    background-attachment: fixed;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-/* Custom color classes */
+/* Glassmorphism utility classes - Tahoe style */
 @layer utilities {
-  .text-coral-400 {
-    color: hsl(0 85% 75%);
+  .glass {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.20);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
   }
-  .text-coral-500 {
-    color: hsl(0 85% 70%);
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.20);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    border-radius: 0.75rem;
   }
-  .text-coral-600 {
-    color: hsl(0 85% 65%);
+
+  .glass-orange {
+    background: linear-gradient(120deg, rgba(255,122,0,0.15), rgba(255,122,0,0.05));
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 122, 0, 0.3);
+    box-shadow: 0 8px 32px 0 rgba(255, 122, 0, 0.2);
   }
-  .bg-coral-400 {
-    background-color: hsl(0 85% 75%);
+
+  .glass-sidebar {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-right: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 4px 0 24px 0 rgba(0, 0, 0, 0.3);
   }
-  .bg-coral-500 {
-    background-color: hsl(0 85% 70%);
-  }
-  .bg-coral-600 {
-    background-color: hsl(0 85% 65%);
-  }
-  .border-coral-400 {
-    border-color: hsl(0 85% 75%);
-  }
-  .border-coral-500 {
-    border-color: hsl(0 85% 70%);
-  }
-  .from-coral-400 {
-    --tw-gradient-from: hsl(0 85% 75%);
-  }
-  .to-coral-500 {
-    --tw-gradient-to: hsl(0 85% 70%);
-  }
-  .from-coral-500 {
-    --tw-gradient-from: hsl(0 85% 70%);
-  }
-  .to-coral-600 {
-    --tw-gradient-to: hsl(0 85% 65%);
+
+  .glass-navbar {
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.3);
   }
 
   /* Updated layout spacing for centered content with equal spacing on all sides */
