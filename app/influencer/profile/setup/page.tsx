@@ -1,55 +1,126 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useSession } from "next-auth/react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
 import { PortalLayout } from "@/components/portal-layout"
 import { InfluencerSidebar } from "@/components/influencer-sidebar"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, Save, Plus, X, Instagram, CheckCircle, AlertCircle } from "lucide-react"
-import { ProfileSetupFormData } from "@/lib/types/influencer"
+import {
+  Loader2,
+  Save,
+  Plus,
+  X,
+  Instagram,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react"
 
-// Country list (you can expand this)
+// Form validation schema
+const profileFormSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters").max(100),
+  category: z.string().min(2, "Category is required").max(100),
+  bio: z.string().min(10, "Bio must be at least 10 characters").max(500),
+  country: z.string().min(2, "Country is required"),
+  city: z.string().min(2, "City is required"),
+  languages: z.array(z.string()).min(1, "Select at least one language"),
+  contactEmail: z.string().email("Invalid email address"),
+  brandPreferences: z.array(z.string()).default([]),
+})
+
+type ProfileFormValues = z.infer<typeof profileFormSchema>
+
+// Constants
 const COUNTRIES = [
-  "United States", "United Kingdom", "Canada", "Australia", "India", "Germany", "France",
-  "Spain", "Italy", "Brazil", "Mexico", "Japan", "South Korea", "China", "Other"
+  "United States",
+  "United Kingdom",
+  "Canada",
+  "Australia",
+  "India",
+  "Germany",
+  "France",
+  "Spain",
+  "Italy",
+  "Brazil",
+  "Mexico",
+  "Japan",
+  "South Korea",
+  "China",
+  "Other",
 ]
 
-// Language list (you can expand this)
 const LANGUAGES = [
-  "English", "Spanish", "French", "German", "Italian", "Portuguese", "Mandarin",
-  "Japanese", "Korean", "Hindi", "Arabic", "Russian", "Other"
+  "English",
+  "Spanish",
+  "French",
+  "German",
+  "Italian",
+  "Portuguese",
+  "Mandarin",
+  "Japanese",
+  "Korean",
+  "Hindi",
+  "Arabic",
+  "Russian",
+  "Other",
 ]
 
 export default function InfluencerProfileSetup() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { data: session, update } = useSession()
+  const { data: session } = useSession()
   const { toast } = useToast()
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [hasInstagram, setHasInstagram] = useState(false)
-
-  const [formData, setFormData] = useState<ProfileSetupFormData>({
-    name: "",
-    category: "",
-    bio: "",
-    country: "",
-    city: "",
-    languages: [],
-    email: "",
-    brand_preferences: [],
-  })
-
   const [newLanguage, setNewLanguage] = useState("")
   const [newBrandPref, setNewBrandPref] = useState("")
+
+  // Initialize form with react-hook-form
+  const form = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileFormSchema),
+    defaultValues: {
+      name: "",
+      category: "",
+      bio: "",
+      country: "",
+      city: "",
+      languages: [],
+      contactEmail: "",
+      brandPreferences: [],
+    },
+  })
 
   useEffect(() => {
     fetchProfile()
@@ -79,56 +150,61 @@ export default function InfluencerProfileSetup() {
   const fetchProfile = async () => {
     try {
       setLoading(true)
-      const response = await fetch("/api/influencer/profile-setup")
+      const response = await fetch("/api/influencer/profile")
       const data = await response.json()
 
-      if (data.success && data.data.profile) {
+      if (data.success && data.data?.profile) {
         const profile = data.data.profile
-        setFormData({
-          name: profile.basic_info?.name || "",
-          category: profile.basic_info?.category || "",
-          bio: profile.basic_info?.bio || "",
-          country: profile.basic_info?.country || "",
-          city: profile.basic_info?.city || "",
-          languages: profile.basic_info?.languages || [],
-          email: profile.basic_info?.email || session?.user?.email || "",
-          brand_preferences: profile.basic_info?.brand_preferences || [],
+        const basicInfo = profile.basic_info || {}
+
+        // Update form with existing data
+        form.reset({
+          name: basicInfo.name || "",
+          category: basicInfo.category || "",
+          bio: basicInfo.bio || "",
+          country: basicInfo.country || "",
+          city: basicInfo.city || "",
+          languages: basicInfo.languages || [],
+          contactEmail: basicInfo.email || session?.user?.email || "",
+          brandPreferences: basicInfo.brand_preferences || [],
         })
-        setHasInstagram(data.data.hasInstagram)
+
+        setHasInstagram(!!profile.instagram?.account_id)
       } else {
         // Pre-fill email from session
-        setFormData((prev) => ({
-          ...prev,
-          email: session?.user?.email || "",
-        }))
+        form.setValue("contactEmail", session?.user?.email || "")
       }
     } catch (err) {
       console.error("Error fetching profile:", err)
+      toast({
+        title: "Error",
+        description: "Failed to load profile",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
   }
 
-  const handleSave = async () => {
+  const onSubmit = async (values: ProfileFormValues) => {
     try {
       setSaving(true)
 
-      // Validate required fields
-      if (!formData.name || !formData.category || !formData.bio ||
-          !formData.country || !formData.city || formData.languages.length === 0 ||
-          !formData.email) {
-        toast({
-          title: "Validation Error",
-          description: "Please fill in all required fields",
-          variant: "destructive",
-        })
-        return
-      }
-
-      const response = await fetch("/api/influencer/profile-setup", {
+      const response = await fetch("/api/influencer/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          basic_info: {
+            name: values.name,
+            category: values.category,
+            bio: values.bio,
+            country: values.country,
+            city: values.city,
+            languages: values.languages,
+            email: values.contactEmail,
+            brand_preferences: values.brandPreferences,
+          },
+        }),
       })
 
       const data = await response.json()
@@ -142,8 +218,8 @@ export default function InfluencerProfileSetup() {
         description: "Profile saved successfully!",
       })
 
-      // Update session if needed
-      await update()
+      // Refresh profile data
+      await fetchProfile()
     } catch (err: any) {
       toast({
         title: "Error",
@@ -156,31 +232,38 @@ export default function InfluencerProfileSetup() {
   }
 
   const addLanguage = () => {
-    if (newLanguage && !formData.languages.includes(newLanguage)) {
-      setFormData({ ...formData, languages: [...formData.languages, newLanguage] })
+    if (newLanguage && !form.getValues("languages").includes(newLanguage)) {
+      const currentLanguages = form.getValues("languages")
+      form.setValue("languages", [...currentLanguages, newLanguage])
       setNewLanguage("")
     }
   }
 
   const removeLanguage = (lang: string) => {
-    setFormData({ ...formData, languages: formData.languages.filter((l) => l !== lang) })
+    const currentLanguages = form.getValues("languages")
+    form.setValue(
+      "languages",
+      currentLanguages.filter((l) => l !== lang)
+    )
   }
 
   const addBrandPref = () => {
-    if (newBrandPref && !formData.brand_preferences.includes(newBrandPref)) {
-      setFormData({
-        ...formData,
-        brand_preferences: [...formData.brand_preferences, newBrandPref],
-      })
+    if (
+      newBrandPref &&
+      !form.getValues("brandPreferences").includes(newBrandPref)
+    ) {
+      const currentPrefs = form.getValues("brandPreferences")
+      form.setValue("brandPreferences", [...currentPrefs, newBrandPref])
       setNewBrandPref("")
     }
   }
 
   const removeBrandPref = (pref: string) => {
-    setFormData({
-      ...formData,
-      brand_preferences: formData.brand_preferences.filter((p) => p !== pref),
-    })
+    const currentPrefs = form.getValues("brandPreferences")
+    form.setValue(
+      "brandPreferences",
+      currentPrefs.filter((p) => p !== pref)
+    )
   }
 
   const handleConnectInstagram = () => {
@@ -196,7 +279,7 @@ export default function InfluencerProfileSetup() {
         breadcrumbs={[{ label: "Profile Setup" }]}
       >
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#FF7A00]" />
         </div>
       </PortalLayout>
     )
@@ -211,219 +294,299 @@ export default function InfluencerProfileSetup() {
     >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* LEFT SIDE - FORM */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Basic Information */}
-          <Card className="backdrop-blur-sm bg-white/90 border-orange-200">
-            <CardHeader>
-              <CardTitle className="text-orange-600">Basic Information</CardTitle>
-              <CardDescription>Tell us about yourself</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Your full name"
-                  className="border-orange-200 focus:border-orange-500"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="category">Category (Niche) *</Label>
-                <Input
-                  id="category"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  placeholder="e.g., Fashion, Travel, Tech, Fitness"
-                  className="border-orange-200 focus:border-orange-500"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="bio">Bio *</Label>
-                <Textarea
-                  id="bio"
-                  value={formData.bio}
-                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                  placeholder="Tell brands about yourself..."
-                  rows={4}
-                  className="border-orange-200 focus:border-orange-500"
-                />
-                <p className="text-xs text-gray-500">{formData.bio.length}/500 characters</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="your@email.com"
-                  className="border-orange-200 focus:border-orange-500"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Location */}
-          <Card className="backdrop-blur-sm bg-white/90 border-orange-200">
-            <CardHeader>
-              <CardTitle className="text-orange-600">Location</CardTitle>
-              <CardDescription>Where are you based?</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="country">Country *</Label>
-                  <select
-                    id="country"
-                    value={formData.country}
-                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                    className="flex h-10 w-full rounded-md border border-orange-200 bg-white px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-                  >
-                    <option value="">Select country</option>
-                    {COUNTRIES.map((country) => (
-                      <option key={country} value={country}>
-                        {country}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="city">City *</Label>
-                  <Input
-                    id="city"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    placeholder="Your city"
-                    className="border-orange-200 focus:border-orange-500"
+        <div className="lg:col-span-2">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Basic Information */}
+              <Card className="backdrop-blur-sm bg-white/90 border-orange-200">
+                <CardHeader>
+                  <CardTitle className="text-[#FF7A00]">
+                    Basic Information
+                  </CardTitle>
+                  <CardDescription>Tell us about yourself</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Full Name *</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Your full name"
+                            {...field}
+                            className="border-orange-200 focus:border-[#FF7A00]"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Languages */}
-          <Card className="backdrop-blur-sm bg-white/90 border-orange-200">
-            <CardHeader>
-              <CardTitle className="text-orange-600">Languages *</CardTitle>
-              <CardDescription>What languages do you speak?</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <select
-                  value={newLanguage}
-                  onChange={(e) => setNewLanguage(e.target.value)}
-                  className="flex h-10 flex-1 rounded-md border border-orange-200 bg-white px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-                >
-                  <option value="">Select language</option>
-                  {LANGUAGES.map((lang) => (
-                    <option key={lang} value={lang}>
-                      {lang}
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  onClick={addLanguage}
-                  type="button"
-                  size="sm"
-                  className="bg-orange-600 hover:bg-orange-700"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add
-                </Button>
-              </div>
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category (Niche) *</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="e.g., Fashion, Travel, Tech, Fitness"
+                            {...field}
+                            className="border-orange-200 focus:border-[#FF7A00]"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <div className="flex flex-wrap gap-2">
-                {formData.languages.map((lang) => (
-                  <Badge
-                    key={lang}
-                    variant="secondary"
-                    className="bg-orange-100 text-orange-800 hover:bg-orange-200"
-                  >
-                    {lang}
-                    <X
-                      className="ml-2 h-3 w-3 cursor-pointer"
-                      onClick={() => removeLanguage(lang)}
+                  <FormField
+                    control={form.control}
+                    name="bio"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Bio *</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Tell brands about yourself..."
+                            rows={4}
+                            {...field}
+                            className="border-orange-200 focus:border-[#FF7A00]"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          {field.value.length}/500 characters
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="contactEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email *</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="email"
+                            placeholder="your@email.com"
+                            {...field}
+                            className="border-orange-200 focus:border-[#FF7A00]"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Location */}
+              <Card className="backdrop-blur-sm bg-white/90 border-orange-200">
+                <CardHeader>
+                  <CardTitle className="text-[#FF7A00]">Location</CardTitle>
+                  <CardDescription>Where are you based?</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="country"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Country *</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="border-orange-200 focus:border-[#FF7A00]">
+                                <SelectValue placeholder="Select country" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {COUNTRIES.map((country) => (
+                                <SelectItem key={country} value={country}>
+                                  {country}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </Badge>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Brand Preferences */}
-          <Card className="backdrop-blur-sm bg-white/90 border-orange-200">
-            <CardHeader>
-              <CardTitle className="text-orange-600">Brand Preferences</CardTitle>
-              <CardDescription>What types of brands do you prefer to work with?</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Input
-                  value={newBrandPref}
-                  onChange={(e) => setNewBrandPref(e.target.value)}
-                  placeholder="e.g., Sustainable brands, Tech companies"
-                  className="border-orange-200 focus:border-orange-500"
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault()
-                      addBrandPref()
-                    }
-                  }}
-                />
-                <Button
-                  onClick={addBrandPref}
-                  type="button"
-                  size="sm"
-                  className="bg-orange-600 hover:bg-orange-700"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add
-                </Button>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {formData.brand_preferences.map((pref) => (
-                  <Badge
-                    key={pref}
-                    variant="secondary"
-                    className="bg-orange-100 text-orange-800 hover:bg-orange-200"
-                  >
-                    {pref}
-                    <X
-                      className="ml-2 h-3 w-3 cursor-pointer"
-                      onClick={() => removeBrandPref(pref)}
+                    <FormField
+                      control={form.control}
+                      name="city"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>City *</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Your city"
+                              {...field}
+                              className="border-orange-200 focus:border-[#FF7A00]"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </Badge>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  </div>
+                </CardContent>
+              </Card>
 
-          {/* Save Button */}
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            size="lg"
-            className="w-full bg-orange-600 hover:bg-orange-700 text-white"
-          >
-            {saving ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-5 w-5" />
-                Save Profile
-              </>
-            )}
-          </Button>
+              {/* Languages */}
+              <Card className="backdrop-blur-sm bg-white/90 border-orange-200">
+                <CardHeader>
+                  <CardTitle className="text-[#FF7A00]">Languages *</CardTitle>
+                  <CardDescription>What languages do you speak?</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Select value={newLanguage} onValueChange={setNewLanguage}>
+                      <SelectTrigger className="flex-1 border-orange-200">
+                        <SelectValue placeholder="Select language" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LANGUAGES.map((lang) => (
+                          <SelectItem key={lang} value={lang}>
+                            {lang}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      onClick={addLanguage}
+                      type="button"
+                      size="sm"
+                      className="bg-[#FF7A00] hover:bg-[#FF7A00]/90"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add
+                    </Button>
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="languages"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <div className="flex flex-wrap gap-2">
+                            {field.value.map((lang) => (
+                              <Badge
+                                key={lang}
+                                variant="secondary"
+                                className="bg-orange-100 text-orange-800 hover:bg-orange-200"
+                              >
+                                {lang}
+                                <X
+                                  className="ml-2 h-3 w-3 cursor-pointer"
+                                  onClick={() => removeLanguage(lang)}
+                                />
+                              </Badge>
+                            ))}
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Brand Preferences */}
+              <Card className="backdrop-blur-sm bg-white/90 border-orange-200">
+                <CardHeader>
+                  <CardTitle className="text-[#FF7A00]">
+                    Brand Preferences
+                  </CardTitle>
+                  <CardDescription>
+                    What types of brands do you prefer to work with?
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Input
+                      value={newBrandPref}
+                      onChange={(e) => setNewBrandPref(e.target.value)}
+                      placeholder="e.g., Sustainable brands, Tech companies"
+                      className="border-orange-200 focus:border-[#FF7A00]"
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          addBrandPref()
+                        }
+                      }}
+                    />
+                    <Button
+                      onClick={addBrandPref}
+                      type="button"
+                      size="sm"
+                      className="bg-[#FF7A00] hover:bg-[#FF7A00]/90"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add
+                    </Button>
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="brandPreferences"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <div className="flex flex-wrap gap-2">
+                            {field.value.map((pref) => (
+                              <Badge
+                                key={pref}
+                                variant="secondary"
+                                className="bg-orange-100 text-orange-800 hover:bg-orange-200"
+                              >
+                                {pref}
+                                <X
+                                  className="ml-2 h-3 w-3 cursor-pointer"
+                                  onClick={() => removeBrandPref(pref)}
+                                />
+                              </Badge>
+                            ))}
+                          </div>
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Save Button */}
+              <Button
+                type="submit"
+                disabled={saving}
+                size="lg"
+                className="w-full bg-[#FF7A00] hover:bg-[#FF7A00]/90 text-white"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-5 w-5" />
+                    Save Profile
+                  </>
+                )}
+              </Button>
+            </form>
+          </Form>
         </div>
 
         {/* RIGHT SIDE - INSTAGRAM CONNECTION */}
@@ -432,10 +595,13 @@ export default function InfluencerProfileSetup() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Instagram className="h-6 w-6 text-purple-600" />
-                <CardTitle className="text-purple-600">Instagram Connection</CardTitle>
+                <CardTitle className="text-purple-600">
+                  Instagram Connection
+                </CardTitle>
               </div>
               <CardDescription>
-                Connect your Instagram Business account to auto-fill your metrics
+                Connect your Instagram Business account to auto-fill your
+                metrics
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -444,8 +610,12 @@ export default function InfluencerProfileSetup() {
                   <div className="flex items-center gap-2 p-4 bg-green-50 border border-green-200 rounded-lg">
                     <CheckCircle className="h-5 w-5 text-green-600" />
                     <div>
-                      <p className="font-medium text-green-900">Instagram Connected</p>
-                      <p className="text-sm text-green-700">Your metrics are synced</p>
+                      <p className="font-medium text-green-900">
+                        Instagram Connected
+                      </p>
+                      <p className="text-sm text-green-700">
+                        Your metrics are synced
+                      </p>
                     </div>
                   </div>
 
@@ -461,7 +631,9 @@ export default function InfluencerProfileSetup() {
                   <div className="flex items-start gap-2 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
                     <div className="text-sm">
-                      <p className="font-medium text-blue-900 mb-2">Requirements:</p>
+                      <p className="font-medium text-blue-900 mb-2">
+                        Requirements:
+                      </p>
                       <ul className="list-disc list-inside space-y-1 text-blue-700">
                         <li>Instagram Business or Creator account</li>
                         <li>Facebook Page linked to Instagram</li>
@@ -472,6 +644,7 @@ export default function InfluencerProfileSetup() {
 
                   <Button
                     onClick={handleConnectInstagram}
+                    type="button"
                     className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
                     size="lg"
                   >
@@ -480,7 +653,8 @@ export default function InfluencerProfileSetup() {
                   </Button>
 
                   <p className="text-xs text-center text-gray-500">
-                    We'll fetch your followers, engagement, demographics, and post metrics
+                    We'll fetch your followers, engagement, demographics, and
+                    post metrics
                   </p>
                 </div>
               )}
@@ -490,24 +664,26 @@ export default function InfluencerProfileSetup() {
           {/* Tips Card */}
           <Card className="backdrop-blur-sm bg-white/90 border-orange-200">
             <CardHeader>
-              <CardTitle className="text-sm text-orange-600">Tips for Success</CardTitle>
+              <CardTitle className="text-sm text-[#FF7A00]">
+                Tips for Success
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-start gap-2">
-                  <span className="text-orange-600 mt-0.5">•</span>
+                  <span className="text-[#FF7A00] mt-0.5">•</span>
                   <span>Complete your profile to increase brand visibility</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-orange-600 mt-0.5">•</span>
+                  <span className="text-[#FF7A00] mt-0.5">•</span>
                   <span>Connect Instagram to auto-sync your metrics</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-orange-600 mt-0.5">•</span>
+                  <span className="text-[#FF7A00] mt-0.5">•</span>
                   <span>Be specific about your niche and preferences</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-orange-600 mt-0.5">•</span>
+                  <span className="text-[#FF7A00] mt-0.5">•</span>
                   <span>Keep your bio professional and engaging</span>
                 </li>
               </ul>
