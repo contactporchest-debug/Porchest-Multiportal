@@ -17,6 +17,19 @@ import { validateRequest, registerSchema } from "@/lib/validations";
 import { withRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit";
 
 /**
+ * Generate unique brand ID
+ * Format: BRN-XXXXXXXXXX (10 random alphanumeric characters)
+ */
+function generateUniqueBrandId(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let id = 'BRN-';
+  for (let i = 0; i < 10; i++) {
+    id += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return id;
+}
+
+/**
  * POST /api/auth/register
  * Register a new user account
  * Brands and influencers require admin approval (PENDING status)
@@ -70,6 +83,29 @@ async function registerHandler(req: Request) {
 
     if (!result.acknowledged) {
       throw new Error("Failed to create user account");
+    }
+
+    // Auto-create brand profile for brand users
+    if (validatedData.role.toLowerCase() === "brand") {
+      try {
+        const brandProfilesCollection = await collections.brandProfiles();
+        const brandProfile = {
+          user_id: result.insertedId,
+          unique_brand_id: generateUniqueBrandId(),
+          total_campaigns: 0,
+          active_campaigns: 0,
+          total_spent: 0,
+          profile_completed: false,
+          created_at: new Date(),
+          updated_at: new Date(),
+        };
+
+        await brandProfilesCollection.insertOne(brandProfile as any);
+      } catch (error) {
+        console.error("Failed to create brand profile:", error);
+        // Don't fail the registration if profile creation fails
+        // Profile will be auto-created on first login
+      }
     }
 
     // Return appropriate response based on approval status

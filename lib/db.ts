@@ -304,6 +304,69 @@ export async function updateInfluencerProfile(
 }
 
 /**
+ * Get brand profile by user ID
+ */
+export async function getBrandProfile(
+  userId: string | ObjectId
+): Promise<Types.BrandProfile | null> {
+  const objectId = toObjectId(userId);
+  if (!objectId) return null;
+
+  const col = await collections.brandProfiles();
+  return col.findOne({ user_id: objectId });
+}
+
+/**
+ * Create brand profile
+ */
+export async function createBrandProfile(
+  data: Types.BrandProfileCreateInput
+): Promise<Types.BrandProfile> {
+  const col = await collections.brandProfiles();
+
+  const profile: Omit<Types.BrandProfile, "_id"> = {
+    user_id: data.user_id,
+    unique_brand_id: data.unique_brand_id,
+    brand_name: data.brand_name,
+    representative_name: data.representative_name,
+    contact_email: data.contact_email,
+    niche: data.niche,
+    location: data.location,
+    website_url: data.website_url,
+    brand_logo: data.brand_logo,
+    description: data.description,
+    total_campaigns: 0,
+    active_campaigns: 0,
+    total_spent: 0,
+    profile_completed: data.profile_completed || false,
+    created_at: data.created_at || new Date(),
+    updated_at: data.updated_at || new Date(),
+  };
+
+  const result = await col.insertOne(profile as Types.BrandProfile);
+  return { ...profile, _id: result.insertedId } as Types.BrandProfile;
+}
+
+/**
+ * Update brand profile
+ */
+export async function updateBrandProfile(
+  userId: string | ObjectId,
+  updates: Partial<Types.BrandProfile>
+): Promise<boolean> {
+  const objectId = toObjectId(userId);
+  if (!objectId) return false;
+
+  const col = await collections.brandProfiles();
+  const result = await col.updateOne(
+    { user_id: objectId },
+    { $set: { ...updates, updated_at: new Date() } }
+  );
+
+  return result.modifiedCount > 0;
+}
+
+/**
  * Create transaction
  */
 export async function createTransaction(

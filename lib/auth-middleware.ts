@@ -14,6 +14,7 @@ export const { auth } = NextAuth({
         token.role = user.role;
         token.status = user.status;
         token.id = user.id;
+        token.profileCompleted = user.profileCompleted;
       }
 
       // Update token when session is updated
@@ -28,6 +29,7 @@ export const { auth } = NextAuth({
         session.user.role = token.role as string;
         session.user.status = token.status as string;
         session.user.id = token.id as string;
+        session.user.profileCompleted = token.profileCompleted as boolean;
       }
       return session;
     },

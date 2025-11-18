@@ -14,38 +14,27 @@ import {
   createdResponse,
   handleApiError,
 } from "@/lib/api-response";
-import { validateRequest } from "@/lib/validations";
+import { validateRequest, brandProfileSetupSchema, updateBrandProfileSchema } from "@/lib/validations";
 import { withRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
-import { z } from "zod";
 
 /**
  * Brand Profile API
  * Manage brand profile information
  */
 
-// Validation schema for updating brand profile
-const updateBrandProfileSchema = z.object({
-  company_name: z.string().min(2).max(200).optional(),
-  industry: z.string().max(100).optional(),
-  website: z.string().url("Must be a valid URL").optional(),
-  logo: z.string().url("Must be a valid URL").optional(),
-  description: z.string().max(2000).optional(),
-  contact_person: z.string().max(100).optional(),
-  contact_email: z.string().email().optional(),
-  contact_phone: z.string().max(20).optional(),
-  preferred_influencer_types: z.array(z.string().max(50)).max(20).optional(),
-  target_markets: z.array(z.string().max(100)).max(50).optional(),
-  budget_range: z
-    .object({
-      min: z.number().nonnegative(),
-      max: z.number().nonnegative(),
-    })
-    .refine((data) => data.min <= data.max, {
-      message: "Min budget must be less than or equal to max budget",
-    })
-    .optional(),
-});
+/**
+ * Generate unique brand ID
+ * Format: BRN-XXXXXXXXXX (10 random alphanumeric characters)
+ */
+function generateUniqueBrandId(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let id = 'BRN-';
+  for (let i = 0; i < 10; i++) {
+    id += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return id;
+}
 
 /**
  * GET /api/brand/profile
@@ -75,14 +64,16 @@ async function getProfileHandler(req: Request) {
     const brandProfilesCollection = await collections.brandProfiles();
     let profile = await brandProfilesCollection.findOne({ user_id: user._id });
 
-    // If profile doesn't exist, create a default one
+    // If profile doesn't exist, create a default one with profile_completed: false
     if (!profile) {
       const defaultProfile = {
         user_id: user._id,
+        unique_brand_id: generateUniqueBrandId(),
         company_name: user.company || user.full_name,
         total_campaigns: 0,
         active_campaigns: 0,
         total_spent: 0,
+        profile_completed: false,
         created_at: new Date(),
         updated_at: new Date(),
       };
@@ -93,6 +84,7 @@ async function getProfileHandler(req: Request) {
       logger.info("Brand profile auto-created", {
         userId: user._id.toString(),
         profileId: result.insertedId.toString(),
+        uniqueBrandId: defaultProfile.unique_brand_id,
       });
     }
 
@@ -140,10 +132,12 @@ async function updateProfileHandler(req: Request) {
       // Create profile if it doesn't exist
       const newProfile = {
         user_id: user._id,
+        unique_brand_id: generateUniqueBrandId(),
         ...validatedData,
         total_campaigns: 0,
         active_campaigns: 0,
         total_spent: 0,
+        profile_completed: true, // Set to true when creating via PUT
         created_at: new Date(),
         updated_at: new Date(),
       };
@@ -153,6 +147,7 @@ async function updateProfileHandler(req: Request) {
       logger.info("Brand profile created", {
         userId: user._id.toString(),
         profileId: result.insertedId.toString(),
+        uniqueBrandId: newProfile.unique_brand_id,
       });
 
       return createdResponse({
@@ -160,10 +155,15 @@ async function updateProfileHandler(req: Request) {
       });
     }
 
+    // Check if this is a profile setup completion
+    const isProfileSetup = !profile.profile_completed && validatedData.brand_name;
+
     // Update existing profile
     const updates = {
       ...validatedData,
       updated_at: new Date(),
+      // Set profile_completed to true if this is initial setup with required fields
+      ...(isProfileSetup && { profile_completed: true }),
     };
 
     // Remove undefined values
@@ -230,10 +230,12 @@ async function createProfileHandler(req: Request) {
     // Create new profile
     const newProfile = {
       user_id: user._id,
+      unique_brand_id: generateUniqueBrandId(),
       ...validatedData,
       total_campaigns: 0,
       active_campaigns: 0,
       total_spent: 0,
+      profile_completed: true, // Set to true when creating via POST
       created_at: new Date(),
       updated_at: new Date(),
     };
@@ -243,6 +245,7 @@ async function createProfileHandler(req: Request) {
     logger.info("Brand profile created", {
       userId: user._id.toString(),
       profileId: result.insertedId.toString(),
+      uniqueBrandId: newProfile.unique_brand_id,
     });
 
     return createdResponse({
