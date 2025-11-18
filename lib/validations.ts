@@ -196,36 +196,46 @@ export const platformSchema = z.enum([
   "facebook",
 ]);
 
-export const socialMediaAccountSchema = z.object({
-  handle: z.string().max(100).optional(),
-  url: urlSchema,
+export const influencerProfileSetupSchema = z.object({
+  full_name: z.string().min(2, "Full name must be at least 2 characters").max(100).trim(),
+  instagram_username: z.string().max(100).optional(),
+  profile_picture: urlSchema,
+  niche: z.string().min(2, "Niche must be at least 2 characters").max(100).trim(),
+  location: z.string().min(2, "Location must be at least 2 characters").max(200).trim(),
   followers: nonNegativeNumberSchema.optional(),
-  subscribers: nonNegativeNumberSchema.optional(),
-  verified: z.boolean().default(false),
+  following: nonNegativeNumberSchema.optional(),
+  verified: z.boolean().optional(),
+  engagement_rate: z.number().min(0).max(100).optional(),
+  average_views_monthly: nonNegativeNumberSchema.optional(),
+  last_post_views: nonNegativeNumberSchema.optional(),
+  last_post_engagement: nonNegativeNumberSchema.optional(),
+  last_post_date: z.coerce.date().optional(),
+  price_per_post: positiveNumberSchema.optional(),
+  availability: z.string().max(50).optional(),
+  languages: z.array(z.string().max(50)).max(20).optional(),
+  platforms: z.array(z.string().max(50)).max(10).optional(),
+  brands_worked_with: z.array(z.string().max(100)).max(50).optional(),
 });
 
 export const updateInfluencerProfileSchema = z.object({
-  bio: z.string().max(1000).optional(),
+  full_name: z.string().min(2).max(100).optional(),
+  instagram_username: z.string().max(100).optional(),
   profile_picture: urlSchema,
-  social_media: z
-    .object({
-      instagram: socialMediaAccountSchema.optional(),
-      youtube: socialMediaAccountSchema.optional(),
-      tiktok: socialMediaAccountSchema.optional(),
-      twitter: socialMediaAccountSchema.optional(),
-      facebook: socialMediaAccountSchema.optional(),
-    })
-    .optional(),
-  content_categories: z.array(z.string().max(50)).max(20).optional(),
-  primary_platform: platformSchema.optional(),
-  pricing: z
-    .object({
-      post: positiveNumberSchema.optional(),
-      story: positiveNumberSchema.optional(),
-      video: positiveNumberSchema.optional(),
-      reel: positiveNumberSchema.optional(),
-    })
-    .optional(),
+  niche: z.string().min(2).max(100).optional(),
+  location: z.string().min(2).max(200).optional(),
+  followers: nonNegativeNumberSchema.optional(),
+  following: nonNegativeNumberSchema.optional(),
+  verified: z.boolean().optional(),
+  engagement_rate: z.number().min(0).max(100).optional(),
+  average_views_monthly: nonNegativeNumberSchema.optional(),
+  last_post_views: nonNegativeNumberSchema.optional(),
+  last_post_engagement: nonNegativeNumberSchema.optional(),
+  last_post_date: z.coerce.date().optional(),
+  price_per_post: positiveNumberSchema.optional(),
+  availability: z.string().max(50).optional(),
+  languages: z.array(z.string().max(50)).max(20).optional(),
+  platforms: z.array(z.string().max(50)).max(10).optional(),
+  brands_worked_with: z.array(z.string().max(100)).max(50).optional(),
 });
 
 export const recommendInfluencersSchema = z.object({

@@ -129,91 +129,81 @@ export interface CampaignCreateInput {
 // INFLUENCER PROFILE TYPES
 // ============================================================================
 
-export interface SocialMediaAccount {
-  handle?: string;
-  url?: string;
-  followers?: number;
-  subscribers?: number; // For YouTube
-  verified: boolean;
-}
-
 export interface InfluencerProfile {
   _id: ObjectId;
   user_id: ObjectId;
-  bio?: string;
+
+  // Basic Information
+  full_name: string;
+  instagram_username?: string;
   profile_picture?: string;
+  niche: string;
+  location: string;
 
-  // Social media
-  social_media: {
-    instagram?: SocialMediaAccount;
-    youtube?: SocialMediaAccount;
-    tiktok?: SocialMediaAccount;
-    twitter?: SocialMediaAccount;
-    facebook?: SocialMediaAccount;
-  };
+  // Social Media Metrics
+  followers: number;
+  following: number;
+  verified: boolean;
+  engagement_rate: number; // Percentage
+  average_views_monthly: number;
 
-  // Metrics
-  total_followers: number;
-  avg_engagement_rate: number;
-  content_categories: string[];
-  primary_platform?: string;
+  // Recent Post Stats
+  last_post_views?: number;
+  last_post_engagement?: number;
+  last_post_date?: Date;
 
-  // Demographics
-  demographics?: {
-    age_groups?: {
-      "13-17"?: number;
-      "18-24"?: number;
-      "25-34"?: number;
-      "35-44"?: number;
-      "45-54"?: number;
-      "55+"?: number;
-    };
-    gender_split?: { male: number; female: number; other: number };
-    top_countries?: string[];
-    top_cities?: string[];
-  };
+  // Pricing & Availability
+  price_per_post: number;
+  availability: string; // e.g., "Available", "Busy", "Not Available"
 
-  // Pricing
-  pricing?: {
-    post?: number;
-    story?: number;
-    video?: number;
-    reel?: number;
-  };
+  // Additional Info
+  languages: string[]; // Array of languages
+  platforms: string[]; // Array of platforms (e.g., ["Instagram", "TikTok"])
+  brands_worked_with: string[]; // Array of brand names
 
-  // Financials
+  // Financials (kept from original)
   total_earnings: number;
   available_balance: number;
 
-  // Performance
+  // Performance (kept from original)
   completed_campaigns: number;
   rating: number;
   reviews_count: number;
 
-  // AI Predictions
-  predicted_roi?: number;
-  predicted_reach?: number;
+  // Profile Status
+  profile_completed: boolean;
 
+  // Timestamps
   created_at: Date;
   updated_at: Date;
 }
 
 export interface InfluencerProfileCreateInput {
   user_id: ObjectId;
-  bio?: string;
+  full_name: string;
+  instagram_username?: string;
   profile_picture?: string;
-  social_media?: Partial<InfluencerProfile["social_media"]>;
-  total_followers?: number;
-  avg_engagement_rate?: number;
-  content_categories?: string[];
-  primary_platform?: string;
-  demographics?: InfluencerProfile["demographics"];
-  pricing?: InfluencerProfile["pricing"];
+  niche: string;
+  location: string;
+  followers?: number;
+  following?: number;
+  verified?: boolean;
+  engagement_rate?: number;
+  average_views_monthly?: number;
+  last_post_views?: number;
+  last_post_engagement?: number;
+  last_post_date?: Date;
+  price_per_post?: number;
+  availability?: string;
+  languages?: string[];
+  platforms?: string[];
+  brands_worked_with?: string[];
   total_earnings?: number;
   available_balance?: number;
   completed_campaigns?: number;
   rating?: number;
   reviews_count?: number;
+  profile_completed?: boolean;
   created_at?: Date;
   updated_at?: Date;
 }

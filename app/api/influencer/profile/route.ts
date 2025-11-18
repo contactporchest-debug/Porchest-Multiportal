@@ -3,45 +3,24 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const fetchCache = "force-no-store";
 
-
 import { auth } from "@/lib/auth";
-import {
-  collections,
-  getUserByEmail,
-  getInfluencerProfile,
-  createInfluencerProfile,
-  updateInfluencerProfile,
-  sanitizeDocument,
-} from "@/lib/db";
+import { collections, getUserByEmail, sanitizeDocument } from "@/lib/db";
 import {
   successResponse,
   unauthorizedResponse,
   forbiddenResponse,
   notFoundResponse,
+  createdResponse,
   handleApiError,
 } from "@/lib/api-response";
-import { validateRequest } from "@/lib/validations";
+import { validateRequest, updateInfluencerProfileSchema } from "@/lib/validations";
 import { withRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
-import { z } from "zod";
 
 /**
  * Influencer Profile API
  * Manage influencer profiles
  */
-
-// Validation schema for creating/updating profile
-const influencerProfileSchema = z.object({
-  bio: z.string().optional(),
-  profile_picture: z.string().url().optional(),
-  social_media: z.record(z.any()).optional(),
-  total_followers: z.number().int().nonnegative().optional(),
-  avg_engagement_rate: z.number().min(0).max(100).optional(),
-  content_categories: z.array(z.string()).optional(),
-  primary_platform: z.string().optional(),
-  demographics: z.record(z.any()).optional(),
-  pricing: z.record(z.any()).optional(),
-});
 
 /**
  * GET /api/influencer/profile
@@ -71,40 +50,47 @@ async function getProfileHandler(req: Request) {
     }
 
     // Get influencer profile
-    let profile = await getInfluencerProfile(user._id);
+    const influencerProfilesCollection = await collections.influencerProfiles();
+    let profile = await influencerProfilesCollection.findOne({ user_id: user._id });
 
-    // If profile doesn't exist, create a default one (auto-creation)
+    // If profile doesn't exist, create a default one with profile_completed: false
     if (!profile) {
-      await createInfluencerProfile({
+      const defaultProfile = {
         user_id: user._id,
-        social_media: {},
-        total_followers: 0,
-        avg_engagement_rate: 0,
-        content_categories: [],
+        full_name: user.full_name || "",
+        niche: "",
+        location: "",
+        followers: 0,
+        following: 0,
+        verified: false,
+        engagement_rate: 0,
+        average_views_monthly: 0,
+        price_per_post: 0,
+        availability: "Available",
+        languages: [],
+        platforms: [],
+        brands_worked_with: [],
         total_earnings: 0,
         available_balance: 0,
         completed_campaigns: 0,
         rating: 0,
         reviews_count: 0,
-      } as any);
+        profile_completed: false,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
 
-      profile = await getInfluencerProfile(user._id);
+      const result = await influencerProfilesCollection.insertOne(defaultProfile as any);
+      profile = { ...defaultProfile, _id: result.insertedId } as any;
 
       logger.info("Influencer profile auto-created", {
         userId: user._id.toString(),
+        profileId: result.insertedId.toString(),
       });
     }
 
-    logger.debug("Influencer profile retrieved", {
-      userId: user._id.toString(),
-      hasProfile: !!profile,
-    });
-
-    // Sanitize document if exists
-    const sanitized = profile ? sanitizeDocument(profile) : null;
-
     return successResponse({
-      profile: sanitized,
+      profile: sanitizeDocument(profile),
     });
   } catch (error) {
     return handleApiError(error);
@@ -112,8 +98,8 @@ async function getProfileHandler(req: Request) {
 }
 
 /**
- * POST /api/influencer/profile
- * Create or update influencer profile
+ * PUT /api/influencer/profile
+ * Update influencer profile
  *
  * RATE LIMIT: 100 requests per minute per IP
  */
@@ -129,9 +115,121 @@ async function updateProfileHandler(req: Request) {
       return forbiddenResponse("Influencer access required");
     }
 
+    // Find user to get their ID
+    const user = await getUserByEmail(session.user.email!);
+    if (!user) {
+      logger.error("User not found in database", undefined, {
+        email: session.user.email,
+      });
+      return notFoundResponse("User");
+    }
+
     // Parse and validate request body
     const body = await req.json();
-    const validatedData = validateRequest(influencerProfileSchema, body);
+    const validatedData = validateRequest(updateInfluencerProfileSchema, body);
+
+    // Get influencer profile
+    const influencerProfilesCollection = await collections.influencerProfiles();
+    let profile = await influencerProfilesCollection.findOne({ user_id: user._id });
+
+    if (!profile) {
+      // Create profile if it doesn't exist
+      const newProfile = {
+        user_id: user._id,
+        ...validatedData,
+        languages: validatedData.languages || [],
+        platforms: validatedData.platforms || [],
+        brands_worked_with: validatedData.brands_worked_with || [],
+        total_earnings: 0,
+        available_balance: 0,
+        completed_campaigns: 0,
+        rating: 0,
+        reviews_count: 0,
+        profile_completed: true, // Set to true when creating via PUT
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+
+      const result = await influencerProfilesCollection.insertOne(newProfile as any);
+
+      logger.info("Influencer profile created", {
+        userId: user._id.toString(),
+        profileId: result.insertedId.toString(),
+      });
+
+      // Mark user profile as completed
+      const usersCollection = await collections.users();
+      await usersCollection.updateOne(
+        { _id: user._id },
+        { $set: { profile_completed: true, updated_at: new Date() } }
+      );
+
+      return createdResponse({
+        profile: sanitizeDocument({ ...newProfile, _id: result.insertedId }),
+      });
+    }
+
+    // Check if this is a profile setup completion
+    const isProfileSetup = !profile.profile_completed && validatedData.full_name;
+
+    // Update existing profile
+    const updates = {
+      ...validatedData,
+      updated_at: new Date(),
+      // Set profile_completed to true if this is initial setup with required fields
+      ...(isProfileSetup && { profile_completed: true }),
+    };
+
+    // Remove undefined values
+    Object.keys(updates).forEach(
+      (key) => updates[key as keyof typeof updates] === undefined && delete updates[key as keyof typeof updates]
+    );
+
+    await influencerProfilesCollection.updateOne({ user_id: user._id }, { $set: updates });
+
+    // If completing profile for first time, update user record
+    if (isProfileSetup) {
+      const usersCollection = await collections.users();
+      await usersCollection.updateOne(
+        { _id: user._id },
+        { $set: { profile_completed: true, updated_at: new Date() } }
+      );
+    }
+
+    logger.info("Influencer profile updated", {
+      userId: user._id.toString(),
+      updatedFields: Object.keys(updates),
+    });
+
+    // Fetch updated profile
+    const updatedProfile = await influencerProfilesCollection.findOne({ user_id: user._id });
+
+    return successResponse({
+      profile: sanitizeDocument(updatedProfile),
+    });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+
+/**
+ * POST /api/influencer/profile
+ * Create a new influencer profile (if it doesn't exist)
+ * This is an alternative to auto-creation in GET
+ *
+ * RATE LIMIT: 100 requests per minute per IP
+ */
+async function createProfileHandler(req: Request) {
+  try {
+    // Check authentication
+    const session = await auth();
+    if (!session || !session.user) {
+      return unauthorizedResponse("Authentication required");
+    }
+
+    if (session.user.role !== "influencer") {
+      return forbiddenResponse("Influencer access required");
+    }
 
     // Find user to get their ID
     const user = await getUserByEmail(session.user.email!);
@@ -142,51 +240,42 @@ async function updateProfileHandler(req: Request) {
       return notFoundResponse("User");
     }
 
-    // Check if profile exists
-    const existingProfile = await getInfluencerProfile(user._id);
+    // Parse and validate request body
+    const body = await req.json();
+    const validatedData = validateRequest(updateInfluencerProfileSchema, body);
+
+    // Check if profile already exists
+    const influencerProfilesCollection = await collections.influencerProfiles();
+    const existingProfile = await influencerProfilesCollection.findOne({ user_id: user._id });
 
     if (existingProfile) {
-      // Update existing profile
-      const updated = await updateInfluencerProfile(user._id, validatedData);
-
-      if (!updated) {
-        logger.error("Failed to update influencer profile", undefined, {
-          userId: user._id.toString(),
-        });
-        return handleApiError(new Error("Failed to update profile"));
-      }
-
-      logger.info("Influencer profile updated", {
-        userId: user._id.toString(),
-        userEmail: session.user.email,
-      });
-    } else {
-      // Create new profile
-      await createInfluencerProfile({
-        user_id: user._id,
-        bio: validatedData.bio,
-        profile_picture: validatedData.profile_picture,
-        social_media: validatedData.social_media || {},
-        total_followers: validatedData.total_followers || 0,
-        avg_engagement_rate: validatedData.avg_engagement_rate || 0,
-        content_categories: validatedData.content_categories || [],
-        primary_platform: validatedData.primary_platform,
-        demographics: validatedData.demographics,
-        pricing: validatedData.pricing,
-        total_earnings: 0,
-        available_balance: 0,
-        completed_campaigns: 0,
-        rating: 0,
-        reviews_count: 0,
-        predicted_roi: 0,
-        predicted_reach: 0,
-      } as any);
-
-      logger.info("Influencer profile created", {
-        userId: user._id.toString(),
-        userEmail: session.user.email,
-      });
+      // If profile exists, update it instead
+      return updateProfileHandler(req);
     }
+
+    // Create new profile
+    const newProfile = {
+      user_id: user._id,
+      ...validatedData,
+      languages: validatedData.languages || [],
+      platforms: validatedData.platforms || [],
+      brands_worked_with: validatedData.brands_worked_with || [],
+      total_earnings: 0,
+      available_balance: 0,
+      completed_campaigns: 0,
+      rating: 0,
+      reviews_count: 0,
+      profile_completed: true, // Set to true when creating via POST
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+
+    const result = await influencerProfilesCollection.insertOne(newProfile as any);
+
+    logger.info("Influencer profile created", {
+      userId: user._id.toString(),
+      profileId: result.insertedId.toString(),
+    });
 
     // Mark user profile as completed
     const usersCollection = await collections.users();
@@ -195,8 +284,8 @@ async function updateProfileHandler(req: Request) {
       { $set: { profile_completed: true, updated_at: new Date() } }
     );
 
-    return successResponse({
-      message: "Profile updated successfully",
+    return createdResponse({
+      profile: sanitizeDocument({ ...newProfile, _id: result.insertedId }),
     });
   } catch (error) {
     return handleApiError(error);
@@ -205,4 +294,5 @@ async function updateProfileHandler(req: Request) {
 
 // Export with rate limiting applied
 export const GET = withRateLimit(getProfileHandler, RATE_LIMIT_CONFIGS.default);
-export const POST = withRateLimit(updateProfileHandler, RATE_LIMIT_CONFIGS.default);
+export const PUT = withRateLimit(updateProfileHandler, RATE_LIMIT_CONFIGS.default);
+export const POST = withRateLimit(createProfileHandler, RATE_LIMIT_CONFIGS.default);
