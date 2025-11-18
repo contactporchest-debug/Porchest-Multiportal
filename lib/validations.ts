@@ -238,6 +238,21 @@ export const updateInfluencerProfileSchema = z.object({
   brands_worked_with: z.array(z.string().max(100)).max(50).optional(),
 });
 
+/**
+ * Influencer Basic Info Setup Schema
+ * For the new profile setup flow at /influencer/profile/setup
+ */
+export const influencerBasicInfoSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters").max(100).trim(),
+  category: z.string().min(2, "Category must be at least 2 characters").max(100).trim(),
+  bio: z.string().min(10, "Bio must be at least 10 characters").max(500).trim(),
+  country: z.string().min(2, "Country must be at least 2 characters").max(100).trim(),
+  city: z.string().min(2, "City must be at least 2 characters").max(100).trim(),
+  languages: z.array(z.string().max(50)).min(1, "Select at least one language").max(10),
+  email: emailSchema,
+  brand_preferences: z.array(z.string().max(100)).max(20).default([]),
+});
+
 export const recommendInfluencersSchema = z.object({
   campaign_id: objectIdSchema.optional(),
   budget: positiveNumberSchema.optional(),
