@@ -39,10 +39,10 @@ export function PortalLayout({
   return (
     <div className="min-h-screen bg-background">
       {/* ===== HEADER ===== */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-50 w-full glass-navbar">
         <a
           href="#main"
-          className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 px-3 py-1 rounded-md bg-primary text-primary-foreground"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 px-3 py-1 rounded-md bg-porchest-orange text-white"
         >
           Skip to content
         </a>
@@ -60,10 +60,10 @@ export function PortalLayout({
           </Sheet>
 
           <div className="flex items-center space-x-4">
-            <div className="font-bold text-xl text-primary">Porchest</div>
+            <div className="font-bold text-xl text-porchest-orange">Porchest</div>
             {userRole && (
               <div className="hidden sm:block">
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-white/60">
                   {roleDisplay(userRole)} Portal
                 </span>
               </div>
@@ -82,7 +82,7 @@ export function PortalLayout({
       {/* ===== BODY ===== */}
       <div className="flex">
         {/* Sidebar (desktop) */}
-        <aside className="hidden md:flex w-64 flex-col fixed inset-y-0 top-16 z-40 border-r bg-background">
+        <aside className="hidden md:flex w-64 flex-col fixed inset-y-0 top-16 z-40">
           {sidebar}
         </aside>
 
@@ -93,11 +93,11 @@ export function PortalLayout({
             {(title || breadcrumbs) && (
               <div className="mb-6">
                 {breadcrumbs && breadcrumbs.length > 0 && (
-                  <nav className="text-sm text-slate-500 mb-1">
+                  <nav className="text-sm text-white/60 mb-1">
                     {breadcrumbs.map((b, i) => (
                       <span key={i}>
                         {b.href ? (
-                          <a href={b.href} className="hover:underline">
+                          <a href={b.href} className="hover:text-porchest-orange transition-colors">
                             {b.label}
                           </a>
                         ) : (
@@ -108,7 +108,7 @@ export function PortalLayout({
                     ))}
                   </nav>
                 )}
-                {title && <h1 className="text-2xl font-bold">{title}</h1>}
+                {title && <h1 className="text-2xl font-bold text-white">{title}</h1>}
               </div>
             )}
 

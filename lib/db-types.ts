@@ -225,15 +225,28 @@ export interface InfluencerProfileCreateInput {
 export interface BrandProfile {
   _id: ObjectId;
   user_id: ObjectId;
+
+  // Required Brand Information
+  brand_name?: string;
+  representative_name?: string;
+  contact_email?: string;
+  unique_brand_id: string; // Auto-generated unique identifier
+  niche?: string;
+  location?: string;
+
+  // Optional Brand Information
+  website_url?: string;
+  brand_logo?: string;
+  description?: string;
+
+  // Legacy fields (backward compatibility)
   company_name?: string;
   industry?: string;
   website?: string;
   logo?: string;
-  description?: string;
 
-  // Contact
+  // Contact (legacy)
   contact_person?: string;
-  contact_email?: string;
   contact_phone?: string;
 
   // Preferences
@@ -246,8 +259,27 @@ export interface BrandProfile {
   active_campaigns: number;
   total_spent: number;
 
+  // Profile Status
+  profile_completed: boolean;
+
   created_at: Date;
   updated_at: Date;
+}
+
+export interface BrandProfileCreateInput {
+  user_id: ObjectId;
+  brand_name?: string;
+  representative_name?: string;
+  contact_email?: string;
+  unique_brand_id: string;
+  niche?: string;
+  location?: string;
+  website_url?: string;
+  brand_logo?: string;
+  description?: string;
+  profile_completed?: boolean;
+  created_at?: Date;
+  updated_at?: Date;
 }
 
 // ============================================================================

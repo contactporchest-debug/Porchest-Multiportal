@@ -53,10 +53,33 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        orange: {
-          500: "#FF8C00",
-          600: "#E67E00",
+        // Porchest Brand Colors
+        porchest: {
+          orange: "#FF7A00",
+          "orange-dark": "#CC6200",
+          "orange-light": "#FF9533",
+          white: "#FFFFFF",
+          black: "#000000",
         },
+        // Glass surface tokens
+        glass: {
+          DEFAULT: "rgba(255, 255, 255, 0.08)",
+          border: "rgba(255, 255, 255, 0.20)",
+          glow: "rgba(255, 122, 0, 0.25)",
+        },
+      },
+      backgroundImage: {
+        // Porchest gradients
+        "gradient-hero": "linear-gradient(180deg, #000000 0%, #140A00 100%)",
+        "gradient-orange-glow": "linear-gradient(120deg, rgba(255,122,0,0.35), rgba(255,122,0,0.05))",
+      },
+      backdropBlur: {
+        glass: "16px",
+      },
+      boxShadow: {
+        glass: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+        "glass-orange": "0 8px 32px 0 rgba(255, 122, 0, 0.2)",
+        glow: "0 0 20px rgba(255, 122, 0, 0.4)",
       },
       borderRadius: {
         lg: "var(--radius)",

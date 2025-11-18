@@ -70,6 +70,21 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // Brand profile completion check
+  if (userRole === "brand" && pathname.startsWith("/brand")) {
+    // Allow access to profile-setup page and API routes
+    if (pathname === "/brand/profile-setup" || pathname.startsWith("/api/")) {
+      return NextResponse.next();
+    }
+
+    // Check if profile is completed
+    const profileCompleted = session.user.profileCompleted;
+    if (profileCompleted === false) {
+      // Redirect to profile setup if not completed
+      return NextResponse.redirect(new URL("/brand/profile-setup", req.url));
+    }
+  }
+
   return NextResponse.next();
 }
 

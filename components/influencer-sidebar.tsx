@@ -66,9 +66,9 @@ export function InfluencerSidebar() {
   const pathname = usePathname()
 
   return (
-    <div className="flex h-full flex-col bg-background border-r">
-      <div className="p-6">
-        <h2 className="text-lg font-semibold text-primary">Influencer Portal</h2>
+    <div className="flex h-full flex-col glass-sidebar">
+      <div className="p-6 border-b border-white/10">
+        <h2 className="text-lg font-semibold text-porchest-orange">Influencer Portal</h2>
       </div>
 
       <ScrollArea className="flex-1 px-3">
@@ -76,8 +76,8 @@ export function InfluencerSidebar() {
           {sidebarNavItems.map((item) => (
             <Button
               key={item.href}
-              variant={pathname === item.href ? "secondary" : "ghost"}
-              className={cn("w-full justify-start", pathname === item.href && "bg-secondary")}
+              variant={pathname === item.href ? "default" : "ghost"}
+              className={cn("w-full justify-start", pathname === item.href && "bg-porchest-orange text-white shadow-glow")}
               asChild
             >
               <Link href={item.href}>
@@ -89,7 +89,7 @@ export function InfluencerSidebar() {
         </div>
       </ScrollArea>
 
-      <div className="p-3 border-t">
+      <div className="p-3 border-t border-white/10">
         <div className="space-y-1">
           {bottomNavItems.map((item) => (
             <Button key={item.href} variant="ghost" className="w-full justify-start" asChild>

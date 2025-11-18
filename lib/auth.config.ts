@@ -116,6 +116,21 @@ export const authConfig: NextAuthConfig = {
         token.role = user.role;
         token.status = user.status;
         token.id = user.id;
+
+        // Fetch profile_completed status for brand users
+        if (user.role === "brand") {
+          try {
+            const client = await clientPromise;
+            const db = client.db("porchest_db");
+            const profile = await db.collection("brand_profiles").findOne({
+              user_id: new (await import("mongodb")).ObjectId(user.id as string)
+            });
+            token.profileCompleted = profile?.profile_completed ?? false;
+          } catch (error) {
+            console.error("Error fetching profile_completed:", error);
+            token.profileCompleted = false;
+          }
+        }
       }
 
       // Update token when session is updated
@@ -130,6 +145,7 @@ export const authConfig: NextAuthConfig = {
         session.user.role = token.role as string;
         session.user.status = token.status as string;
         session.user.id = token.id as string;
+        session.user.profileCompleted = token.profileCompleted as boolean;
       }
       return session;
     },

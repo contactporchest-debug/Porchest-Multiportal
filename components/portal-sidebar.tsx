@@ -42,7 +42,7 @@ export function PortalSidebar({ role }: { role: "brand" | "influencer" | "client
 
   const items = itemsByRole[role]
   return (
-    <aside className="w-full md:w-64 shrink-0 border-r bg-background">
+    <aside className="w-full md:w-64 shrink-0 glass-sidebar">
       <nav className="p-4 flex md:flex-col gap-2 overflow-x-auto">
         {items.map(({ href, label }) => {
           const active = pathname === href
@@ -50,7 +50,7 @@ export function PortalSidebar({ role }: { role: "brand" | "influencer" | "client
             <Link
               key={href}
               href={href}
-              className={`whitespace-nowrap rounded-md px-3 py-2 text-sm ${active ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+              className={`whitespace-nowrap rounded-md px-3 py-2 text-sm transition-all duration-300 ${active ? "bg-porchest-orange text-white shadow-glow" : "hover:bg-white/10 text-white"}`}
             >
               {label}
             </Link>
