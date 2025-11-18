@@ -129,91 +129,120 @@ export interface CampaignCreateInput {
 // INFLUENCER PROFILE TYPES
 // ============================================================================
 
-export interface SocialMediaAccount {
-  handle?: string;
-  url?: string;
-  followers?: number;
-  subscribers?: number; // For YouTube
-  verified: boolean;
+export interface InstagramAccount {
+  instagram_user_id?: string;
+  instagram_business_account_id?: string;
+  username?: string;
+  access_token?: string;
+  token_type?: "short" | "long";
+  token_expires_at?: Date;
+  page_id?: string;
+  is_connected: boolean;
+  last_synced_at?: Date;
+}
+
+export interface InstagramMetrics {
+  followers_count?: number;
+  follows_count?: number;
+  media_count?: number;
+  profile_views?: number;
+  reach?: number;
+  impressions?: number;
+  engagement_rate?: number;
+  website_clicks?: number;
+  email_contacts?: number;
+  phone_call_clicks?: number;
+  get_directions_clicks?: number;
+  text_message_clicks?: number;
+}
+
+export interface InstagramDemographics {
+  audience_city?: Record<string, number>;
+  audience_country?: Record<string, number>;
+  audience_gender_age?: Record<string, number>;
+  audience_locale?: Record<string, number>;
 }
 
 export interface InfluencerProfile {
   _id: ObjectId;
   user_id: ObjectId;
-  bio?: string;
+
+  // Basic Information
+  full_name: string;
+  instagram_username?: string;
   profile_picture?: string;
+  niche: string;
+  location: string;
 
-  // Social media
-  social_media: {
-    instagram?: SocialMediaAccount;
-    youtube?: SocialMediaAccount;
-    tiktok?: SocialMediaAccount;
-    twitter?: SocialMediaAccount;
-    facebook?: SocialMediaAccount;
-  };
+  // Social Media Metrics
+  followers: number;
+  following: number;
+  verified: boolean;
+  engagement_rate: number; // Percentage
+  average_views_monthly: number;
 
-  // Metrics
-  total_followers: number;
-  avg_engagement_rate: number;
-  content_categories: string[];
-  primary_platform?: string;
+  // Recent Post Stats
+  last_post_views?: number;
+  last_post_engagement?: number;
+  last_post_date?: Date;
 
-  // Demographics
-  demographics?: {
-    age_groups?: {
-      "13-17"?: number;
-      "18-24"?: number;
-      "25-34"?: number;
-      "35-44"?: number;
-      "45-54"?: number;
-      "55+"?: number;
-    };
-    gender_split?: { male: number; female: number; other: number };
-    top_countries?: string[];
-    top_cities?: string[];
-  };
+  // Pricing & Availability
+  price_per_post: number;
+  availability: string; // e.g., "Available", "Busy", "Not Available"
 
-  // Pricing
-  pricing?: {
-    post?: number;
-    story?: number;
-    video?: number;
-    reel?: number;
-  };
+  // Additional Info
+  languages: string[]; // Array of languages
+  platforms: string[]; // Array of platforms (e.g., ["Instagram", "TikTok"])
+  brands_worked_with: string[]; // Array of brand names
 
-  // Financials
+  // Instagram Integration
+  instagram_account?: InstagramAccount;
+  instagram_metrics?: InstagramMetrics;
+  instagram_demographics?: InstagramDemographics;
+
+  // Financials (kept from original)
   total_earnings: number;
   available_balance: number;
 
-  // Performance
+  // Performance (kept from original)
   completed_campaigns: number;
   rating: number;
   reviews_count: number;
 
-  // AI Predictions
-  predicted_roi?: number;
-  predicted_reach?: number;
+  // Profile Status
+  profile_completed: boolean;
 
+  // Timestamps
   created_at: Date;
   updated_at: Date;
 }
 
 export interface InfluencerProfileCreateInput {
   user_id: ObjectId;
-  bio?: string;
+  full_name: string;
+  instagram_username?: string;
   profile_picture?: string;
-  social_media?: Partial<InfluencerProfile["social_media"]>;
-  total_followers?: number;
-  avg_engagement_rate?: number;
-  content_categories?: string[];
-  primary_platform?: string;
-  demographics?: InfluencerProfile["demographics"];
-  pricing?: InfluencerProfile["pricing"];
+  niche: string;
+  location: string;
+  followers?: number;
+  following?: number;
+  verified?: boolean;
+  engagement_rate?: number;
+  average_views_monthly?: number;
+  last_post_views?: number;
+  last_post_engagement?: number;
+  last_post_date?: Date;
+  price_per_post?: number;
+  availability?: string;
+  languages?: string[];
+  platforms?: string[];
+  brands_worked_with?: string[];
   total_earnings?: number;
   available_balance?: number;
   completed_campaigns?: number;
   rating?: number;
   reviews_count?: number;
+  profile_completed?: boolean;
   created_at?: Date;
   updated_at?: Date;
 }
@@ -226,57 +255,44 @@ export interface BrandProfile {
   _id: ObjectId;
   user_id: ObjectId;
 
-  // Required Brand Information
-  brand_name?: string;
-  representative_name?: string;
-  contact_email?: string;
-  unique_brand_id: string; // Auto-generated unique identifier
-  niche?: string;
-  location?: string;
+  // Core Brand Information
+  brand_name: string;
+  brand_id: string; // Auto-generated unique identifier
+  contact_email: string;
+  representative_name: string;
+  niche: string;
+  industry: string;
+  location: string;
 
-  // Optional Brand Information
-  website_url?: string;
-  brand_logo?: string;
-  description?: string;
-
-  // Legacy fields (backward compatibility)
-  company_name?: string;
-  industry?: string;
+  // Optional Information
   website?: string;
-  logo?: string;
+  company_description?: string;
+  preferred_platforms?: string[];
 
-  // Contact (legacy)
-  contact_person?: string;
-  contact_phone?: string;
-
-  // Preferences
-  preferred_influencer_types?: string[];
-  target_markets?: string[];
-  budget_range?: { min: number; max: number };
-
-  // Stats
-  total_campaigns: number;
-  active_campaigns: number;
-  total_spent: number;
+  // Campaign Tracking
+  active_campaigns: any[]; // Array of campaign references
 
   // Profile Status
   profile_completed: boolean;
 
+  // Timestamps
   created_at: Date;
   updated_at: Date;
 }
 
 export interface BrandProfileCreateInput {
   user_id: ObjectId;
-  brand_name?: string;
-  representative_name?: string;
-  contact_email?: string;
-  unique_brand_id: string;
-  niche?: string;
-  location?: string;
-  website_url?: string;
-  brand_logo?: string;
-  description?: string;
+  brand_name: string;
+  brand_id: string;
+  contact_email: string;
+  representative_name: string;
+  niche: string;
+  industry: string;
+  location: string;
+  website?: string;
+  company_description?: string;
+  preferred_platforms?: string[];
+  active_campaigns?: any[];
   profile_completed?: boolean;
   created_at?: Date;
   updated_at?: Date;

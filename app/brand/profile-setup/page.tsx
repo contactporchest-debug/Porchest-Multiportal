@@ -17,10 +17,10 @@ interface ProfileFormData {
   contact_email: string
   representative_name: string
   niche: string
+  industry: string
   location: string
-  website_url: string
-  brand_logo: string
-  description: string
+  website: string
+  company_description: string
 }
 
 export default function BrandProfileSetupPage() {
@@ -29,10 +29,10 @@ export default function BrandProfileSetupPage() {
     contact_email: "",
     representative_name: "",
     niche: "",
+    industry: "",
     location: "",
-    website_url: "",
-    brand_logo: "",
-    description: "",
+    website: "",
+    company_description: "",
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -66,10 +66,10 @@ export default function BrandProfileSetupPage() {
           contact_email: profile.contact_email || "",
           representative_name: profile.representative_name || "",
           niche: profile.niche || "",
+          industry: profile.industry || "",
           location: profile.location || "",
-          website_url: profile.website_url || "",
-          brand_logo: profile.brand_logo || "",
-          description: profile.description || "",
+          website: profile.website || "",
+          company_description: profile.company_description || "",
         })
       }
     } catch (err) {
@@ -211,11 +211,11 @@ export default function BrandProfileSetupPage() {
               />
             </div>
 
-            {/* Niche & Location */}
+            {/* Niche & Industry */}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="niche">
-                  Niche/Industry <span className="text-red-500">*</span>
+                  Niche <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="niche"
@@ -229,19 +229,35 @@ export default function BrandProfileSetupPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="location">
-                  Location <span className="text-red-500">*</span>
+                <Label htmlFor="industry">
+                  Industry <span className="text-red-500">*</span>
                 </Label>
                 <Input
-                  id="location"
+                  id="industry"
                   type="text"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  placeholder="City, Country"
+                  value={formData.industry}
+                  onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
+                  placeholder="e.g., Retail, Technology, Services"
                   required
                   disabled={saving}
                 />
               </div>
+            </div>
+
+            {/* Location */}
+            <div className="space-y-2">
+              <Label htmlFor="location">
+                Location <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="location"
+                type="text"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                placeholder="City, Country"
+                required
+                disabled={saving}
+              />
             </div>
 
             {/* Optional Fields */}
@@ -250,39 +266,25 @@ export default function BrandProfileSetupPage() {
                 Optional Information
               </h3>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="website_url">Website URL</Label>
-                  <Input
-                    id="website_url"
-                    type="url"
-                    value={formData.website_url}
-                    onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
-                    placeholder="https://yourbrand.com"
-                    disabled={saving}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="brand_logo">Brand Logo URL</Label>
-                  <Input
-                    id="brand_logo"
-                    type="url"
-                    value={formData.brand_logo}
-                    onChange={(e) => setFormData({ ...formData, brand_logo: e.target.value })}
-                    placeholder="https://yourbrand.com/logo.png"
-                    disabled={saving}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="website">Website URL</Label>
+                <Input
+                  id="website"
+                  type="url"
+                  value={formData.website}
+                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  placeholder="https://yourbrand.com"
+                  disabled={saving}
+                />
               </div>
 
               <div className="space-y-2 mt-4">
-                <Label htmlFor="description">Brand Description</Label>
+                <Label htmlFor="company_description">Company Description</Label>
                 <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Tell us about your brand..."
+                  id="company_description"
+                  value={formData.company_description}
+                  onChange={(e) => setFormData({ ...formData, company_description: e.target.value })}
+                  placeholder="Tell us about your company..."
                   rows={4}
                   disabled={saving}
                 />

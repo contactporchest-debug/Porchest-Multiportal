@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import dynamic from "next/dynamic"
 import { PortalLayout } from "@/components/portal-layout"
 import { InfluencerSidebar } from "@/components/influencer-sidebar"
@@ -11,30 +12,32 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useToast } from "@/hooks/use-toast"
 import {
   MapPin,
   Users,
   TrendingUp,
   Eye,
-  DollarSign,
-  CheckCircle,
-  XCircle,
+  RefreshCw,
   Instagram,
-  Youtube,
-  Twitter,
-  Target,
+  Globe,
+  MapPinned,
+  User,
+  Heart,
+  MessageCircle,
+  Share2,
+  Bookmark,
+  PhoneCall,
+  Mail,
+  Navigation,
+  MessageSquare,
+  AlertCircle,
 } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 
 // Dynamically import Recharts components with SSR disabled
-const LineChart = dynamic<any>(
-  () => import("recharts").then((m) => m.LineChart),
-  { ssr: false }
-)
-const Line = dynamic<any>(
-  () => import("recharts").then((m) => m.Line),
-  { ssr: false }
-)
 const BarChart = dynamic<any>(
   () => import("recharts").then((m) => m.BarChart),
   { ssr: false }
@@ -80,125 +83,238 @@ const ResponsiveContainer = dynamic<any>(
   { ssr: false }
 )
 
-// Influencer Profile Data
-const influencerProfile = {
-  name: "Sarah Johnson",
-  avatar: "/placeholder.svg",
-  niche: "Fashion & Lifestyle",
-  location: "New York, NY",
-  followers: 155000,
-  avgEngagementRate: 5.8,
-  avgViews: 125000,
-  estimatedCostPerPost: 2500,
-  predictedROI: { min: 350, max: 480 },
-  platforms: [
-    { name: "Instagram", followers: 125000, verified: true, icon: Instagram },
-    { name: "YouTube", followers: 45000, verified: true, icon: Youtube },
-    { name: "TikTok", followers: 85000, verified: false, icon: Target },
-  ],
-}
-
-// Follower Growth Data
-const followerGrowthData = [
-  { month: "Jan", followers: 95000 },
-  { month: "Feb", followers: 102000 },
-  { month: "Mar", followers: 110000 },
-  { month: "Apr", followers: 122000 },
-  { month: "May", followers: 138000 },
-  { month: "Jun", followers: 155000 },
-]
-
-// Engagement Breakdown Data
-const engagementBreakdownData = [
-  { type: "Likes", count: 8500 },
-  { type: "Comments", count: 420 },
-  { type: "Shares", count: 180 },
-  { type: "Saves", count: 950 },
-]
-
-// Audience Demographics Data
-const audienceDemographicsData = [
-  { demographic: "18-24", value: 28, color: "#3b82f6" },
-  { demographic: "25-34", value: 42, color: "#8b5cf6" },
-  { demographic: "35-44", value: 20, color: "#ec4899" },
-  { demographic: "45+", value: 10, color: "#f97316" },
-]
-
-// Engagement Rate Trend Data
-const engagementTrendData = [
-  { month: "Jan", rate: 4.8 },
-  { month: "Feb", rate: 5.2 },
-  { month: "Mar", rate: 5.5 },
-  { month: "Apr", rate: 5.9 },
-  { month: "May", rate: 5.7 },
-  { month: "Jun", rate: 5.8 },
-]
-
-// ROI/EMV Data
-const roiData = [
-  { month: "Jan", roi: 320, emv: 15000 },
-  { month: "Feb", roi: 350, emv: 16500 },
-  { month: "Mar", roi: 380, emv: 18000 },
-  { month: "Apr", roi: 400, emv: 19500 },
-  { month: "May", roi: 420, emv: 21000 },
-  { month: "Jun", roi: 450, emv: 22500 },
-]
+const COLORS = ["#ff6b35", "#004e89", "#f77f00", "#06d6a0", "#8338ec"]
 
 export default function InsightsDashboard() {
-  const totalFollowers = influencerProfile.platforms.reduce((sum, platform) => sum + platform.followers, 0)
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
+  const [profile, setProfile] = useState<any>(null)
+
+  useEffect(() => {
+    fetchProfile()
+  }, [])
+
+  const fetchProfile = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch("/api/influencer/profile")
+      const data = await response.json()
+
+      if (data.success) {
+        setProfile(data.data)
+      } else {
+        toast({
+          title: "Error",
+          description: data.error?.message || "Failed to load profile",
+          variant: "destructive",
+        })
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to load profile",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSync = async () => {
+    try {
+      setSyncing(true)
+      const response = await fetch("/api/influencer/instagram/sync", {
+        method: "POST",
+      })
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "Success",
+          description: "Instagram metrics synced successfully!",
+        })
+        await fetchProfile() // Refresh the data
+      } else {
+        toast({
+          title: "Error",
+          description: data.error?.message || "Failed to sync metrics",
+          variant: "destructive",
+        })
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to sync metrics",
+        variant: "destructive",
+      })
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <PortalLayout
+        sidebar={<InfluencerSidebar />}
+        title="Instagram Insights"
+        userRole="Influencer"
+        breadcrumbs={[{ label: "Dashboard", href: "/influencer" }, { label: "Instagram Insights" }]}
+      >
+        <div className="space-y-6">
+          <Skeleton className="h-48 w-full" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-32 w-full" />
+            ))}
+          </div>
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </PortalLayout>
+    )
+  }
+
+  if (!profile?.instagram_account?.is_connected) {
+    return (
+      <PortalLayout
+        sidebar={<InfluencerSidebar />}
+        title="Instagram Insights"
+        userRole="Influencer"
+        breadcrumbs={[{ label: "Dashboard", href: "/influencer" }, { label: "Instagram Insights" }]}
+      >
+        <Card className="border-orange-200">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <AlertCircle className="h-16 w-16 text-orange-500 mb-4" />
+            <h3 className="text-xl font-semibold mb-2">Instagram Not Connected</h3>
+            <p className="text-muted-foreground mb-6 text-center">
+              Connect your Instagram account to view detailed insights and analytics.
+            </p>
+            <Button
+              onClick={() => window.location.href = "/influencer/profile"}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+            >
+              <Instagram className="mr-2 h-4 w-4" />
+              Go to Profile to Connect
+            </Button>
+          </CardContent>
+        </Card>
+      </PortalLayout>
+    )
+  }
+
+  const metrics = profile.instagram_metrics || {}
+  const demographics = profile.instagram_demographics || {}
+  const instagramAccount = profile.instagram_account || {}
+
+  // Prepare engagement breakdown data
+  const engagementData = [
+    { type: "Impressions", count: metrics.impressions || 0 },
+    { type: "Reach", count: metrics.reach || 0 },
+    { type: "Profile Views", count: metrics.profile_views || 0 },
+  ].filter((item) => item.count > 0)
+
+  // Prepare interaction data
+  const interactionData = [
+    { type: "Website Clicks", count: metrics.website_clicks || 0, icon: Globe },
+    { type: "Email Contacts", count: metrics.email_contacts || 0, icon: Mail },
+    { type: "Phone Calls", count: metrics.phone_call_clicks || 0, icon: PhoneCall },
+    { type: "Directions", count: metrics.get_directions_clicks || 0, icon: Navigation },
+    { type: "Text Messages", count: metrics.text_message_clicks || 0, icon: MessageSquare },
+  ].filter((item) => item.count > 0)
+
+  // Prepare city demographics (top 5)
+  const cityData = demographics.audience_city
+    ? Object.entries(demographics.audience_city)
+        .map(([city, count]: [string, any]) => ({ city, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5)
+    : []
+
+  // Prepare country demographics (top 5)
+  const countryData = demographics.audience_country
+    ? Object.entries(demographics.audience_country)
+        .map(([country, count]: [string, any]) => ({ country, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5)
+    : []
+
+  // Prepare age/gender demographics
+  const ageGenderData = demographics.audience_gender_age
+    ? Object.entries(demographics.audience_gender_age)
+        .map(([key, value]: [string, any]) => ({
+          demographic: key,
+          value,
+        }))
+        .sort((a, b) => b.value - a.value)
+    : []
+
+  const lastSynced = instagramAccount.last_synced_at
+    ? new Date(instagramAccount.last_synced_at).toLocaleString()
+    : "Never"
 
   return (
     <PortalLayout
       sidebar={<InfluencerSidebar />}
-      title="Insights Dashboard"
+      title="Instagram Insights"
       userRole="Influencer"
-      breadcrumbs={[{ label: "Dashboard", href: "/influencer" }, { label: "Insights Dashboard" }]}
+      breadcrumbs={[{ label: "Dashboard", href: "/influencer" }, { label: "Instagram Insights" }]}
     >
       <div className="grid grid-cols-1 gap-6">
-        {/* Influencer Profile Card */}
-        <Card className="bg-gradient-to-r from-purple-600 to-blue-600 text-white">
+        {/* Instagram Profile Header */}
+        <Card className="bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 text-white">
           <CardHeader>
-            <div className="flex items-start gap-6">
-              <Avatar className="h-24 w-24 border-4 border-white">
-                <AvatarImage src={influencerProfile.avatar} alt={influencerProfile.name} />
-                <AvatarFallback>
-                  {influencerProfile.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <h2 className="text-3xl font-bold mb-2">{influencerProfile.name}</h2>
-                <div className="flex flex-wrap items-center gap-3 mb-4">
-                  <Badge variant="secondary" className="bg-white/20 text-white border-0">
-                    {influencerProfile.niche}
-                  </Badge>
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4" />
-                    <span className="text-sm">{influencerProfile.location}</span>
+            <div className="flex items-start justify-between gap-6">
+              <div className="flex items-start gap-6">
+                <Avatar className="h-24 w-24 border-4 border-white">
+                  <AvatarImage src={profile.profile_picture} alt={profile.full_name} />
+                  <AvatarFallback>
+                    {profile.full_name?.split(" ").map((n: string) => n[0]).join("")}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Instagram className="h-6 w-6" />
+                    <h2 className="text-3xl font-bold">@{instagramAccount.username}</h2>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 mb-4">
+                    <Badge variant="secondary" className="bg-white/20 text-white border-0">
+                      {profile.niche}
+                    </Badge>
+                    {profile.location && (
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-4 w-4" />
+                        <span className="text-sm">{profile.location}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-6">
+                    <div>
+                      <p className="text-2xl font-bold">{(metrics.followers_count || 0).toLocaleString()}</p>
+                      <p className="text-sm opacity-80">Followers</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{(metrics.follows_count || 0).toLocaleString()}</p>
+                      <p className="text-sm opacity-80">Following</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{(metrics.media_count || 0).toLocaleString()}</p>
+                      <p className="text-sm opacity-80">Posts</p>
+                    </div>
                   </div>
                 </div>
-
-                {/* Platform Stats */}
-                <div className="grid grid-cols-3 gap-4">
-                  {influencerProfile.platforms.map((platform) => (
-                    <div key={platform.name} className="flex items-center gap-2">
-                      <platform.icon className="h-5 w-5" />
-                      <div>
-                        <p className="text-sm font-semibold">{(platform.followers / 1000).toFixed(0)}K</p>
-                        <p className="text-xs opacity-80 flex items-center gap-1">
-                          {platform.name}
-                          {platform.verified ? (
-                            <CheckCircle className="h-3 w-3 text-green-400" />
-                          ) : (
-                            <XCircle className="h-3 w-3 text-red-400" />
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              </div>
+              <div className="text-right">
+                <Button
+                  onClick={handleSync}
+                  disabled={syncing}
+                  variant="secondary"
+                  size="sm"
+                  className="bg-white/20 hover:bg-white/30 text-white border-white/30"
+                >
+                  <RefreshCw className={`mr-2 h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+                  {syncing ? "Syncing..." : "Sync Metrics"}
+                </Button>
+                <p className="text-xs opacity-80 mt-2">Last synced: {lastSynced}</p>
               </div>
             </div>
           </CardHeader>
@@ -210,11 +326,25 @@ export default function InsightsDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
                 <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                  <Users className="h-6 w-6 text-blue-600" />
+                  <Eye className="h-6 w-6 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{(totalFollowers / 1000).toFixed(0)}K</p>
-                  <p className="text-sm text-muted-foreground">Total Followers</p>
+                  <p className="text-2xl font-bold">{(metrics.impressions || 0).toLocaleString()}</p>
+                  <p className="text-sm text-muted-foreground">Impressions (30d)</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
+                  <Users className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{(metrics.reach || 0).toLocaleString()}</p>
+                  <p className="text-sm text-muted-foreground">Reach (30d)</p>
                 </div>
               </div>
             </CardContent>
@@ -227,22 +357,8 @@ export default function InsightsDashboard() {
                   <TrendingUp className="h-6 w-6 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{influencerProfile.avgEngagementRate}%</p>
-                  <p className="text-sm text-muted-foreground">Avg Engagement</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
-                  <Eye className="h-6 w-6 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{(influencerProfile.avgViews / 1000).toFixed(0)}K</p>
-                  <p className="text-sm text-muted-foreground">Avg Views</p>
+                  <p className="text-2xl font-bold">{metrics.engagement_rate?.toFixed(2) || "0.00"}%</p>
+                  <p className="text-sm text-muted-foreground">Engagement Rate</p>
                 </div>
               </div>
             </CardContent>
@@ -252,257 +368,171 @@ export default function InsightsDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
                 <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center">
-                  <DollarSign className="h-6 w-6 text-orange-600" />
+                  <User className="h-6 w-6 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">${(influencerProfile.estimatedCostPerPost / 1000).toFixed(1)}K</p>
-                  <p className="text-sm text-muted-foreground">Cost Per Post</p>
+                  <p className="text-2xl font-bold">{(metrics.profile_views || 0).toLocaleString()}</p>
+                  <p className="text-sm text-muted-foreground">Profile Views (30d)</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* ROI Prediction Card */}
-        <Card className="border-2 border-green-200 bg-green-50">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Predicted ROI Range</h3>
-                <p className="text-sm text-muted-foreground">Based on historical campaign performance</p>
-              </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold text-green-600">
-                  {influencerProfile.predictedROI.min}% - {influencerProfile.predictedROI.max}%
-                </p>
-                <p className="text-sm text-muted-foreground">Expected ROI</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Platform Verification Status */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Platform Verification Status</CardTitle>
-            <CardDescription>Your verification status across platforms</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-3 gap-4">
-              {influencerProfile.platforms.map((platform) => (
-                <div key={platform.name} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <platform.icon className="h-8 w-8" />
-                    <div>
-                      <p className="font-semibold">{platform.name}</p>
-                      <p className="text-sm text-muted-foreground">{(platform.followers / 1000).toFixed(0)}K followers</p>
-                    </div>
-                  </div>
-                  {platform.verified ? (
-                    <Badge className="bg-green-500">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Verified
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary">
-                      <XCircle className="h-3 w-3 mr-1" />
-                      Unverified
-                    </Badge>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Follower Growth Graph */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-blue-600" />
-              <CardTitle>Follower Growth</CardTitle>
-            </div>
-            <CardDescription>Track your follower growth over the last 6 months</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={followerGrowthData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="followers" stroke="#3b82f6" strokeWidth={2} name="Followers" />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Engagement Breakdown Bar Chart */}
+        {/* Engagement Overview */}
+        {engagementData.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Engagement Breakdown</CardTitle>
-              <CardDescription>Average engagement by type</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-orange-600" />
+                Engagement Overview (Last 30 Days)
+              </CardTitle>
+              <CardDescription>Your Instagram account performance metrics</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={engagementBreakdownData}>
+                <BarChart data={engagementData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="type" />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="count" fill="#8b5cf6" />
+                  <Bar dataKey="count" fill="#ff6b35" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
+        )}
 
-          {/* Audience Demographics Pie Chart */}
+        {/* Audience Interactions */}
+        {interactionData.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Audience Demographics</CardTitle>
-              <CardDescription>Age distribution of your audience</CardDescription>
+              <CardTitle>Audience Interactions (Last 30 Days)</CardTitle>
+              <CardDescription>How people are interacting with your profile</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-5 gap-4">
+                {interactionData.map((item) => (
+                  <div key={item.type} className="flex flex-col items-center p-4 border rounded-lg">
+                    <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center mb-2">
+                      <item.icon className="h-6 w-6 text-orange-600" />
+                    </div>
+                    <p className="text-2xl font-bold">{item.count.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground text-center mt-1">{item.type}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Top Cities */}
+          {cityData.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPinned className="h-5 w-5 text-orange-600" />
+                  Top Cities
+                </CardTitle>
+                <CardDescription>Where your audience is located (by city)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={cityData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" />
+                    <YAxis dataKey="city" type="category" width={100} />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#004e89" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Top Countries */}
+          {countryData.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Globe className="h-5 w-5 text-orange-600" />
+                  Top Countries
+                </CardTitle>
+                <CardDescription>Where your audience is located (by country)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={countryData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ country, count }) => `${country}: ${count}`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="count"
+                    >
+                      {countryData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Age & Gender Demographics */}
+        {ageGenderData.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-orange-600" />
+                Age & Gender Demographics
+              </CardTitle>
+              <CardDescription>Breakdown of your audience by age and gender</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={audienceDemographicsData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ demographic, value }) => `${demographic}: ${value}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {audienceDemographicsData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
+                <BarChart data={ageGenderData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="demographic" />
+                  <YAxis />
                   <Tooltip />
-                </PieChart>
+                  <Legend />
+                  <Bar dataKey="value" fill="#8338ec" name="Audience Count" />
+                </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
-        </div>
+        )}
 
-        {/* Engagement Rate Trend */}
-        <Card>
+        {/* Account Info */}
+        <Card className="border-orange-200 bg-orange-50">
           <CardHeader>
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-green-600" />
-              <CardTitle>Engagement Rate Trend</CardTitle>
-            </div>
-            <CardDescription>How your engagement rate has evolved over time</CardDescription>
+            <CardTitle>Account Information</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={engagementTrendData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="rate" stroke="#10b981" strokeWidth={2} name="Engagement Rate (%)" />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* ROI & EMV Estimation */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-green-600" />
-              <CardTitle>ROI & EMV Estimation</CardTitle>
-            </div>
-            <CardDescription>Return on Investment and Estimated Media Value trends</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={roiData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip />
-                <Legend />
-                <Line
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="roi"
-                  stroke="#f97316"
-                  strokeWidth={2}
-                  name="ROI (%)"
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="emv"
-                  stroke="#8b5cf6"
-                  strokeWidth={2}
-                  name="EMV ($)"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* ROI Prediction Gauge */}
-        <Card>
-          <CardHeader>
-            <CardTitle>ROI Performance Gauge</CardTitle>
-            <CardDescription>Current ROI performance based on recent campaigns</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-center p-8">
-              <div className="relative w-64 h-64">
-                {/* Gauge Background */}
-                <svg className="w-full h-full transform -rotate-90">
-                  {/* Background Arc */}
-                  <circle
-                    cx="128"
-                    cy="128"
-                    r="100"
-                    fill="none"
-                    stroke="#e5e7eb"
-                    strokeWidth="20"
-                    strokeDasharray="440"
-                    strokeDashoffset="110"
-                  />
-                  {/* Progress Arc - 85% of 440 */}
-                  <circle
-                    cx="128"
-                    cy="128"
-                    r="100"
-                    fill="none"
-                    stroke="#10b981"
-                    strokeWidth="20"
-                    strokeDasharray="440"
-                    strokeDashoffset={440 - (440 * 0.75)}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <p className="text-5xl font-bold text-green-600">420%</p>
-                  <p className="text-sm text-muted-foreground mt-2">Current ROI</p>
-                </div>
+            <div className="grid md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Instagram User ID</p>
+                <p className="font-mono text-sm">{instagramAccount.instagram_user_id || "N/A"}</p>
               </div>
-            </div>
-            <div className="grid grid-cols-3 gap-4 mt-6">
-              <div className="text-center p-3 bg-red-50 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1">Low</p>
-                <p className="text-sm font-semibold text-red-600">&lt; 300%</p>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Business Account ID</p>
+                <p className="font-mono text-sm">{instagramAccount.instagram_business_account_id || "N/A"}</p>
               </div>
-              <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1">Medium</p>
-                <p className="text-sm font-semibold text-yellow-600">300-400%</p>
-              </div>
-              <div className="text-center p-3 bg-green-50 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1">High</p>
-                <p className="text-sm font-semibold text-green-600">&gt; 400%</p>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Token Expires</p>
+                <p className="text-sm">
+                  {instagramAccount.token_expires_at
+                    ? new Date(instagramAccount.token_expires_at).toLocaleDateString()
+                    : "N/A"}
+                </p>
               </div>
             </div>
           </CardContent>

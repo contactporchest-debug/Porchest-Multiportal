@@ -9,7 +9,8 @@ import {
   Activity,
   MessageSquare,
   Settings,
-  HelpCircle
+  HelpCircle,
+  User
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -19,6 +20,11 @@ const sidebarNavItems = [
     title: "Dashboard",
     href: "/brand",
     icon: LayoutDashboard,
+  },
+  {
+    title: "Profile",
+    href: "/brand/profile",
+    icon: User,
   },
   {
     title: "AI Recommendations",
