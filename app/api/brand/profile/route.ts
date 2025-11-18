@@ -68,11 +68,14 @@ async function getProfileHandler(req: Request) {
     if (!profile) {
       const defaultProfile = {
         user_id: user._id,
-        unique_brand_id: generateUniqueBrandId(),
-        company_name: user.company || user.full_name,
-        total_campaigns: 0,
-        active_campaigns: 0,
-        total_spent: 0,
+        brand_id: generateUniqueBrandId(),
+        brand_name: user.company || user.full_name || "",
+        contact_email: user.email || "",
+        representative_name: user.full_name || "",
+        niche: "",
+        industry: "",
+        location: "",
+        active_campaigns: [],
         profile_completed: false,
         created_at: new Date(),
         updated_at: new Date(),
@@ -84,7 +87,7 @@ async function getProfileHandler(req: Request) {
       logger.info("Brand profile auto-created", {
         userId: user._id.toString(),
         profileId: result.insertedId.toString(),
-        uniqueBrandId: defaultProfile.unique_brand_id,
+        brandId: defaultProfile.brand_id,
       });
     }
 
@@ -132,11 +135,9 @@ async function updateProfileHandler(req: Request) {
       // Create profile if it doesn't exist
       const newProfile = {
         user_id: user._id,
-        unique_brand_id: generateUniqueBrandId(),
+        brand_id: generateUniqueBrandId(),
         ...validatedData,
-        total_campaigns: 0,
-        active_campaigns: 0,
-        total_spent: 0,
+        active_campaigns: [],
         profile_completed: true, // Set to true when creating via PUT
         created_at: new Date(),
         updated_at: new Date(),
@@ -147,7 +148,7 @@ async function updateProfileHandler(req: Request) {
       logger.info("Brand profile created", {
         userId: user._id.toString(),
         profileId: result.insertedId.toString(),
-        uniqueBrandId: newProfile.unique_brand_id,
+        brandId: newProfile.brand_id,
       });
 
       return createdResponse({
@@ -230,11 +231,9 @@ async function createProfileHandler(req: Request) {
     // Create new profile
     const newProfile = {
       user_id: user._id,
-      unique_brand_id: generateUniqueBrandId(),
+      brand_id: generateUniqueBrandId(),
       ...validatedData,
-      total_campaigns: 0,
-      active_campaigns: 0,
-      total_spent: 0,
+      active_campaigns: [],
       profile_completed: true, // Set to true when creating via POST
       created_at: new Date(),
       updated_at: new Date(),
@@ -245,7 +244,7 @@ async function createProfileHandler(req: Request) {
     logger.info("Brand profile created", {
       userId: user._id.toString(),
       profileId: result.insertedId.toString(),
-      uniqueBrandId: newProfile.unique_brand_id,
+      brandId: newProfile.brand_id,
     });
 
     return createdResponse({

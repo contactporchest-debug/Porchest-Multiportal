@@ -370,10 +370,11 @@ export const brandProfileSetupSchema = z.object({
   contact_email: emailSchema,
   representative_name: z.string().min(2, "Representative name must be at least 2 characters").max(100).trim(),
   niche: z.string().min(2, "Niche must be at least 2 characters").max(100).trim(),
+  industry: z.string().min(2, "Industry must be at least 2 characters").max(100).trim(),
   location: z.string().min(2, "Location must be at least 2 characters").max(200).trim(),
-  website_url: urlSchema,
-  brand_logo: urlSchema,
-  description: z.string().max(2000).optional(),
+  website: urlSchema,
+  company_description: z.string().max(2000).optional(),
+  preferred_platforms: z.array(z.string().max(50)).max(20).optional(),
 });
 
 export const updateBrandProfileSchema = z.object({
@@ -381,28 +382,11 @@ export const updateBrandProfileSchema = z.object({
   representative_name: z.string().min(2).max(100).optional(),
   contact_email: emailSchema.optional(),
   niche: z.string().min(2).max(100).optional(),
+  industry: z.string().min(2).max(100).optional(),
   location: z.string().min(2).max(200).optional(),
-  website_url: urlSchema,
-  brand_logo: urlSchema,
-  description: z.string().max(2000).optional(),
-  // Legacy fields for backward compatibility
-  company_name: z.string().min(2).max(200).optional(),
-  industry: z.string().max(100).optional(),
-  website: z.string().url("Must be a valid URL").optional(),
-  logo: z.string().url("Must be a valid URL").optional(),
-  contact_person: z.string().max(100).optional(),
-  contact_phone: z.string().max(20).optional(),
-  preferred_influencer_types: z.array(z.string().max(50)).max(20).optional(),
-  target_markets: z.array(z.string().max(100)).max(50).optional(),
-  budget_range: z
-    .object({
-      min: z.number().nonnegative(),
-      max: z.number().nonnegative(),
-    })
-    .refine((data) => data.min <= data.max, {
-      message: "Min budget must be less than or equal to max budget",
-    })
-    .optional(),
+  website: urlSchema,
+  company_description: z.string().max(2000).optional(),
+  preferred_platforms: z.array(z.string().max(50)).max(20).optional(),
 });
 
 // ============================================================================

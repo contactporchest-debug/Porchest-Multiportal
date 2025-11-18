@@ -226,57 +226,44 @@ export interface BrandProfile {
   _id: ObjectId;
   user_id: ObjectId;
 
-  // Required Brand Information
-  brand_name?: string;
-  representative_name?: string;
-  contact_email?: string;
-  unique_brand_id: string; // Auto-generated unique identifier
-  niche?: string;
-  location?: string;
+  // Core Brand Information
+  brand_name: string;
+  brand_id: string; // Auto-generated unique identifier
+  contact_email: string;
+  representative_name: string;
+  niche: string;
+  industry: string;
+  location: string;
 
-  // Optional Brand Information
-  website_url?: string;
-  brand_logo?: string;
-  description?: string;
-
-  // Legacy fields (backward compatibility)
-  company_name?: string;
-  industry?: string;
+  // Optional Information
   website?: string;
-  logo?: string;
+  company_description?: string;
+  preferred_platforms?: string[];
 
-  // Contact (legacy)
-  contact_person?: string;
-  contact_phone?: string;
-
-  // Preferences
-  preferred_influencer_types?: string[];
-  target_markets?: string[];
-  budget_range?: { min: number; max: number };
-
-  // Stats
-  total_campaigns: number;
-  active_campaigns: number;
-  total_spent: number;
+  // Campaign Tracking
+  active_campaigns: any[]; // Array of campaign references
 
   // Profile Status
   profile_completed: boolean;
 
+  // Timestamps
   created_at: Date;
   updated_at: Date;
 }
 
 export interface BrandProfileCreateInput {
   user_id: ObjectId;
-  brand_name?: string;
-  representative_name?: string;
-  contact_email?: string;
-  unique_brand_id: string;
-  niche?: string;
-  location?: string;
-  website_url?: string;
-  brand_logo?: string;
-  description?: string;
+  brand_name: string;
+  brand_id: string;
+  contact_email: string;
+  representative_name: string;
+  niche: string;
+  industry: string;
+  location: string;
+  website?: string;
+  company_description?: string;
+  preferred_platforms?: string[];
+  active_campaigns?: any[];
   profile_completed?: boolean;
   created_at?: Date;
   updated_at?: Date;

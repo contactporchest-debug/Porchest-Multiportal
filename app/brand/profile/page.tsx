@@ -15,23 +15,18 @@ import { useToast } from "@/components/ui/use-toast"
 interface BrandProfile {
   _id?: string
   user_id?: string
-  company_name?: string
-  industry?: string
-  website?: string
-  logo?: string
-  description?: string
-  contact_person?: string
+  brand_id?: string
+  brand_name?: string
   contact_email?: string
-  contact_phone?: string
-  preferred_influencer_types?: string[]
-  target_markets?: string[]
-  budget_range?: {
-    min: number
-    max: number
-  }
-  total_campaigns?: number
-  active_campaigns?: number
-  total_spent?: number
+  representative_name?: string
+  niche?: string
+  industry?: string
+  location?: string
+  website?: string
+  company_description?: string
+  preferred_platforms?: string[]
+  active_campaigns?: any[]
+  profile_completed?: boolean
 }
 
 export default function BrandProfilePage() {
@@ -72,17 +67,15 @@ export default function BrandProfilePage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          company_name: profile.company_name,
-          industry: profile.industry,
-          website: profile.website,
-          logo: profile.logo,
-          description: profile.description,
-          contact_person: profile.contact_person,
+          brand_name: profile.brand_name,
           contact_email: profile.contact_email,
-          contact_phone: profile.contact_phone,
-          preferred_influencer_types: profile.preferred_influencer_types,
-          target_markets: profile.target_markets,
-          budget_range: profile.budget_range,
+          representative_name: profile.representative_name,
+          niche: profile.niche,
+          industry: profile.industry,
+          location: profile.location,
+          website: profile.website,
+          company_description: profile.company_description,
+          preferred_platforms: profile.preferred_platforms,
         }),
       })
 
@@ -131,108 +124,40 @@ export default function BrandProfilePage() {
       breadcrumbs={[{ label: "Profile" }]}
     >
       <div className="space-y-6">
-        {/* Stats Overview */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Campaigns</CardTitle>
-              <Building2 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{profile.total_campaigns || 0}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Campaigns</CardTitle>
-              <Building2 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{profile.active_campaigns || 0}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
-              <Building2 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">${(profile.total_spent || 0).toLocaleString()}</div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Brand ID Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Brand ID</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg font-mono font-bold text-orange-600">{profile.brand_id || "N/A"}</div>
+          </CardContent>
+        </Card>
 
         {/* Profile Form */}
         <Card>
           <CardHeader>
-            <CardTitle>Company Information</CardTitle>
-            <CardDescription>Manage your brand profile and preferences</CardDescription>
+            <CardTitle>Brand Information</CardTitle>
+            <CardDescription>Manage your brand profile information</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="company_name">Company Name</Label>
+                <Label htmlFor="brand_name">Brand Name</Label>
                 <Input
-                  id="company_name"
-                  value={profile.company_name || ""}
-                  onChange={(e) => setProfile({ ...profile, company_name: e.target.value })}
-                  placeholder="Acme Corporation"
+                  id="brand_name"
+                  value={profile.brand_name || ""}
+                  onChange={(e) => setProfile({ ...profile, brand_name: e.target.value })}
+                  placeholder="Your Brand Name"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="industry">Industry</Label>
+                <Label htmlFor="representative_name">Representative Name</Label>
                 <Input
-                  id="industry"
-                  value={profile.industry || ""}
-                  onChange={(e) => setProfile({ ...profile, industry: e.target.value })}
-                  placeholder="Technology, Fashion, etc."
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="website">Website</Label>
-                <Input
-                  id="website"
-                  type="url"
-                  value={profile.website || ""}
-                  onChange={(e) => setProfile({ ...profile, website: e.target.value })}
-                  placeholder="https://example.com"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="logo">Logo URL</Label>
-                <Input
-                  id="logo"
-                  type="url"
-                  value={profile.logo || ""}
-                  onChange={(e) => setProfile({ ...profile, logo: e.target.value })}
-                  placeholder="https://example.com/logo.png"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Company Description</Label>
-              <Textarea
-                id="description"
-                value={profile.description || ""}
-                onChange={(e) => setProfile({ ...profile, description: e.target.value })}
-                placeholder="Tell us about your company..."
-                rows={4}
-              />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="contact_person">Contact Person</Label>
-                <Input
-                  id="contact_person"
-                  value={profile.contact_person || ""}
-                  onChange={(e) => setProfile({ ...profile, contact_person: e.target.value })}
+                  id="representative_name"
+                  value={profile.representative_name || ""}
+                  onChange={(e) => setProfile({ ...profile, representative_name: e.target.value })}
                   placeholder="John Doe"
                 />
               </div>
@@ -244,61 +169,61 @@ export default function BrandProfilePage() {
                   type="email"
                   value={profile.contact_email || ""}
                   onChange={(e) => setProfile({ ...profile, contact_email: e.target.value })}
-                  placeholder="contact@example.com"
+                  placeholder="contact@yourbrand.com"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="contact_phone">Contact Phone</Label>
+                <Label htmlFor="niche">Niche</Label>
                 <Input
-                  id="contact_phone"
-                  type="tel"
-                  value={profile.contact_phone || ""}
-                  onChange={(e) => setProfile({ ...profile, contact_phone: e.target.value })}
-                  placeholder="+1 234 567 8900"
+                  id="niche"
+                  value={profile.niche || ""}
+                  onChange={(e) => setProfile({ ...profile, niche: e.target.value })}
+                  placeholder="e.g., Fashion, Tech, Beauty"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="industry">Industry</Label>
+                <Input
+                  id="industry"
+                  value={profile.industry || ""}
+                  onChange={(e) => setProfile({ ...profile, industry: e.target.value })}
+                  placeholder="e.g., Retail, Technology, Services"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="location">Location</Label>
+                <Input
+                  id="location"
+                  value={profile.location || ""}
+                  onChange={(e) => setProfile({ ...profile, location: e.target.value })}
+                  placeholder="City, Country"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="website">Website</Label>
+                <Input
+                  id="website"
+                  type="url"
+                  value={profile.website || ""}
+                  onChange={(e) => setProfile({ ...profile, website: e.target.value })}
+                  placeholder="https://yourbrand.com"
                 />
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="budget_min">Budget Range (Min)</Label>
-                <Input
-                  id="budget_min"
-                  type="number"
-                  value={profile.budget_range?.min || ""}
-                  onChange={(e) =>
-                    setProfile({
-                      ...profile,
-                      budget_range: {
-                        ...profile.budget_range,
-                        min: parseInt(e.target.value) || 0,
-                        max: profile.budget_range?.max || 0,
-                      },
-                    })
-                  }
-                  placeholder="5000"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="budget_max">Budget Range (Max)</Label>
-                <Input
-                  id="budget_max"
-                  type="number"
-                  value={profile.budget_range?.max || ""}
-                  onChange={(e) =>
-                    setProfile({
-                      ...profile,
-                      budget_range: {
-                        min: profile.budget_range?.min || 0,
-                        max: parseInt(e.target.value) || 0,
-                      },
-                    })
-                  }
-                  placeholder="50000"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="company_description">Company Description</Label>
+              <Textarea
+                id="company_description"
+                value={profile.company_description || ""}
+                onChange={(e) => setProfile({ ...profile, company_description: e.target.value })}
+                placeholder="Tell us about your company..."
+                rows={4}
+              />
             </div>
 
             <div className="flex justify-end gap-2 pt-4">
