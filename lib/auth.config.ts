@@ -133,6 +133,21 @@ export const authConfig: NextAuthConfig = {
         }
       }
 
+      // Re-fetch profile status when session is updated for brand users
+      if (trigger === "update" && token.role === "brand") {
+        try {
+          const client = await clientPromise;
+          const db = client.db("porchest_db");
+          const profile = await db.collection("brand_profiles").findOne({
+            user_id: new (await import("mongodb")).ObjectId(token.id as string)
+          });
+          token.profileCompleted = profile?.profile_completed ?? false;
+        } catch (error) {
+          console.error("Error re-fetching profile_completed:", error);
+          token.profileCompleted = false;
+        }
+      }
+
       // Update token when session is updated
       if (trigger === "update" && session) {
         token = { ...token, ...session };

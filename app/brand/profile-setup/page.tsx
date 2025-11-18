@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,6 +39,7 @@ export default function BrandProfileSetupPage() {
   const [error, setError] = useState("")
   const { toast } = useToast()
   const router = useRouter()
+  const { update } = useSession()
 
   useEffect(() => {
     checkProfileStatus()
@@ -102,10 +104,14 @@ export default function BrandProfileSetupPage() {
           description: "Profile setup completed successfully!",
         })
 
-        // Redirect to brand dashboard
+        // Update session to reflect profile completion
+        await update()
+
+        // Redirect to brand dashboard after session update
         setTimeout(() => {
           router.push("/brand")
-        }, 1000)
+          router.refresh()
+        }, 500)
       } else {
         throw new Error(data.error?.message || "Failed to save profile")
       }
