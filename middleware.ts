@@ -72,14 +72,19 @@ export async function middleware(req: NextRequest) {
 
   // Brand profile completion check
   if (userRole === "brand" && pathname.startsWith("/brand")) {
-    // Allow access to profile-setup page and API routes
-    if (pathname === "/brand/profile-setup" || pathname.startsWith("/api/")) {
+    // Allow access to profile-setup page and brand profile API routes
+    if (
+      pathname === "/brand/profile-setup" ||
+      pathname.startsWith("/api/brand/profile") ||
+      pathname.startsWith("/api/auth")
+    ) {
       return NextResponse.next();
     }
 
     // Check if profile is completed
+    // Use !== true to catch both false and undefined values
     const profileCompleted = session.user.profileCompleted;
-    if (profileCompleted === false) {
+    if (profileCompleted !== true) {
       // Redirect to profile setup if not completed
       return NextResponse.redirect(new URL("/brand/profile-setup", req.url));
     }
