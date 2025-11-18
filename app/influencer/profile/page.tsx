@@ -11,8 +11,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Save, Plus, X, User } from "lucide-react"
+import { Loader2, Save, Plus, X, User, Instagram, RefreshCw } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useSearchParams } from "next/navigation"
 
 interface ProfileFormData {
   full_name: string
@@ -58,15 +60,42 @@ export default function InfluencerProfileSetup() {
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [connecting, setConnecting] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [instagramConnected, setInstagramConnected] = useState(false)
   const [newLanguage, setNewLanguage] = useState("")
   const [newPlatform, setNewPlatform] = useState("")
   const [newBrand, setNewBrand] = useState("")
   const { toast } = useToast()
   const router = useRouter()
   const { update } = useSession()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     fetchProfile()
+
+    // Check for success/error messages in URL
+    const success = searchParams.get("success")
+    const error = searchParams.get("error")
+
+    if (success) {
+      toast({
+        title: "Success",
+        description: success,
+      })
+      // Clean URL
+      router.replace("/influencer/profile")
+    }
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error,
+        variant: "destructive",
+      })
+      // Clean URL
+      router.replace("/influencer/profile")
+    }
   }, [])
 
   const fetchProfile = async () => {
@@ -97,6 +126,9 @@ export default function InfluencerProfileSetup() {
           platforms: profile.platforms || [],
           brands_worked_with: profile.brands_worked_with || [],
         })
+
+        // Check if Instagram is connected
+        setInstagramConnected(profile.instagram_account?.is_connected || false)
       }
     } catch (err) {
       console.error("Error fetching profile:", err)
@@ -184,6 +216,63 @@ export default function InfluencerProfileSetup() {
 
   const removeBrand = (brand: string) => {
     setFormData({ ...formData, brands_worked_with: formData.brands_worked_with.filter((b) => b !== brand) })
+  }
+
+  const handleConnectInstagram = async () => {
+    try {
+      setConnecting(true)
+      const response = await fetch("/api/influencer/instagram/connect")
+      const data = await response.json()
+
+      if (data.success && data.data.authUrl) {
+        // Redirect to Meta OAuth page
+        window.location.href = data.data.authUrl
+      } else {
+        throw new Error(data.error?.message || "Failed to initiate Instagram connection")
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to connect Instagram",
+        variant: "destructive",
+      })
+      setConnecting(false)
+    }
+  }
+
+  const handleSyncInstagram = async () => {
+    try {
+      setSyncing(true)
+      const response = await fetch("/api/influencer/instagram/sync", {
+        method: "POST",
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || "Failed to sync Instagram metrics")
+      }
+
+      if (data.success) {
+        toast({
+          title: "Success",
+          description: "Instagram metrics synced successfully!",
+        })
+
+        // Refresh profile data
+        await fetchProfile()
+      } else {
+        throw new Error(data.error?.message || "Failed to sync Instagram metrics")
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to sync Instagram metrics",
+        variant: "destructive",
+      })
+    } finally {
+      setSyncing(false)
+    }
   }
 
   if (loading) {
@@ -297,6 +386,90 @@ export default function InfluencerProfileSetup() {
                 </Select>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Instagram Connection */}
+        <Card className="border-orange-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Instagram className="h-5 w-5 text-orange-600" />
+              Instagram Connection
+            </CardTitle>
+            <CardDescription>
+              {instagramConnected
+                ? "Your Instagram account is connected. Sync to get the latest metrics."
+                : "Connect your Instagram Business Account to automatically fetch your metrics"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!instagramConnected ? (
+              <div className="space-y-4">
+                <Alert>
+                  <Instagram className="h-4 w-4" />
+                  <AlertDescription>
+                    To connect Instagram, you need:
+                    <ul className="list-disc list-inside mt-2 space-y-1">
+                      <li>An Instagram Business or Creator account</li>
+                      <li>A Facebook Page linked to your Instagram account</li>
+                      <li>Admin access to the Facebook Page</li>
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+
+                <Button
+                  onClick={handleConnectInstagram}
+                  disabled={connecting}
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                  size="lg"
+                >
+                  {connecting ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    <>
+                      <Instagram className="mr-2 h-5 w-5" />
+                      Connect Instagram Account
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex-1">
+                    <p className="font-medium text-green-900">Instagram Connected</p>
+                    <p className="text-sm text-green-700">@{formData.instagram_username}</p>
+                  </div>
+                  <Badge variant="secondary" className="bg-green-100 text-green-800">Connected</Badge>
+                </div>
+
+                <Button
+                  onClick={handleSyncInstagram}
+                  disabled={syncing}
+                  variant="outline"
+                  className="w-full"
+                >
+                  {syncing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Syncing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Sync Instagram Metrics
+                    </>
+                  )}
+                </Button>
+
+                <p className="text-xs text-gray-500 text-center">
+                  Last synced: {formData.instagram_username ? "Recently" : "Never"}
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

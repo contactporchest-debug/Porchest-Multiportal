@@ -129,6 +129,40 @@ export interface CampaignCreateInput {
 // INFLUENCER PROFILE TYPES
 // ============================================================================
 
+export interface InstagramAccount {
+  instagram_user_id?: string;
+  instagram_business_account_id?: string;
+  username?: string;
+  access_token?: string;
+  token_type?: "short" | "long";
+  token_expires_at?: Date;
+  page_id?: string;
+  is_connected: boolean;
+  last_synced_at?: Date;
+}
+
+export interface InstagramMetrics {
+  followers_count?: number;
+  follows_count?: number;
+  media_count?: number;
+  profile_views?: number;
+  reach?: number;
+  impressions?: number;
+  engagement_rate?: number;
+  website_clicks?: number;
+  email_contacts?: number;
+  phone_call_clicks?: number;
+  get_directions_clicks?: number;
+  text_message_clicks?: number;
+}
+
+export interface InstagramDemographics {
+  audience_city?: Record<string, number>;
+  audience_country?: Record<string, number>;
+  audience_gender_age?: Record<string, number>;
+  audience_locale?: Record<string, number>;
+}
+
 export interface InfluencerProfile {
   _id: ObjectId;
   user_id: ObjectId;
@@ -160,6 +194,11 @@ export interface InfluencerProfile {
   languages: string[]; // Array of languages
   platforms: string[]; // Array of platforms (e.g., ["Instagram", "TikTok"])
   brands_worked_with: string[]; // Array of brand names
+
+  // Instagram Integration
+  instagram_account?: InstagramAccount;
+  instagram_metrics?: InstagramMetrics;
+  instagram_demographics?: InstagramDemographics;
 
   // Financials (kept from original)
   total_earnings: number;
