@@ -90,6 +90,26 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // Influencer profile completion check
+  if (userRole === "influencer" && pathname.startsWith("/influencer")) {
+    // Allow access to profile page and influencer profile API routes
+    if (
+      pathname === "/influencer/profile" ||
+      pathname.startsWith("/api/influencer/profile") ||
+      pathname.startsWith("/api/auth")
+    ) {
+      return NextResponse.next();
+    }
+
+    // Check if profile is completed
+    // Use !== true to catch both false and undefined values
+    const profileCompleted = session.user.profileCompleted;
+    if (profileCompleted !== true) {
+      // Redirect to profile setup if not completed
+      return NextResponse.redirect(new URL("/influencer/profile", req.url));
+    }
+  }
+
   return NextResponse.next();
 }
 
