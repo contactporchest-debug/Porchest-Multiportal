@@ -14,6 +14,16 @@ import { Badge } from "@/components/ui/badge"
 import { Loader2, Save, Plus, X, User, Instagram, RefreshCw } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { useSearchParams } from "next/navigation"
 
 interface ProfileFormData {
@@ -62,6 +72,8 @@ export default function InfluencerProfileSetup() {
   const [saving, setSaving] = useState(false)
   const [connecting, setConnecting] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [disconnecting, setDisconnecting] = useState(false)
+  const [showDisconnectDialog, setShowDisconnectDialog] = useState(false)
   const [instagramConnected, setInstagramConnected] = useState(false)
   const [newLanguage, setNewLanguage] = useState("")
   const [newPlatform, setNewPlatform] = useState("")
@@ -275,6 +287,42 @@ export default function InfluencerProfileSetup() {
     }
   }
 
+  const handleDisconnectInstagram = async () => {
+    try {
+      setDisconnecting(true)
+      const response = await fetch("/api/influencer/instagram/disconnect", {
+        method: "POST",
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || "Failed to disconnect Instagram")
+      }
+
+      if (data.success) {
+        toast({
+          title: "Success",
+          description: "Instagram account disconnected successfully!",
+        })
+
+        // Refresh profile data
+        await fetchProfile()
+        setShowDisconnectDialog(false)
+      } else {
+        throw new Error(data.error?.message || "Failed to disconnect Instagram")
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to disconnect Instagram",
+        variant: "destructive",
+      })
+    } finally {
+      setDisconnecting(false)
+    }
+  }
+
   if (loading) {
     return (
       <PortalLayout
@@ -463,6 +511,17 @@ export default function InfluencerProfileSetup() {
                       Sync Instagram Metrics
                     </>
                   )}
+                </Button>
+
+                <Button
+                  onClick={() => setShowDisconnectDialog(true)}
+                  disabled={disconnecting}
+                  variant="destructive"
+                  className="w-full"
+                  size="sm"
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Disconnect Instagram
                 </Button>
 
                 <p className="text-xs text-gray-500 text-center">
@@ -676,6 +735,36 @@ export default function InfluencerProfileSetup() {
           </Button>
         </div>
       </div>
+
+      {/* Disconnect Confirmation Dialog */}
+      <AlertDialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disconnect Instagram Account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove all Instagram data from your profile, including metrics and demographics.
+              You can reconnect your account at any time, but you'll need to go through the connection process again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={disconnecting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDisconnectInstagram}
+              disabled={disconnecting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {disconnecting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Disconnecting...
+                </>
+              ) : (
+                "Disconnect"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PortalLayout>
   )
 }
