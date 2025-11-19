@@ -10,17 +10,19 @@ import { logger } from "@/lib/logger";
 /**
  * GET /api/influencer/instagram/connect
  * Initiates Instagram OAuth flow
- * Redirects user to Meta OAuth dialog
+ * Returns JSON with authUrl for client-side redirect
  */
 export async function GET(req: Request) {
   try {
     // Check authentication
     const session = await auth();
     if (!session || !session.user) {
+      logger.error("Unauthorized: No session found");
       return unauthorizedResponse("Authentication required");
     }
 
     if (session.user.role !== "influencer") {
+      logger.error("Forbidden: User is not an influencer", { role: session.user.role });
       return forbiddenResponse("Influencer access required");
     }
 
@@ -29,19 +31,23 @@ export async function GET(req: Request) {
     const redirectUri = process.env.META_REDIRECT_URI;
 
     if (!appId || !redirectUri) {
-      logger.error("Meta app credentials not configured");
+      logger.error("Meta app credentials not configured", {
+        hasAppId: !!appId,
+        hasRedirectUri: !!redirectUri,
+      });
       return Response.json(
         {
           success: false,
           error: {
             message: "Instagram integration not configured. Please contact support.",
+            code: "MISSING_CREDENTIALS",
           },
         },
         { status: 500 }
       );
     }
 
-    // Build OAuth URL
+    // Build OAuth URL with correct scopes for Instagram Business Account
     const scope = [
       "instagram_basic",
       "instagram_manage_insights",
@@ -57,7 +63,7 @@ export async function GET(req: Request) {
       })
     ).toString("base64");
 
-    const authUrl = new URL("https://www.facebook.com/v18.0/dialog/oauth");
+    const authUrl = new URL("https://www.facebook.com/v20.0/dialog/oauth");
     authUrl.searchParams.set("client_id", appId);
     authUrl.searchParams.set("redirect_uri", redirectUri);
     authUrl.searchParams.set("scope", scope);
@@ -67,6 +73,7 @@ export async function GET(req: Request) {
     logger.info("Initiating Instagram OAuth flow", {
       userId: session.user.id,
       email: session.user.email,
+      authUrl: authUrl.toString(),
     });
 
     return successResponse({
@@ -79,6 +86,7 @@ export async function GET(req: Request) {
         success: false,
         error: {
           message: "Failed to initiate Instagram connection",
+          code: "OAUTH_INIT_ERROR",
         },
       },
       { status: 500 }

@@ -11,7 +11,7 @@ import {
   InstagramMedia,
 } from "@/lib/types/influencer"
 
-const META_GRAPH_API_VERSION = "v18.0"
+const META_GRAPH_API_VERSION = "v20.0"
 const META_GRAPH_API_BASE_URL = `https://graph.facebook.com/${META_GRAPH_API_VERSION}`
 
 // ============================================================================
@@ -33,7 +33,13 @@ export function getOAuthUrl(state: string): string {
   const appId = getMetaAppId()
   const redirectUri = getMetaRedirectUri()
 
-  const scopes = ["instagram_basic", "public_profile"]
+  const scopes = [
+    "instagram_basic",
+    "instagram_manage_insights",
+    "pages_show_list",
+    "business_management",
+    "pages_read_engagement",
+  ]
 
   const params = new URLSearchParams({
     client_id: appId,
@@ -43,7 +49,7 @@ export function getOAuthUrl(state: string): string {
     state,
   })
 
-  return `https://www.facebook.com/v18.0/dialog/oauth?${params.toString()}`
+  return `https://www.facebook.com/v20.0/dialog/oauth?${params.toString()}`
 }
 
 /**
