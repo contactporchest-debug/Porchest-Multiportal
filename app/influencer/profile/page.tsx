@@ -234,16 +234,27 @@ export default function InfluencerProfileSetup() {
   const handleConnectInstagram = async () => {
     try {
       setConnecting(true)
-      const response = await fetch("/api/influencer/instagram/connect")
-      const data = await response.json()
+      console.log("Initiating Instagram connection...")
 
-      if (data.success && data.data.authUrl) {
+      const response = await fetch("/api/influencer/instagram/connect")
+      console.log("Response status:", response.status)
+
+      const data = await response.json()
+      console.log("Response data:", data)
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || `Server error: ${response.status}`)
+      }
+
+      if (data.success && data.data?.authUrl) {
+        console.log("Redirecting to Meta OAuth:", data.data.authUrl)
         // Redirect to Meta OAuth page
         window.location.href = data.data.authUrl
       } else {
-        throw new Error(data.error?.message || "Failed to initiate Instagram connection")
+        throw new Error(data.error?.message || "No authorization URL received from server")
       }
     } catch (err: any) {
+      console.error("Instagram connection error:", err)
       toast({
         title: "Error",
         description: err.message || "Failed to connect Instagram",
