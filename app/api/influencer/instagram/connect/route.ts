@@ -28,7 +28,7 @@ export async function GET(req: Request) {
 
     // Get environment variables
     const appId = process.env.META_APP_ID;
-    const redirectUri = process.env.META_REDIRECT_URI;
+    const redirectUri = process.env.META_REDIRECT_URI || process.env.META_APP_REDIRECT_URI;
 
     if (!appId || !redirectUri) {
       logger.error("Meta app credentials not configured", {
