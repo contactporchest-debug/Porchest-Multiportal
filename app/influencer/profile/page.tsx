@@ -80,7 +80,8 @@ export default function InfluencerProfileSetup() {
   const [newBrand, setNewBrand] = useState("")
   const { toast } = useToast()
   const router = useRouter()
-  const { update } = useSession()
+  const session = useSession();
+  const update = session?.update ?? (async () => {});
   const searchParams = useSearchParams()
 
   useEffect(() => {
