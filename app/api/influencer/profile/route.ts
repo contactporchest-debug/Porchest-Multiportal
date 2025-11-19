@@ -51,10 +51,14 @@ async function getProfileHandler(req: Request) {
       const defaultProfile = {
         user_id: user._id,
         full_name: user.full_name || "",
+        niche: "",
+        bio: "",
+        location: "",
+        contact_email: user.email || "",
+        languages: [],
+        brand_preferences: [],
         instagram_username: "",
         profile_picture: "",
-        niche: "",
-        location: "",
         followers: 0,
         following: 0,
         verified: false,
@@ -65,7 +69,6 @@ async function getProfileHandler(req: Request) {
         last_post_date: null,
         price_per_post: 0,
         availability: "Available",
-        languages: [],
         platforms: [],
         brands_worked_with: [],
         profile_completed: false,
@@ -136,6 +139,10 @@ async function updateProfileHandler(req: Request) {
       return badRequestResponse("location is required")
     }
 
+    if (!body.contact_email && !body.email) {
+      return badRequestResponse("contact_email is required")
+    }
+
     // Get influencer profile collection
     const influencerProfilesCollection = await collections.influencerProfiles()
     let profile = await influencerProfilesCollection.findOne({ user_id: user._id })
@@ -145,10 +152,16 @@ async function updateProfileHandler(req: Request) {
     // Prepare update data
     const updateData: any = {
       full_name: body.full_name,
+      niche: body.niche,
+      bio: body.bio || "",
+      location: body.location,
+      contact_email: body.contact_email || body.email || "",
+      languages: Array.isArray(body.languages) ? body.languages : [],
+      brand_preferences: Array.isArray(body.brand_preferences) ? body.brand_preferences : [],
+
+      // Keep old fields for backward compatibility
       instagram_username: body.instagram_username || "",
       profile_picture: body.profile_picture || "",
-      niche: body.niche,
-      location: body.location,
       followers: parseInt(body.followers) || 0,
       following: parseInt(body.following) || 0,
       verified: Boolean(body.verified),
@@ -159,9 +172,9 @@ async function updateProfileHandler(req: Request) {
       last_post_date: body.last_post_date ? new Date(body.last_post_date) : null,
       price_per_post: parseInt(body.price_per_post) || 0,
       availability: body.availability || "Available",
-      languages: Array.isArray(body.languages) ? body.languages : [],
       platforms: Array.isArray(body.platforms) ? body.platforms : [],
       brands_worked_with: Array.isArray(body.brands_worked_with) ? body.brands_worked_with : [],
+
       profile_completed: true,
       updated_at: now,
     }
