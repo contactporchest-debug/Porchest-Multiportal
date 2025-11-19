@@ -7,6 +7,11 @@ import { NextRequest } from "next/server"
 import { ObjectId } from "mongodb"
 import { logger } from "@/lib/logger"
 import { collections } from "@/lib/db"
+import {
+  getProfileMetrics,
+  getAllMediaWithInsights,
+} from "@/lib/utils/meta-api"
+import { calculateAllMetrics, calculatePostEngagementRate } from "@/lib/utils/calculations"
 
 /**
  * GET /api/meta/callback
@@ -211,13 +216,78 @@ export async function GET(req: NextRequest) {
     })
 
     // ============================================================================
-    // STEP 5: Save to MongoDB
+    // STEP 5: Fetch comprehensive profile metrics
     // ============================================================================
-    logger.info("STEP 5: Saving to MongoDB...")
+    logger.info("STEP 5: Fetching comprehensive profile metrics...")
+    const profileMetrics = await getProfileMetrics(instagramBusinessAccountId, pageAccessToken)
+    logger.info("✅ Profile metrics fetched", { metricsCount: Object.keys(profileMetrics).length })
 
-    const influencerProfilesCollection = await collections.influencerProfiles()
+    // ============================================================================
+    // STEP 6: Fetch all media with insights (last 100 posts)
+    // ============================================================================
+    logger.info("STEP 6: Fetching media with insights...")
+    const mediaWithInsights = await getAllMediaWithInsights(instagramBusinessAccountId, pageAccessToken, 100)
+    logger.info("✅ Media fetched", { mediaCount: mediaWithInsights.length })
+
+    // ============================================================================
+    // STEP 7: Calculate derived metrics
+    // ============================================================================
+    logger.info("STEP 7: Calculating derived metrics...")
+
+    // Transform media to Post format for calculations
+    const posts = mediaWithInsights.map((media) => ({
+      post_id: media.id,
+      userId: new ObjectId(userId),
+      media_type: media.media_type,
+      caption: media.caption || "",
+      permalink: media.permalink || "",
+      timestamp: new Date(media.timestamp),
+      metrics: {
+        likes: media.like_count || 0,
+        comments: media.comments_count || 0,
+        saves: media.insights?.saved || 0,
+        shares: media.insights?.shares || 0,
+        reach: media.insights?.reach || 0,
+        impressions: media.insights?.impressions || 0,
+        plays: media.insights?.plays || media.insights?.video_views || 0,
+        taps_forward: media.insights?.taps_forward || 0,
+        taps_back: media.insights?.taps_back || 0,
+        exits: media.insights?.exits || 0,
+        link_clicks: media.insights?.link_clicks || 0,
+        watch_time: media.insights?.total_interactions || 0,
+        avg_watch_time: 0,
+        engagement_rate: 0, // Will calculate below
+      },
+    }))
+
+    // Calculate engagement rate for each post
+    posts.forEach((post) => {
+      post.metrics.engagement_rate = calculatePostEngagementRate(
+        post.metrics,
+        igAccountData.followers_count
+      )
+    })
+
+    const calculatedMetrics = calculateAllMetrics(posts, igAccountData.followers_count)
+    logger.info("✅ Calculated metrics", calculatedMetrics)
+
+    // ============================================================================
+    // STEP 8: Store everything in MongoDB
+    // ============================================================================
+    logger.info("STEP 8: Starting MongoDB storage operations...")
+
+    let influencerProfilesCollection
+    try {
+      influencerProfilesCollection = await collections.influencerProfiles()
+      logger.info("Successfully obtained influencerProfiles collection")
+    } catch (collectionError) {
+      logger.error("Failed to get influencerProfiles collection", collectionError)
+      throw new Error(`Database connection failed: ${collectionError instanceof Error ? collectionError.message : String(collectionError)}`)
+    }
+
     const tokenExpiresAt = new Date(Date.now() + expiresIn * 1000)
 
+    // Prepare comprehensive profile data with ALL metrics
     const profileUpdate = {
       instagram_account: {
         instagram_user_id: igAccountData.id,
@@ -230,47 +300,180 @@ export async function GET(req: NextRequest) {
         is_connected: true,
         last_synced_at: new Date(),
       },
+      instagram_metrics: {
+        // Basic metrics
+        followers_count: igAccountData.followers_count || 0,
+        follows_count: igAccountData.follows_count || 0,
+        media_count: igAccountData.media_count || 0,
+
+        // Profile insights
+        profile_views: profileMetrics.profile_views || 0,
+        website_clicks: profileMetrics.website_clicks || 0,
+        email_contacts: profileMetrics.email_contacts || 0,
+        phone_call_clicks: profileMetrics.phone_call_clicks || 0,
+        reach: profileMetrics.reach || 0,
+        impressions: profileMetrics.impressions || 0,
+        engagement: profileMetrics.engagement || 0,
+
+        // Online followers (hourly breakdown)
+        online_followers: profileMetrics.online_followers || {},
+
+        // Audience demographics
+        audience_country: profileMetrics.audience_country || {},
+        audience_city: profileMetrics.audience_city || {},
+        audience_gender_age: profileMetrics.audience_gender_age || {},
+        audience_locale: profileMetrics.audience_locale || {},
+      },
+      calculated_metrics: calculatedMetrics,
       instagram_username: igAccountData.username,
       profile_picture: igAccountData.profile_picture_url || undefined,
       followers: igAccountData.followers_count || 0,
       following: igAccountData.follows_count || 0,
+      profile_completed: true,
       updated_at: new Date(),
     }
 
-    const updateResult = await influencerProfilesCollection.updateOne(
-      { user_id: new ObjectId(userId) },
-      { $set: profileUpdate },
-      { upsert: true }
-    )
-
-    logger.info("✅ MongoDB updated", {
-      matched: updateResult.matchedCount,
-      modified: updateResult.modifiedCount,
-      upserted: updateResult.upsertedCount,
+    logger.info("Prepared comprehensive profile update data", {
       userId,
+      username: igAccountData.username,
+      hasInstagramAccount: !!profileUpdate.instagram_account,
+      hasMetrics: !!profileUpdate.instagram_metrics,
+      hasCalculatedMetrics: !!profileUpdate.calculated_metrics,
+      postsCount: posts.length,
     })
 
-    // ============================================================================
-    // STEP 6: Update user's profile_completed status
-    // ============================================================================
-    logger.info("STEP 6: Updating user status...")
+    let updateResult
+    try {
+      updateResult = await influencerProfilesCollection.updateOne(
+        { user_id: new ObjectId(userId) },
+        { $set: profileUpdate },
+        { upsert: true }
+      )
 
-    const usersCollection = await collections.users()
-    await usersCollection.updateOne(
-      { _id: new ObjectId(userId) },
-      { $set: { profile_completed: true, updated_at: new Date() } }
-    )
+      logger.info("✅ Profile MongoDB operation completed", {
+        matched: updateResult.matchedCount,
+        modified: updateResult.modifiedCount,
+        upserted: updateResult.upsertedCount,
+        upsertedId: updateResult.upsertedId?.toString(),
+      })
 
-    logger.info("✅ Instagram connected successfully!", {
+      if (updateResult.matchedCount === 0 && updateResult.upsertedCount === 0 && updateResult.modifiedCount === 0) {
+        logger.warn("MongoDB update returned no changes - this might indicate a problem")
+      }
+    } catch (updateError) {
+      logger.error("Failed to update profile in MongoDB", {
+        error: updateError,
+        errorMessage: updateError instanceof Error ? updateError.message : String(updateError),
+        errorStack: updateError instanceof Error ? updateError.stack : undefined,
+        userId,
+      })
+      throw new Error(`Profile update failed: ${updateError instanceof Error ? updateError.message : String(updateError)}`)
+    }
+
+    // ============================================================================
+    // STEP 9: Store individual posts in separate collection
+    // ============================================================================
+    logger.info("STEP 9: Starting posts storage...", { postsCount: posts.length })
+
+    if (posts.length > 0) {
+      let postsCollection
+      try {
+        postsCollection = await collections.posts()
+        logger.info("Successfully obtained posts collection")
+      } catch (collectionError) {
+        logger.error("Failed to get posts collection", collectionError)
+        throw new Error(`Posts collection access failed: ${collectionError instanceof Error ? collectionError.message : String(collectionError)}`)
+      }
+
+      // Bulk upsert posts (update if exists, insert if new)
+      const bulkOps = posts.map((post) => ({
+        updateOne: {
+          filter: { post_id: post.post_id, userId: new ObjectId(userId) },
+          update: { $set: post },
+          upsert: true,
+        },
+      }))
+
+      logger.info("Prepared bulk operations for posts", { operationsCount: bulkOps.length })
+
+      try {
+        const postsResult = await postsCollection.bulkWrite(bulkOps)
+
+        logger.info("✅ Posts MongoDB operation completed", {
+          inserted: postsResult.upsertedCount,
+          modified: postsResult.modifiedCount,
+          matched: postsResult.matchedCount,
+          total: posts.length,
+        })
+      } catch (postsError) {
+        logger.error("Failed to store posts in MongoDB", {
+          error: postsError,
+          errorMessage: postsError instanceof Error ? postsError.message : String(postsError),
+          errorStack: postsError instanceof Error ? postsError.stack : undefined,
+          postsCount: posts.length,
+        })
+        // Don't throw here - posts are less critical than profile
+        logger.warn("Continuing despite posts storage failure")
+      }
+    } else {
+      logger.info("No posts to store (posts array is empty)")
+    }
+
+    // ============================================================================
+    // STEP 10: Update user's profile_completed status
+    // ============================================================================
+    logger.info("STEP 10: Updating user profile_completed status...")
+
+    let usersCollection
+    try {
+      usersCollection = await collections.users()
+      logger.info("Successfully obtained users collection")
+    } catch (collectionError) {
+      logger.error("Failed to get users collection", collectionError)
+      throw new Error(`Users collection access failed: ${collectionError instanceof Error ? collectionError.message : String(collectionError)}`)
+    }
+
+    try {
+      const userUpdateResult = await usersCollection.updateOne(
+        { _id: new ObjectId(userId) },
+        {
+          $set: {
+            profile_completed: true,
+            updated_at: new Date(),
+          },
+        }
+      )
+
+      logger.info("User profile_completed status updated", {
+        userId,
+        matched: userUpdateResult.matchedCount,
+        modified: userUpdateResult.modifiedCount,
+      })
+
+      if (userUpdateResult.matchedCount === 0) {
+        logger.warn("User not found when updating profile_completed status", { userId })
+      }
+    } catch (userUpdateError) {
+      logger.error("Failed to update user profile_completed status", {
+        error: userUpdateError,
+        errorMessage: userUpdateError instanceof Error ? userUpdateError.message : String(userUpdateError),
+        userId,
+      })
+      // Don't throw - this is non-critical
+    }
+
+    logger.info("✅ Instagram metrics sync completed successfully!", {
       userId,
       username: igAccountData.username,
       followers: igAccountData.followers_count,
+      postsStored: posts.length,
+      profileUpdated: true,
     })
 
     // Redirect to profile page with success
     return Response.redirect(
       new URL(
-        `/influencer/profile?success=${encodeURIComponent("Instagram connected successfully!")}`,
+        `/influencer/profile?success=${encodeURIComponent("Instagram connected! All metrics synced successfully.")}`,
         req.url
       )
     )
@@ -279,13 +482,15 @@ export async function GET(req: NextRequest) {
       error,
       errorMessage: error instanceof Error ? error.message : String(error),
       errorStack: error instanceof Error ? error.stack : undefined,
+      errorName: error instanceof Error ? error.name : typeof error,
     })
 
+    // Return detailed error in redirect for debugging
     const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
 
     return Response.redirect(
       new URL(
-        `/influencer/profile?error=${encodeURIComponent(`Connection failed: ${errorMessage}`)}`,
+        `/influencer/profile?error=${encodeURIComponent(`Sync failed: ${errorMessage}. Check server logs for details.`)}`,
         req.url
       )
     )
