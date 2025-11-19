@@ -7,11 +7,16 @@ import { NextRequest } from "next/server";
 import { collections } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { ObjectId } from "mongodb";
+import {
+  getProfileMetrics,
+  getAllMediaWithInsights,
+} from "@/lib/utils/meta-api";
+import { calculateAllMetrics, calculatePostEngagementRate } from "@/lib/utils/calculations";
 
 /**
  * GET /api/influencer/instagram/callback
  * Handles OAuth callback from Meta
- * Exchanges code for access token and fetches Instagram account info
+ * Fetches comprehensive Instagram metrics and stores in MongoDB
  */
 export async function GET(req: NextRequest) {
   try {
@@ -85,14 +90,16 @@ export async function GET(req: NextRequest) {
 
     logger.info("Processing OAuth callback", { userId, hasCode: true });
 
-    // Exchange code for short-lived access token
+    // ============================================================================
+    // STEP 1: Exchange code for short-lived access token
+    // ============================================================================
     const tokenUrl = new URL("https://graph.facebook.com/v20.0/oauth/access_token");
     tokenUrl.searchParams.set("client_id", appId);
     tokenUrl.searchParams.set("client_secret", appSecret);
     tokenUrl.searchParams.set("redirect_uri", redirectUri);
     tokenUrl.searchParams.set("code", code);
 
-    logger.info("Exchanging code for token", { tokenUrl: tokenUrl.toString().replace(appSecret, "***") });
+    logger.info("Exchanging code for token");
 
     const tokenResponse = await fetch(tokenUrl.toString());
     const tokenData = await tokenResponse.json();
@@ -110,7 +117,9 @@ export async function GET(req: NextRequest) {
     const shortLivedToken = tokenData.access_token;
     logger.info("Short-lived token obtained successfully");
 
-    // Exchange short-lived token for long-lived token (60 days)
+    // ============================================================================
+    // STEP 2: Exchange short-lived token for long-lived token (60 days)
+    // ============================================================================
     const longTokenUrl = new URL("https://graph.facebook.com/v20.0/oauth/access_token");
     longTokenUrl.searchParams.set("grant_type", "fb_exchange_token");
     longTokenUrl.searchParams.set("client_id", appId);
@@ -134,7 +143,9 @@ export async function GET(req: NextRequest) {
     const expiresIn = longTokenData.expires_in || 5184000; // 60 days default
     logger.info("Long-lived token obtained successfully", { expiresIn });
 
-    // Get Facebook Pages
+    // ============================================================================
+    // STEP 3: Get Facebook Pages
+    // ============================================================================
     const pagesUrl = new URL("https://graph.facebook.com/v20.0/me/accounts");
     pagesUrl.searchParams.set("access_token", longLivedToken);
     pagesUrl.searchParams.set("fields", "id,name,access_token,instagram_business_account");
@@ -173,7 +184,9 @@ export async function GET(req: NextRequest) {
 
     logger.info("Instagram Business Account found", { instagramBusinessAccountId, pageId });
 
-    // Get Instagram account info
+    // ============================================================================
+    // STEP 4: Get Instagram account basic info
+    // ============================================================================
     const igAccountUrl = new URL(`https://graph.facebook.com/v20.0/${instagramBusinessAccountId}`);
     igAccountUrl.searchParams.set("fields", "id,username,profile_picture_url,followers_count,follows_count,media_count");
     igAccountUrl.searchParams.set("access_token", pageAccessToken);
@@ -196,42 +209,151 @@ export async function GET(req: NextRequest) {
       followers: igAccountData.followers_count
     });
 
-    // Update influencer profile in database
+    // ============================================================================
+    // STEP 5: Fetch comprehensive profile metrics
+    // ============================================================================
+    logger.info("Fetching comprehensive profile metrics...");
+    const profileMetrics = await getProfileMetrics(instagramBusinessAccountId, pageAccessToken);
+    logger.info("Profile metrics fetched", { metricsCount: Object.keys(profileMetrics).length });
+
+    // ============================================================================
+    // STEP 6: Fetch all media with insights (last 100 posts)
+    // ============================================================================
+    logger.info("Fetching media with insights...");
+    const mediaWithInsights = await getAllMediaWithInsights(instagramBusinessAccountId, pageAccessToken, 100);
+    logger.info("Media fetched", { mediaCount: mediaWithInsights.length });
+
+    // ============================================================================
+    // STEP 7: Calculate derived metrics
+    // ============================================================================
+    logger.info("Calculating derived metrics...");
+
+    // Transform media to Post format for calculations
+    const posts = mediaWithInsights.map((media) => ({
+      post_id: media.id,
+      userId: new ObjectId(userId),
+      media_type: media.media_type,
+      caption: media.caption || "",
+      permalink: media.permalink || "",
+      timestamp: new Date(media.timestamp),
+      metrics: {
+        likes: media.like_count || 0,
+        comments: media.comments_count || 0,
+        saves: media.insights?.saved || 0,
+        shares: media.insights?.shares || 0,
+        reach: media.insights?.reach || 0,
+        impressions: media.insights?.impressions || 0,
+        plays: media.insights?.plays || media.insights?.video_views || 0,
+        taps_forward: media.insights?.taps_forward || 0,
+        taps_back: media.insights?.taps_back || 0,
+        exits: media.insights?.exits || 0,
+        link_clicks: media.insights?.link_clicks || 0,
+        engagement_rate: 0, // Will calculate below
+      },
+    }));
+
+    // Calculate engagement rate for each post
+    posts.forEach((post) => {
+      post.metrics.engagement_rate = calculatePostEngagementRate(
+        post.metrics,
+        igAccountData.followers_count
+      );
+    });
+
+    const calculatedMetrics = calculateAllMetrics(posts, igAccountData.followers_count);
+    logger.info("Calculated metrics", calculatedMetrics);
+
+    // ============================================================================
+    // STEP 8: Store everything in MongoDB
+    // ============================================================================
     const influencerProfilesCollection = await collections.influencerProfiles();
     const tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
 
+    // Prepare comprehensive profile data
+    const profileUpdate = {
+      instagram_account: {
+        instagram_user_id: igAccountData.id,
+        instagram_business_account_id: instagramBusinessAccountId,
+        username: igAccountData.username,
+        access_token: pageAccessToken,
+        token_type: "long",
+        token_expires_at: tokenExpiresAt,
+        page_id: pageId,
+        is_connected: true,
+        last_synced_at: new Date(),
+      },
+      instagram_metrics: {
+        // Basic metrics
+        followers_count: igAccountData.followers_count || 0,
+        follows_count: igAccountData.follows_count || 0,
+        media_count: igAccountData.media_count || 0,
+
+        // Profile insights
+        profile_views: profileMetrics.profile_views || 0,
+        website_clicks: profileMetrics.website_clicks || 0,
+        email_contacts: profileMetrics.email_contacts || 0,
+        phone_call_clicks: profileMetrics.phone_call_clicks || 0,
+        reach: profileMetrics.reach || 0,
+        impressions: profileMetrics.impressions || 0,
+        engagement: profileMetrics.engagement || 0,
+
+        // Online followers (hourly breakdown)
+        online_followers: profileMetrics.online_followers || {},
+
+        // Audience demographics
+        audience_country: profileMetrics.audience_country || {},
+        audience_city: profileMetrics.audience_city || {},
+        audience_gender_age: profileMetrics.audience_gender_age || {},
+        audience_locale: profileMetrics.audience_locale || {},
+      },
+      calculated_metrics: calculatedMetrics,
+      instagram_username: igAccountData.username,
+      profile_picture: igAccountData.profile_picture_url || undefined,
+      followers: igAccountData.followers_count || 0,
+      following: igAccountData.follows_count || 0,
+      profile_completed: true,
+      updated_at: new Date(),
+    };
+
     const updateResult = await influencerProfilesCollection.updateOne(
       { user_id: new ObjectId(userId) },
-      {
-        $set: {
-          instagram_account: {
-            instagram_user_id: igAccountData.id,
-            instagram_business_account_id: instagramBusinessAccountId,
-            username: igAccountData.username,
-            access_token: pageAccessToken,
-            token_type: "long",
-            token_expires_at: tokenExpiresAt,
-            page_id: pageId,
-            is_connected: true,
-            last_synced_at: new Date(),
-          },
-          instagram_metrics: {
-            followers_count: igAccountData.followers_count || 0,
-            follows_count: igAccountData.follows_count || 0,
-            media_count: igAccountData.media_count || 0,
-          },
-          instagram_username: igAccountData.username,
-          profile_picture: igAccountData.profile_picture_url || undefined,
-          followers: igAccountData.followers_count || 0,
-          following: igAccountData.follows_count || 0,
-          profile_completed: true,
-          updated_at: new Date(),
-        },
-      },
+      { $set: profileUpdate },
       { upsert: true }
     );
 
-    // Also update user profile_completed status
+    logger.info("Profile updated in MongoDB", {
+      matched: updateResult.matchedCount,
+      modified: updateResult.modifiedCount,
+      upserted: updateResult.upsertedCount,
+    });
+
+    // ============================================================================
+    // STEP 9: Store individual posts in separate collection
+    // ============================================================================
+    if (posts.length > 0) {
+      const postsCollection = await collections.posts();
+
+      // Bulk upsert posts (update if exists, insert if new)
+      const bulkOps = posts.map((post) => ({
+        updateOne: {
+          filter: { post_id: post.post_id, userId: new ObjectId(userId) },
+          update: { $set: post },
+          upsert: true,
+        },
+      }));
+
+      const postsResult = await postsCollection.bulkWrite(bulkOps);
+
+      logger.info("Posts stored in MongoDB", {
+        inserted: postsResult.upsertedCount,
+        modified: postsResult.modifiedCount,
+        total: posts.length,
+      });
+    }
+
+    // ============================================================================
+    // STEP 10: Update user's profile_completed status
+    // ============================================================================
     const usersCollection = await collections.users();
     await usersCollection.updateOne(
       { _id: new ObjectId(userId) },
@@ -243,18 +365,17 @@ export async function GET(req: NextRequest) {
       }
     );
 
-    logger.info("Instagram account connected successfully", {
+    logger.info("Instagram metrics sync completed successfully", {
       userId,
-      instagramUsername: igAccountData.username,
+      username: igAccountData.username,
       followers: igAccountData.followers_count,
-      modified: updateResult.modifiedCount,
-      upserted: updateResult.upsertedCount,
+      postsStored: posts.length,
     });
 
     // Redirect to profile page with success message
     return Response.redirect(
       new URL(
-        `/influencer/profile?success=${encodeURIComponent("Instagram account connected successfully!")}`,
+        `/influencer/profile?success=${encodeURIComponent("Instagram connected! All metrics synced successfully.")}`,
         req.url
       )
     );

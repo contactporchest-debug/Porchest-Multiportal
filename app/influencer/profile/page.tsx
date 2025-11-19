@@ -9,9 +9,31 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Save, Plus, X, User, Instagram, RefreshCw } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Loader2,
+  Save,
+  Plus,
+  X,
+  User,
+  Instagram,
+  RefreshCw,
+  TrendingUp,
+  Users,
+  Eye,
+  Heart,
+  MessageCircle,
+  Share2,
+  BarChart3,
+  Globe,
+  MapPin,
+  Clock,
+  Activity
+} from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
@@ -26,62 +48,81 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useSearchParams } from "next/navigation"
 
-interface ProfileFormData {
+interface BasicInfo {
   full_name: string
-  instagram_username: string
-  profile_picture: string
   niche: string
+  bio: string
   location: string
-  followers: number
-  following: number
-  verified: boolean
-  engagement_rate: number
-  average_views_monthly: number
-  last_post_views: number
-  last_post_engagement: number
-  last_post_date: string
-  price_per_post: number
-  availability: string
+  contact_email: string
   languages: string[]
-  platforms: string[]
-  brands_worked_with: string[]
+  brand_preferences: string[]
+}
+
+interface InstagramMetrics {
+  followers_count: number
+  follows_count: number
+  media_count: number
+  profile_views: number
+  website_clicks: number
+  email_contacts: number
+  phone_call_clicks: number
+  reach: number
+  impressions: number
+  engagement: number
+  online_followers: Record<string, number>
+  audience_country: Record<string, number>
+  audience_city: Record<string, number>
+  audience_gender_age: Record<string, number>
+  audience_locale: Record<string, number>
+}
+
+interface CalculatedMetrics {
+  avg_likes: number
+  avg_comments: number
+  avg_reach: number
+  engagement_rate_30_days: number
+  followers_growth_rate: number
+  posting_frequency: number
+  story_frequency: number
+}
+
+interface InstagramAccount {
+  username: string
+  is_connected: boolean
+  last_synced_at: Date
 }
 
 export default function InfluencerProfileSetup() {
-  const [formData, setFormData] = useState<ProfileFormData>({
+  // Basic Info (Manual Entry)
+  const [basicInfo, setBasicInfo] = useState<BasicInfo>({
     full_name: "",
-    instagram_username: "",
-    profile_picture: "",
     niche: "",
+    bio: "",
     location: "",
-    followers: 0,
-    following: 0,
-    verified: false,
-    engagement_rate: 0,
-    average_views_monthly: 0,
-    last_post_views: 0,
-    last_post_engagement: 0,
-    last_post_date: "",
-    price_per_post: 0,
-    availability: "Available",
+    contact_email: "",
     languages: [],
-    platforms: [],
-    brands_worked_with: [],
+    brand_preferences: [],
   })
+
+  // Instagram Data (Auto-filled)
+  const [instagramAccount, setInstagramAccount] = useState<InstagramAccount | null>(null)
+  const [instagramMetrics, setInstagramMetrics] = useState<InstagramMetrics | null>(null)
+  const [calculatedMetrics, setCalculatedMetrics] = useState<CalculatedMetrics | null>(null)
+
+  // UI State
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [connecting, setConnecting] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false)
-  const [instagramConnected, setInstagramConnected] = useState(false)
   const [newLanguage, setNewLanguage] = useState("")
-  const [newPlatform, setNewPlatform] = useState("")
-  const [newBrand, setNewBrand] = useState("")
+  const [newBrandPref, setNewBrandPref] = useState("")
+
   const { toast } = useToast()
   const router = useRouter()
-  const session = useSession();
-  const update = session?.update ?? (async () => {});
+  const sessionHook = useSession()
+  const update = sessionHook?.update ?? (async () => {})
   const searchParams = useSearchParams()
 
   useEffect(() => {
@@ -96,7 +137,6 @@ export default function InfluencerProfileSetup() {
         title: "Success",
         description: success,
       })
-      // Clean URL
       router.replace("/influencer/profile")
     }
 
@@ -106,7 +146,6 @@ export default function InfluencerProfileSetup() {
         description: error,
         variant: "destructive",
       })
-      // Clean URL
       router.replace("/influencer/profile")
     }
   }, [])
@@ -126,29 +165,37 @@ export default function InfluencerProfileSetup() {
         const profile = data.data.profile
         console.log("Profile loaded:", profile)
 
-        setFormData({
+        // Set basic info (manual fields)
+        setBasicInfo({
           full_name: profile.full_name || "",
-          instagram_username: profile.instagram_username || "",
-          profile_picture: profile.profile_picture || "",
           niche: profile.niche || "",
+          bio: profile.bio || "",
           location: profile.location || "",
-          followers: profile.followers || 0,
-          following: profile.following || 0,
-          verified: profile.verified || false,
-          engagement_rate: profile.engagement_rate || 0,
-          average_views_monthly: profile.average_views_monthly || 0,
-          last_post_views: profile.last_post_views || 0,
-          last_post_engagement: profile.last_post_engagement || 0,
-          last_post_date: profile.last_post_date ? new Date(profile.last_post_date).toISOString().split('T')[0] : "",
-          price_per_post: profile.price_per_post || 0,
-          availability: profile.availability || "Available",
+          contact_email: profile.contact_email || profile.email || "",
           languages: profile.languages || [],
-          platforms: profile.platforms || [],
-          brands_worked_with: profile.brands_worked_with || [],
+          brand_preferences: profile.brand_preferences || [],
         })
 
-        // Check if Instagram is connected
-        setInstagramConnected(profile.instagram_account?.is_connected || false)
+        // Set Instagram account info
+        if (profile.instagram_account?.is_connected) {
+          setInstagramAccount({
+            username: profile.instagram_account.username || profile.instagram_username || "",
+            is_connected: true,
+            last_synced_at: profile.instagram_account.last_synced_at
+              ? new Date(profile.instagram_account.last_synced_at)
+              : new Date(),
+          })
+
+          // Set Instagram metrics
+          if (profile.instagram_metrics) {
+            setInstagramMetrics(profile.instagram_metrics)
+          }
+
+          // Set calculated metrics
+          if (profile.calculated_metrics) {
+            setCalculatedMetrics(profile.calculated_metrics)
+          }
+        }
       } else {
         console.error("Profile fetch failed:", data)
       }
@@ -164,14 +211,38 @@ export default function InfluencerProfileSetup() {
     }
   }
 
-  const handleSave = async () => {
+  const handleSaveBasicInfo = async () => {
     try {
       setSaving(true)
-      console.log("Saving influencer profile...", formData)
+      console.log("Saving basic info...", basicInfo)
+
+      // Validate required fields
+      if (!basicInfo.full_name || !basicInfo.niche || !basicInfo.location || !basicInfo.contact_email) {
+        toast({
+          title: "Validation Error",
+          description: "Please fill in all required fields: Full Name, Niche, Location, and Contact Email",
+          variant: "destructive",
+        })
+        return
+      }
+
+      if (basicInfo.languages.length === 0) {
+        toast({
+          title: "Validation Error",
+          description: "Please add at least one language",
+          variant: "destructive",
+        })
+        return
+      }
 
       const payload = {
-        ...formData,
-        last_post_date: formData.last_post_date ? new Date(formData.last_post_date).toISOString() : undefined,
+        full_name: basicInfo.full_name,
+        niche: basicInfo.niche,
+        bio: basicInfo.bio,
+        location: basicInfo.location,
+        contact_email: basicInfo.contact_email,
+        languages: basicInfo.languages,
+        brand_preferences: basicInfo.brand_preferences,
       }
 
       console.log("Sending payload:", payload)
@@ -194,60 +265,24 @@ export default function InfluencerProfileSetup() {
       if (data.success) {
         toast({
           title: "Success",
-          description: data.message || "Profile updated successfully!",
+          description: "Basic information saved successfully!",
         })
 
-        // Update session to reflect profile completion
         await update()
-
-        // Refresh profile data
         await fetchProfile()
       } else {
         throw new Error(data.error?.message || "Failed to save profile")
       }
     } catch (err: any) {
-      console.error("Error saving profile:", err)
+      console.error("Error saving basic info:", err)
       toast({
         title: "Error",
-        description: err.message || "Failed to save profile",
+        description: err.message || "Failed to save basic information",
         variant: "destructive",
       })
     } finally {
       setSaving(false)
     }
-  }
-
-  const addLanguage = () => {
-    if (newLanguage && !formData.languages.includes(newLanguage)) {
-      setFormData({ ...formData, languages: [...formData.languages, newLanguage] })
-      setNewLanguage("")
-    }
-  }
-
-  const removeLanguage = (lang: string) => {
-    setFormData({ ...formData, languages: formData.languages.filter((l) => l !== lang) })
-  }
-
-  const addPlatform = () => {
-    if (newPlatform && !formData.platforms.includes(newPlatform)) {
-      setFormData({ ...formData, platforms: [...formData.platforms, newPlatform] })
-      setNewPlatform("")
-    }
-  }
-
-  const removePlatform = (platform: string) => {
-    setFormData({ ...formData, platforms: formData.platforms.filter((p) => p !== platform) })
-  }
-
-  const addBrand = () => {
-    if (newBrand && !formData.brands_worked_with.includes(newBrand)) {
-      setFormData({ ...formData, brands_worked_with: [...formData.brands_worked_with, newBrand] })
-      setNewBrand("")
-    }
-  }
-
-  const removeBrand = (brand: string) => {
-    setFormData({ ...formData, brands_worked_with: formData.brands_worked_with.filter((b) => b !== brand) })
   }
 
   const handleConnectInstagram = async () => {
@@ -267,7 +302,6 @@ export default function InfluencerProfileSetup() {
 
       if (data.success && data.data?.authUrl) {
         console.log("Redirecting to Meta OAuth:", data.data.authUrl)
-        // Redirect to Meta OAuth page
         window.location.href = data.data.authUrl
       } else {
         throw new Error(data.error?.message || "No authorization URL received from server")
@@ -302,7 +336,6 @@ export default function InfluencerProfileSetup() {
           description: "Instagram metrics synced successfully!",
         })
 
-        // Refresh profile data
         await fetchProfile()
       } else {
         throw new Error(data.error?.message || "Failed to sync Instagram metrics")
@@ -337,9 +370,11 @@ export default function InfluencerProfileSetup() {
           description: "Instagram account disconnected successfully!",
         })
 
-        // Refresh profile data
-        await fetchProfile()
+        setInstagramAccount(null)
+        setInstagramMetrics(null)
+        setCalculatedMetrics(null)
         setShowDisconnectDialog(false)
+        await fetchProfile()
       } else {
         throw new Error(data.error?.message || "Failed to disconnect Instagram")
       }
@@ -352,6 +387,38 @@ export default function InfluencerProfileSetup() {
     } finally {
       setDisconnecting(false)
     }
+  }
+
+  const addLanguage = () => {
+    if (newLanguage && !basicInfo.languages.includes(newLanguage)) {
+      setBasicInfo({ ...basicInfo, languages: [...basicInfo.languages, newLanguage] })
+      setNewLanguage("")
+    }
+  }
+
+  const removeLanguage = (lang: string) => {
+    setBasicInfo({ ...basicInfo, languages: basicInfo.languages.filter((l) => l !== lang) })
+  }
+
+  const addBrandPref = () => {
+    if (newBrandPref && !basicInfo.brand_preferences.includes(newBrandPref)) {
+      setBasicInfo({ ...basicInfo, brand_preferences: [...basicInfo.brand_preferences, newBrandPref] })
+      setNewBrandPref("")
+    }
+  }
+
+  const removeBrandPref = (pref: string) => {
+    setBasicInfo({ ...basicInfo, brand_preferences: basicInfo.brand_preferences.filter((p) => p !== pref) })
+  }
+
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + "M"
+    if (num >= 1000) return (num / 1000).toFixed(1) + "K"
+    return num.toString()
+  }
+
+  const formatPercentage = (num: number) => {
+    return num.toFixed(2) + "%"
   }
 
   if (loading) {
@@ -377,16 +444,16 @@ export default function InfluencerProfileSetup() {
       breadcrumbs={[{ label: "Profile Setup" }]}
     >
       <div className="space-y-6">
-        {/* Basic Information */}
+        {/* Basic Information Section (Manual Entry) */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5 text-orange-600" />
               Basic Information
             </CardTitle>
-            <CardDescription>Your personal and professional details</CardDescription>
+            <CardDescription>Enter your personal and professional details</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="full_name">
@@ -394,32 +461,36 @@ export default function InfluencerProfileSetup() {
                 </Label>
                 <Input
                   id="full_name"
-                  value={formData.full_name}
-                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                  value={basicInfo.full_name}
+                  onChange={(e) => setBasicInfo({ ...basicInfo, full_name: e.target.value })}
                   placeholder="Sara Malik"
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="instagram_username">Instagram Username</Label>
-                <Input
-                  id="instagram_username"
-                  value={formData.instagram_username}
-                  onChange={(e) => setFormData({ ...formData, instagram_username: e.target.value })}
-                  placeholder="@sara.malik"
-                />
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="niche">
-                  Niche <span className="text-red-500">*</span>
+                  Niche/Category <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="niche"
-                  value={formData.niche}
-                  onChange={(e) => setFormData({ ...formData, niche: e.target.value })}
-                  placeholder="beauty"
+                  value={basicInfo.niche}
+                  onChange={(e) => setBasicInfo({ ...basicInfo, niche: e.target.value })}
+                  placeholder="Beauty, Fashion, Tech, Lifestyle, etc."
+                  required
+                />
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="bio">
+                  Bio <span className="text-red-500">*</span>
+                </Label>
+                <Textarea
+                  id="bio"
+                  value={basicInfo.bio}
+                  onChange={(e) => setBasicInfo({ ...basicInfo, bio: e.target.value })}
+                  placeholder="Tell us about yourself and your content..."
+                  rows={4}
                   required
                 />
               </div>
@@ -430,59 +501,116 @@ export default function InfluencerProfileSetup() {
                 </Label>
                 <Input
                   id="location"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  placeholder="Pakistan"
+                  value={basicInfo.location}
+                  onChange={(e) => setBasicInfo({ ...basicInfo, location: e.target.value })}
+                  placeholder="City, Country"
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="profile_picture">Profile Picture URL</Label>
+                <Label htmlFor="contact_email">
+                  Contact Email <span className="text-red-500">*</span>
+                </Label>
                 <Input
-                  id="profile_picture"
-                  type="url"
-                  value={formData.profile_picture}
-                  onChange={(e) => setFormData({ ...formData, profile_picture: e.target.value })}
-                  placeholder="https://..."
+                  id="contact_email"
+                  type="email"
+                  value={basicInfo.contact_email}
+                  onChange={(e) => setBasicInfo({ ...basicInfo, contact_email: e.target.value })}
+                  placeholder="your.email@example.com"
+                  required
                 />
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="availability">Availability</Label>
-                <Select
-                  value={formData.availability}
-                  onValueChange={(value) => setFormData({ ...formData, availability: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Available">Available</SelectItem>
-                    <SelectItem value="Busy">Busy</SelectItem>
-                    <SelectItem value="Not Available">Not Available</SelectItem>
-                  </SelectContent>
-                </Select>
+            <Separator />
+
+            {/* Languages */}
+            <div className="space-y-3">
+              <Label>
+                Languages <span className="text-red-500">*</span>
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {basicInfo.languages.map((lang) => (
+                  <Badge key={lang} variant="secondary" className="flex items-center gap-1 bg-orange-100 text-orange-800">
+                    {lang}
+                    <X className="h-3 w-3 cursor-pointer" onClick={() => removeLanguage(lang)} />
+                  </Badge>
+                ))}
               </div>
+              <div className="flex gap-2">
+                <Input
+                  value={newLanguage}
+                  onChange={(e) => setNewLanguage(e.target.value)}
+                  placeholder="Add a language..."
+                  onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addLanguage())}
+                />
+                <Button onClick={addLanguage} size="sm" type="button">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Brand Preferences */}
+            <div className="space-y-3">
+              <Label>Brand Preferences (Optional)</Label>
+              <p className="text-sm text-gray-500">Brands you'd like to collaborate with</p>
+              <div className="flex flex-wrap gap-2">
+                {basicInfo.brand_preferences.map((pref) => (
+                  <Badge key={pref} variant="secondary" className="flex items-center gap-1 bg-orange-100 text-orange-800">
+                    {pref}
+                    <X className="h-3 w-3 cursor-pointer" onClick={() => removeBrandPref(pref)} />
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={newBrandPref}
+                  onChange={(e) => setNewBrandPref(e.target.value)}
+                  placeholder="Add a brand preference..."
+                  onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addBrandPref())}
+                />
+                <Button onClick={addBrandPref} size="sm" type="button" variant="outline">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4">
+              <Button onClick={handleSaveBasicInfo} disabled={saving} size="lg" className="bg-orange-600 hover:bg-orange-700">
+                {saving ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-5 w-5" />
+                    Save Basic Information
+                  </>
+                )}
+              </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Instagram Connection */}
+        {/* Instagram Connection Section */}
         <Card className="border-orange-200">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Instagram className="h-5 w-5 text-orange-600" />
-              Instagram Connection
+              Instagram Business Account
             </CardTitle>
             <CardDescription>
-              {instagramConnected
-                ? "Your Instagram account is connected. Sync to get the latest metrics."
+              {instagramAccount?.is_connected
+                ? "Your Instagram account is connected. All metrics are automatically synced."
                 : "Connect your Instagram Business Account to automatically fetch your metrics"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!instagramConnected ? (
+            {!instagramAccount?.is_connected ? (
               <div className="space-y-4">
                 <Alert>
                   <Instagram className="h-4 w-4" />
@@ -516,255 +644,382 @@ export default function InfluencerProfileSetup() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex-1">
-                    <p className="font-medium text-green-900">Instagram Connected</p>
-                    <p className="text-sm text-green-700">@{formData.instagram_username}</p>
+              <>
+                <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Instagram className="h-8 w-8 text-purple-600" />
+                    <div>
+                      <p className="font-medium text-green-900">Connected</p>
+                      <p className="text-sm text-green-700">@{instagramAccount.username}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Last synced: {new Date(instagramAccount.last_synced_at).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
-                  <Badge variant="secondary" className="bg-green-100 text-green-800">Connected</Badge>
+                  <Badge variant="secondary" className="bg-green-100 text-green-800">
+                    Active
+                  </Badge>
                 </div>
 
-                <Button
-                  onClick={handleSyncInstagram}
-                  disabled={syncing}
-                  variant="outline"
-                  className="w-full"
-                >
-                  {syncing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Syncing...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Sync Instagram Metrics
-                    </>
-                  )}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleSyncInstagram}
+                    disabled={syncing}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    {syncing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Sync Metrics
+                      </>
+                    )}
+                  </Button>
 
-                <Button
-                  onClick={() => setShowDisconnectDialog(true)}
-                  disabled={disconnecting}
-                  variant="destructive"
-                  className="w-full"
-                  size="sm"
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Disconnect Instagram
-                </Button>
-
-                <p className="text-xs text-gray-500 text-center">
-                  Last synced: {formData.instagram_username ? "Recently" : "Never"}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Social Media Metrics */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Social Media Metrics</CardTitle>
-            <CardDescription>Your follower stats and engagement data</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="followers">Followers</Label>
-                <Input
-                  id="followers"
-                  type="number"
-                  value={formData.followers}
-                  onChange={(e) => setFormData({ ...formData, followers: parseInt(e.target.value) || 0 })}
-                  placeholder="300000"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="following">Following</Label>
-                <Input
-                  id="following"
-                  type="number"
-                  value={formData.following}
-                  onChange={(e) => setFormData({ ...formData, following: parseInt(e.target.value) || 0 })}
-                  placeholder="150"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="engagement_rate">Engagement Rate (%)</Label>
-                <Input
-                  id="engagement_rate"
-                  type="number"
-                  step="0.1"
-                  value={formData.engagement_rate}
-                  onChange={(e) => setFormData({ ...formData, engagement_rate: parseFloat(e.target.value) || 0 })}
-                  placeholder="5.2"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="average_views_monthly">Average Monthly Views</Label>
-                <Input
-                  id="average_views_monthly"
-                  type="number"
-                  value={formData.average_views_monthly}
-                  onChange={(e) => setFormData({ ...formData, average_views_monthly: parseInt(e.target.value) || 0 })}
-                  placeholder="1200000"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="last_post_views">Last Post Views</Label>
-                <Input
-                  id="last_post_views"
-                  type="number"
-                  value={formData.last_post_views}
-                  onChange={(e) => setFormData({ ...formData, last_post_views: parseInt(e.target.value) || 0 })}
-                  placeholder="85000"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="last_post_engagement">Last Post Engagement</Label>
-                <Input
-                  id="last_post_engagement"
-                  type="number"
-                  value={formData.last_post_engagement}
-                  onChange={(e) => setFormData({ ...formData, last_post_engagement: parseInt(e.target.value) || 0 })}
-                  placeholder="5200"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="last_post_date">Last Post Date</Label>
-                <Input
-                  id="last_post_date"
-                  type="date"
-                  value={formData.last_post_date}
-                  onChange={(e) => setFormData({ ...formData, last_post_date: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="price_per_post">Price Per Post ($)</Label>
-                <Input
-                  id="price_per_post"
-                  type="number"
-                  value={formData.price_per_post}
-                  onChange={(e) => setFormData({ ...formData, price_per_post: parseInt(e.target.value) || 0 })}
-                  placeholder="1800"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Languages */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Languages</CardTitle>
-            <CardDescription>Languages you speak or create content in</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              {formData.languages.map((lang) => (
-                <Badge key={lang} variant="secondary" className="flex items-center gap-1 bg-orange-100 text-orange-800">
-                  {lang}
-                  <X className="h-3 w-3 cursor-pointer" onClick={() => removeLanguage(lang)} />
-                </Badge>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Input
-                value={newLanguage}
-                onChange={(e) => setNewLanguage(e.target.value)}
-                placeholder="Add a language..."
-                onKeyPress={(e) => e.key === "Enter" && addLanguage()}
-              />
-              <Button onClick={addLanguage} size="sm" type="button">
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Platforms */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Platforms</CardTitle>
-            <CardDescription>Social media platforms you're active on</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              {formData.platforms.map((platform) => (
-                <Badge key={platform} variant="secondary" className="flex items-center gap-1 bg-orange-100 text-orange-800">
-                  {platform}
-                  <X className="h-3 w-3 cursor-pointer" onClick={() => removePlatform(platform)} />
-                </Badge>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Input
-                value={newPlatform}
-                onChange={(e) => setNewPlatform(e.target.value)}
-                placeholder="Add a platform..."
-                onKeyPress={(e) => e.key === "Enter" && addPlatform()}
-              />
-              <Button onClick={addPlatform} size="sm" type="button">
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Brands Worked With */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Brands Worked With</CardTitle>
-            <CardDescription>Brands you've collaborated with in the past</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              {formData.brands_worked_with.map((brand) => (
-                <Badge key={brand} variant="secondary" className="flex items-center gap-1 bg-orange-100 text-orange-800">
-                  {brand}
-                  <X className="h-3 w-3 cursor-pointer" onClick={() => removeBrand(brand)} />
-                </Badge>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Input
-                value={newBrand}
-                onChange={(e) => setNewBrand(e.target.value)}
-                placeholder="Add a brand..."
-                onKeyPress={(e) => e.key === "Enter" && addBrand()}
-              />
-              <Button onClick={addBrand} size="sm" type="button">
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Save Button */}
-        <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={saving} size="lg" className="bg-orange-600 hover:bg-orange-700">
-            {saving ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-5 w-5" />
-                Save Profile
+                  <Button
+                    onClick={() => setShowDisconnectDialog(true)}
+                    variant="destructive"
+                    size="sm"
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    Disconnect
+                  </Button>
+                </div>
               </>
             )}
-          </Button>
-        </div>
+          </CardContent>
+        </Card>
+
+        {/* Instagram Metrics Dashboard (Only shown if connected) */}
+        {instagramAccount?.is_connected && instagramMetrics && (
+          <>
+            {/* Overview Stats */}
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-gray-600">Followers</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-orange-600" />
+                    <p className="text-2xl font-bold">{formatNumber(instagramMetrics.followers_count)}</p>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Following: {formatNumber(instagramMetrics.follows_count)}</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-gray-600">Total Reach</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-blue-600" />
+                    <p className="text-2xl font-bold">{formatNumber(instagramMetrics.reach)}</p>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Last 30 days</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-gray-600">Impressions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    <Eye className="h-4 w-4 text-purple-600" />
+                    <p className="text-2xl font-bold">{formatNumber(instagramMetrics.impressions)}</p>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Last 30 days</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-gray-600">Engagement Rate</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-green-600" />
+                    <p className="text-2xl font-bold">
+                      {calculatedMetrics ? formatPercentage(calculatedMetrics.engagement_rate_30_days) : "N/A"}
+                    </p>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Last 30 days</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Detailed Metrics Tabs */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Instagram Analytics</CardTitle>
+                <CardDescription>Comprehensive metrics from your Instagram Business Account</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="profile" className="w-full">
+                  <TabsList className="grid w-full grid-cols-4">
+                    <TabsTrigger value="profile">Profile</TabsTrigger>
+                    <TabsTrigger value="engagement">Engagement</TabsTrigger>
+                    <TabsTrigger value="audience">Audience</TabsTrigger>
+                    <TabsTrigger value="performance">Performance</TabsTrigger>
+                  </TabsList>
+
+                  {/* Profile Metrics */}
+                  <TabsContent value="profile" className="space-y-4 mt-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <span className="text-sm font-medium">Profile Views</span>
+                          <span className="text-lg font-bold text-orange-600">{formatNumber(instagramMetrics.profile_views)}</span>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <span className="text-sm font-medium">Website Clicks</span>
+                          <span className="text-lg font-bold text-blue-600">{formatNumber(instagramMetrics.website_clicks)}</span>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <span className="text-sm font-medium">Email Contacts</span>
+                          <span className="text-lg font-bold text-purple-600">{formatNumber(instagramMetrics.email_contacts)}</span>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <span className="text-sm font-medium">Phone Clicks</span>
+                          <span className="text-lg font-bold text-green-600">{formatNumber(instagramMetrics.phone_call_clicks)}</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <span className="text-sm font-medium">Total Posts</span>
+                          <span className="text-lg font-bold text-orange-600">{formatNumber(instagramMetrics.media_count)}</span>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <span className="text-sm font-medium">Total Engagement</span>
+                          <span className="text-lg font-bold text-pink-600">{formatNumber(instagramMetrics.engagement)}</span>
+                        </div>
+                        {calculatedMetrics && (
+                          <>
+                            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                              <span className="text-sm font-medium">Posting Frequency</span>
+                              <span className="text-lg font-bold text-blue-600">{calculatedMetrics.posting_frequency.toFixed(1)} / week</span>
+                            </div>
+                            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                              <span className="text-sm font-medium">Story Frequency</span>
+                              <span className="text-lg font-bold text-purple-600">{calculatedMetrics.story_frequency.toFixed(1)} / week</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  {/* Engagement Metrics */}
+                  <TabsContent value="engagement" className="space-y-4 mt-4">
+                    {calculatedMetrics && (
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <Heart className="h-4 w-4 text-red-500" />
+                              <span className="text-sm font-medium">Average Likes</span>
+                            </div>
+                            <span className="text-lg font-bold text-red-600">{formatNumber(calculatedMetrics.avg_likes)}</span>
+                          </div>
+                          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <MessageCircle className="h-4 w-4 text-blue-500" />
+                              <span className="text-sm font-medium">Average Comments</span>
+                            </div>
+                            <span className="text-lg font-bold text-blue-600">{formatNumber(calculatedMetrics.avg_comments)}</span>
+                          </div>
+                          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <Eye className="h-4 w-4 text-purple-500" />
+                              <span className="text-sm font-medium">Average Reach</span>
+                            </div>
+                            <span className="text-lg font-bold text-purple-600">{formatNumber(calculatedMetrics.avg_reach)}</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <Activity className="h-4 w-4 text-green-500" />
+                              <span className="text-sm font-medium">Engagement Rate (30d)</span>
+                            </div>
+                            <span className="text-lg font-bold text-green-600">{formatPercentage(calculatedMetrics.engagement_rate_30_days)}</span>
+                          </div>
+                          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <TrendingUp className="h-4 w-4 text-orange-500" />
+                              <span className="text-sm font-medium">Growth Rate</span>
+                            </div>
+                            <span className="text-lg font-bold text-orange-600">{formatPercentage(calculatedMetrics.followers_growth_rate)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  {/* Audience Demographics */}
+                  <TabsContent value="audience" className="space-y-4 mt-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {/* Top Countries */}
+                      <div>
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <Globe className="h-4 w-4 text-orange-600" />
+                          Top Countries
+                        </h4>
+                        <div className="space-y-2">
+                          {Object.entries(instagramMetrics.audience_country || {})
+                            .sort(([, a], [, b]) => (b as number) - (a as number))
+                            .slice(0, 5)
+                            .map(([country, percentage]) => (
+                              <div key={country} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                                <span className="text-sm">{country}</span>
+                                <span className="text-sm font-medium text-orange-600">
+                                  {((percentage as number) * 100).toFixed(1)}%
+                                </span>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+
+                      {/* Top Cities */}
+                      <div>
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-blue-600" />
+                          Top Cities
+                        </h4>
+                        <div className="space-y-2">
+                          {Object.entries(instagramMetrics.audience_city || {})
+                            .sort(([, a], [, b]) => (b as number) - (a as number))
+                            .slice(0, 5)
+                            .map(([city, percentage]) => (
+                              <div key={city} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                                <span className="text-sm">{city}</span>
+                                <span className="text-sm font-medium text-blue-600">
+                                  {((percentage as number) * 100).toFixed(1)}%
+                                </span>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+
+                      {/* Gender & Age */}
+                      <div>
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <Users className="h-4 w-4 text-purple-600" />
+                          Gender & Age Distribution
+                        </h4>
+                        <div className="space-y-2">
+                          {Object.entries(instagramMetrics.audience_gender_age || {})
+                            .sort(([, a], [, b]) => (b as number) - (a as number))
+                            .slice(0, 5)
+                            .map(([segment, percentage]) => (
+                              <div key={segment} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                                <span className="text-sm">{segment}</span>
+                                <span className="text-sm font-medium text-purple-600">
+                                  {((percentage as number) * 100).toFixed(1)}%
+                                </span>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+
+                      {/* Online Followers Peak Hours */}
+                      <div>
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-green-600" />
+                          Peak Online Hours
+                        </h4>
+                        <div className="space-y-2">
+                          {Object.entries(instagramMetrics.online_followers || {})
+                            .sort(([, a], [, b]) => (b as number) - (a as number))
+                            .slice(0, 5)
+                            .map(([hour, count]) => {
+                              const h = parseInt(hour)
+                              const period = h >= 12 ? "PM" : "AM"
+                              const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h
+                              return (
+                                <div key={hour} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                                  <span className="text-sm">{displayHour}:00 {period}</span>
+                                  <span className="text-sm font-medium text-green-600">{formatNumber(count as number)}</span>
+                                </div>
+                              )
+                            })}
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  {/* Performance Summary */}
+                  <TabsContent value="performance" className="space-y-4 mt-4">
+                    <Alert className="bg-blue-50 border-blue-200">
+                      <BarChart3 className="h-4 w-4 text-blue-600" />
+                      <AlertDescription>
+                        <p className="font-medium text-blue-900 mb-2">Performance Summary</p>
+                        <ul className="space-y-1 text-sm text-blue-800">
+                          <li>• {formatNumber(instagramMetrics.media_count)} total posts published</li>
+                          <li>• {formatNumber(instagramMetrics.reach)} accounts reached in last 30 days</li>
+                          <li>• {formatNumber(instagramMetrics.impressions)} total impressions</li>
+                          {calculatedMetrics && (
+                            <>
+                              <li>• {formatPercentage(calculatedMetrics.engagement_rate_30_days)} average engagement rate</li>
+                              <li>• {calculatedMetrics.posting_frequency.toFixed(1)} posts per week average</li>
+                            </>
+                          )}
+                        </ul>
+                      </AlertDescription>
+                    </Alert>
+
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-medium">Best Performing</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-2xl font-bold text-green-600">
+                            {calculatedMetrics ? formatNumber(calculatedMetrics.avg_likes) : "N/A"}
+                          </p>
+                          <p className="text-xs text-gray-500">Avg Likes per Post</p>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-medium">Audience Growth</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-2xl font-bold text-blue-600">
+                            {calculatedMetrics ? formatPercentage(calculatedMetrics.followers_growth_rate) : "N/A"}
+                          </p>
+                          <p className="text-xs text-gray-500">Estimated Growth Rate</p>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-medium">Content Output</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-2xl font-bold text-purple-600">
+                            {calculatedMetrics ? calculatedMetrics.posting_frequency.toFixed(1) : "N/A"}
+                          </p>
+                          <p className="text-xs text-gray-500">Posts per Week</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       {/* Disconnect Confirmation Dialog */}
