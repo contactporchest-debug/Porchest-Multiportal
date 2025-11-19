@@ -114,11 +114,18 @@ export default function InfluencerProfileSetup() {
   const fetchProfile = async () => {
     try {
       setLoading(true)
+      console.log("Fetching influencer profile...")
+
       const response = await fetch("/api/influencer/profile")
+      console.log("Fetch response status:", response.status)
+
       const data = await response.json()
+      console.log("Fetch response data:", data)
 
       if (data.success && data.data.profile) {
         const profile = data.data.profile
+        console.log("Profile loaded:", profile)
+
         setFormData({
           full_name: profile.full_name || "",
           instagram_username: profile.instagram_username || "",
@@ -142,6 +149,8 @@ export default function InfluencerProfileSetup() {
 
         // Check if Instagram is connected
         setInstagramConnected(profile.instagram_account?.is_connected || false)
+      } else {
+        console.error("Profile fetch failed:", data)
       }
     } catch (err) {
       console.error("Error fetching profile:", err)
@@ -158,11 +167,14 @@ export default function InfluencerProfileSetup() {
   const handleSave = async () => {
     try {
       setSaving(true)
+      console.log("Saving influencer profile...", formData)
 
       const payload = {
         ...formData,
         last_post_date: formData.last_post_date ? new Date(formData.last_post_date).toISOString() : undefined,
       }
+
+      console.log("Sending payload:", payload)
 
       const response = await fetch("/api/influencer/profile", {
         method: "PUT",
@@ -170,24 +182,31 @@ export default function InfluencerProfileSetup() {
         body: JSON.stringify(payload),
       })
 
+      console.log("Response status:", response.status)
+
       const data = await response.json()
+      console.log("Response data:", data)
 
       if (!response.ok) {
-        throw new Error(data.error?.message || "Failed to save profile")
+        throw new Error(data.error?.message || `Server error: ${response.status}`)
       }
 
       if (data.success) {
         toast({
           title: "Success",
-          description: "Profile updated successfully!",
+          description: data.message || "Profile updated successfully!",
         })
 
         // Update session to reflect profile completion
         await update()
+
+        // Refresh profile data
+        await fetchProfile()
       } else {
         throw new Error(data.error?.message || "Failed to save profile")
       }
     } catch (err: any) {
+      console.error("Error saving profile:", err)
       toast({
         title: "Error",
         description: err.message || "Failed to save profile",
