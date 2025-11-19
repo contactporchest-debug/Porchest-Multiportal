@@ -266,7 +266,17 @@ export async function GET(req: NextRequest) {
     // ============================================================================
     // STEP 8: Store everything in MongoDB
     // ============================================================================
-    const influencerProfilesCollection = await collections.influencerProfiles();
+    logger.info("STEP 8: Starting MongoDB storage operations...");
+
+    let influencerProfilesCollection;
+    try {
+      influencerProfilesCollection = await collections.influencerProfiles();
+      logger.info("Successfully obtained influencerProfiles collection");
+    } catch (collectionError) {
+      logger.error("Failed to get influencerProfiles collection", collectionError);
+      throw new Error(`Database connection failed: ${collectionError instanceof Error ? collectionError.message : String(collectionError)}`);
+    }
+
     const tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
 
     // Prepare comprehensive profile data
@@ -315,23 +325,56 @@ export async function GET(req: NextRequest) {
       updated_at: new Date(),
     };
 
-    const updateResult = await influencerProfilesCollection.updateOne(
-      { user_id: new ObjectId(userId) },
-      { $set: profileUpdate },
-      { upsert: true }
-    );
-
-    logger.info("Profile updated in MongoDB", {
-      matched: updateResult.matchedCount,
-      modified: updateResult.modifiedCount,
-      upserted: updateResult.upsertedCount,
+    logger.info("Prepared profile update data", {
+      userId,
+      username: igAccountData.username,
+      hasInstagramAccount: !!profileUpdate.instagram_account,
+      hasMetrics: !!profileUpdate.instagram_metrics,
+      hasCalculatedMetrics: !!profileUpdate.calculated_metrics,
     });
+
+    let updateResult;
+    try {
+      updateResult = await influencerProfilesCollection.updateOne(
+        { user_id: new ObjectId(userId) },
+        { $set: profileUpdate },
+        { upsert: true }
+      );
+
+      logger.info("Profile MongoDB operation completed", {
+        matched: updateResult.matchedCount,
+        modified: updateResult.modifiedCount,
+        upserted: updateResult.upsertedCount,
+        upsertedId: updateResult.upsertedId?.toString(),
+      });
+
+      if (updateResult.matchedCount === 0 && updateResult.upsertedCount === 0 && updateResult.modifiedCount === 0) {
+        logger.warn("MongoDB update returned no changes - this might indicate a problem");
+      }
+    } catch (updateError) {
+      logger.error("Failed to update profile in MongoDB", {
+        error: updateError,
+        errorMessage: updateError instanceof Error ? updateError.message : String(updateError),
+        errorStack: updateError instanceof Error ? updateError.stack : undefined,
+        userId,
+      });
+      throw new Error(`Profile update failed: ${updateError instanceof Error ? updateError.message : String(updateError)}`);
+    }
 
     // ============================================================================
     // STEP 9: Store individual posts in separate collection
     // ============================================================================
+    logger.info("STEP 9: Starting posts storage...", { postsCount: posts.length });
+
     if (posts.length > 0) {
-      const postsCollection = await collections.posts();
+      let postsCollection;
+      try {
+        postsCollection = await collections.posts();
+        logger.info("Successfully obtained posts collection");
+      } catch (collectionError) {
+        logger.error("Failed to get posts collection", collectionError);
+        throw new Error(`Posts collection access failed: ${collectionError instanceof Error ? collectionError.message : String(collectionError)}`);
+      }
 
       // Bulk upsert posts (update if exists, insert if new)
       const bulkOps = posts.map((post) => ({
@@ -342,34 +385,80 @@ export async function GET(req: NextRequest) {
         },
       }));
 
-      const postsResult = await postsCollection.bulkWrite(bulkOps);
+      logger.info("Prepared bulk operations for posts", { operationsCount: bulkOps.length });
 
-      logger.info("Posts stored in MongoDB", {
-        inserted: postsResult.upsertedCount,
-        modified: postsResult.modifiedCount,
-        total: posts.length,
-      });
+      try {
+        const postsResult = await postsCollection.bulkWrite(bulkOps);
+
+        logger.info("Posts MongoDB operation completed", {
+          inserted: postsResult.upsertedCount,
+          modified: postsResult.modifiedCount,
+          matched: postsResult.matchedCount,
+          total: posts.length,
+        });
+      } catch (postsError) {
+        logger.error("Failed to store posts in MongoDB", {
+          error: postsError,
+          errorMessage: postsError instanceof Error ? postsError.message : String(postsError),
+          errorStack: postsError instanceof Error ? postsError.stack : undefined,
+          postsCount: posts.length,
+        });
+        // Don't throw here - posts are less critical than profile
+        logger.warn("Continuing despite posts storage failure");
+      }
+    } else {
+      logger.info("No posts to store (posts array is empty)");
     }
 
     // ============================================================================
     // STEP 10: Update user's profile_completed status
     // ============================================================================
-    const usersCollection = await collections.users();
-    await usersCollection.updateOne(
-      { _id: new ObjectId(userId) },
-      {
-        $set: {
-          profile_completed: true,
-          updated_at: new Date(),
-        },
-      }
-    );
+    logger.info("STEP 10: Updating user profile_completed status...");
 
-    logger.info("Instagram metrics sync completed successfully", {
+    let usersCollection;
+    try {
+      usersCollection = await collections.users();
+      logger.info("Successfully obtained users collection");
+    } catch (collectionError) {
+      logger.error("Failed to get users collection", collectionError);
+      throw new Error(`Users collection access failed: ${collectionError instanceof Error ? collectionError.message : String(collectionError)}`);
+    }
+
+    try {
+      const userUpdateResult = await usersCollection.updateOne(
+        { _id: new ObjectId(userId) },
+        {
+          $set: {
+            profile_completed: true,
+            updated_at: new Date(),
+          },
+        }
+      );
+
+      logger.info("User profile_completed status updated", {
+        userId,
+        matched: userUpdateResult.matchedCount,
+        modified: userUpdateResult.modifiedCount,
+      });
+
+      if (userUpdateResult.matchedCount === 0) {
+        logger.warn("User not found when updating profile_completed status", { userId });
+      }
+    } catch (userUpdateError) {
+      logger.error("Failed to update user profile_completed status", {
+        error: userUpdateError,
+        errorMessage: userUpdateError instanceof Error ? userUpdateError.message : String(userUpdateError),
+        userId,
+      });
+      // Don't throw - this is non-critical
+    }
+
+    logger.info("✅ Instagram metrics sync completed successfully!", {
       userId,
       username: igAccountData.username,
       followers: igAccountData.followers_count,
       postsStored: posts.length,
+      profileUpdated: true,
     });
 
     // Redirect to profile page with success message
@@ -380,10 +469,19 @@ export async function GET(req: NextRequest) {
       )
     );
   } catch (error) {
-    logger.error("Error in Instagram OAuth callback", error);
+    logger.error("❌ CRITICAL ERROR in Instagram OAuth callback", {
+      error,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      errorName: error instanceof Error ? error.name : typeof error,
+    });
+
+    // Return detailed error in redirect for debugging
+    const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+
     return Response.redirect(
       new URL(
-        `/influencer/profile?error=${encodeURIComponent("An unexpected error occurred. Please try again.")}`,
+        `/influencer/profile?error=${encodeURIComponent(`Sync failed: ${errorMessage}. Check server logs for details.`)}`,
         req.url
       )
     );

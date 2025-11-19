@@ -126,28 +126,48 @@ export default function InfluencerProfileSetup() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
-    fetchProfile()
+    const initializePage = async () => {
+      // Check for success/error messages in URL FIRST
+      const success = searchParams.get("success")
+      const error = searchParams.get("error")
 
-    // Check for success/error messages in URL
-    const success = searchParams.get("success")
-    const error = searchParams.get("error")
+      if (success) {
+        console.log("✅ OAuth success detected:", success)
+        toast({
+          title: "Success",
+          description: success,
+        })
 
-    if (success) {
-      toast({
-        title: "Success",
-        description: success,
-      })
-      router.replace("/influencer/profile")
+        // Wait a bit for MongoDB to finalize writes, then refresh
+        console.log("Waiting 1 second for MongoDB sync, then refreshing profile...")
+        await new Promise(resolve => setTimeout(resolve, 1000))
+
+        // Now fetch the updated profile
+        await fetchProfile()
+
+        // Clean up URL
+        router.replace("/influencer/profile")
+      } else if (error) {
+        console.log("❌ OAuth error detected:", error)
+        toast({
+          title: "Error",
+          description: error,
+          variant: "destructive",
+        })
+
+        // Still fetch profile to show existing data
+        await fetchProfile()
+
+        // Clean up URL
+        router.replace("/influencer/profile")
+      } else {
+        // Normal page load, just fetch profile
+        console.log("Normal page load, fetching profile...")
+        await fetchProfile()
+      }
     }
 
-    if (error) {
-      toast({
-        title: "Error",
-        description: error,
-        variant: "destructive",
-      })
-      router.replace("/influencer/profile")
-    }
+    initializePage()
   }, [])
 
   const fetchProfile = async () => {
