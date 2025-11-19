@@ -3,29 +3,15 @@ export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
 export const fetchCache = "force-no-store"
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { ObjectId } from "mongodb"
 import { logger } from "@/lib/logger"
-import {
-  exchangeCodeForToken,
-  exchangeForLongLivedToken,
-  getFacebookPages,
-  getInstagramBusinessAccount,
-  getProfileMetrics,
-  getAllMediaWithInsights,
-} from "@/lib/utils/meta-api"
-import {
-  getInfluencerProfileByUserId,
-  updateInstagramAccount,
-  bulkUpsertPosts,
-} from "@/lib/utils/influencer-db"
-import { calculateAllMetrics, calculatePostEngagementRate } from "@/lib/utils/calculations"
-import { InstagramAccount, Post, CalculatedMetrics, PostMetrics } from "@/lib/types/influencer"
+import { collections } from "@/lib/db"
 
 /**
  * GET /api/meta/callback
- * Handles OAuth callback from Facebook
- * Exchanges code for token and fetches Instagram data
+ * Handles OAuth callback from Meta (Instagram Business Login)
+ * Exchanges code for tokens, fetches IG account data, saves to MongoDB
  */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -35,12 +21,12 @@ export async function GET(req: NextRequest) {
   const errorDescription = searchParams.get("error_description")
 
   try {
-    // Check for errors from Facebook
+    // Check for OAuth errors
     if (error) {
-      logger.error("OAuth error from Facebook", { error, errorDescription })
-      return NextResponse.redirect(
+      logger.error("Meta OAuth error", { error, errorDescription })
+      return Response.redirect(
         new URL(
-          `/influencer/profile/setup?error=${encodeURIComponent(errorDescription || error)}`,
+          `/influencer/profile?error=${encodeURIComponent(errorDescription || error)}`,
           req.url
         )
       )
@@ -49,201 +35,257 @@ export async function GET(req: NextRequest) {
     // Validate parameters
     if (!code || !state) {
       logger.error("Missing code or state parameter")
-      return NextResponse.redirect(
+      return Response.redirect(
         new URL(
-          `/influencer/profile/setup?error=${encodeURIComponent("Invalid callback parameters")}`,
+          `/influencer/profile?error=${encodeURIComponent("Invalid callback parameters")}`,
           req.url
         )
       )
     }
 
-    // Extract userId from state
-    const [, userId] = state.split(":")
+    // Decode state (matches the format from /api/influencer/instagram/connect)
+    let stateData
+    try {
+      stateData = JSON.parse(Buffer.from(state, "base64").toString())
+    } catch (err) {
+      logger.error("Invalid state parameter", err)
+      return Response.redirect(
+        new URL(
+          `/influencer/profile?error=${encodeURIComponent("Invalid state parameter")}`,
+          req.url
+        )
+      )
+    }
+
+    const { userId } = stateData
     if (!userId) {
-      logger.error("Invalid state parameter - no userId")
-      return NextResponse.redirect(
+      logger.error("User ID not found in state")
+      return Response.redirect(
         new URL(
-          `/influencer/profile/setup?error=${encodeURIComponent("Invalid state parameter")}`,
+          `/influencer/profile?error=${encodeURIComponent("User ID not found")}`,
           req.url
         )
       )
     }
 
-    logger.info("Processing Instagram OAuth callback", { userId })
+    // Get environment variables
+    const appId = process.env.META_APP_ID
+    const appSecret = process.env.META_APP_SECRET
+    const redirectUri = process.env.META_REDIRECT_URI || process.env.META_APP_REDIRECT_URI
 
-    // Step 1: Exchange authorization code for access token
-    logger.info("Exchanging code for access token")
-    const tokenResponse = await exchangeCodeForToken(code)
-    const shortLivedToken = tokenResponse.access_token
-
-    // Step 2: Exchange short-lived token for long-lived token (60 days)
-    logger.info("Exchanging for long-lived token")
-    const longLivedTokenResponse = await exchangeForLongLivedToken(shortLivedToken)
-    const accessToken = longLivedTokenResponse.access_token
-    const expiresIn = longLivedTokenResponse.expires_in
-
-    // Step 3: Get Facebook Pages
-    logger.info("Fetching Facebook pages")
-    const pages = await getFacebookPages(accessToken)
-
-    if (!pages || pages.length === 0) {
-      logger.error("No Facebook pages found")
-      return NextResponse.redirect(
+    if (!appId || !appSecret || !redirectUri) {
+      logger.error("Meta credentials not configured")
+      return Response.redirect(
         new URL(
-          `/influencer/profile/setup?error=${encodeURIComponent(
-            "No Facebook pages found. Please create a Facebook page and link it to your Instagram Business account."
-          )}`,
+          `/influencer/profile?error=${encodeURIComponent("Instagram integration not configured")}`,
           req.url
         )
       )
     }
+
+    logger.info("Processing OAuth for user", { userId, appId: appId.substring(0, 8) + "..." })
+
+    // ============================================================================
+    // STEP 1: Exchange code for short-lived access token
+    // ============================================================================
+    logger.info("STEP 1: Exchanging code for short-lived token...")
+
+    const tokenUrl = new URL("https://graph.facebook.com/v20.0/oauth/access_token")
+    tokenUrl.searchParams.set("client_id", appId)
+    tokenUrl.searchParams.set("client_secret", appSecret)
+    tokenUrl.searchParams.set("redirect_uri", redirectUri)
+    tokenUrl.searchParams.set("code", code)
+
+    const tokenResponse = await fetch(tokenUrl.toString())
+    const tokenData = await tokenResponse.json()
+
+    if (!tokenResponse.ok || !tokenData.access_token) {
+      logger.error("Failed to exchange code for token", { tokenData, status: tokenResponse.status })
+      return Response.redirect(
+        new URL(
+          `/influencer/profile?error=${encodeURIComponent(tokenData.error?.message || "Failed to obtain access token")}`,
+          req.url
+        )
+      )
+    }
+
+    const shortLivedToken = tokenData.access_token
+    logger.info("✅ Short-lived token obtained")
+
+    // ============================================================================
+    // STEP 2: Exchange short-lived token for long-lived token (60 days)
+    // ============================================================================
+    logger.info("STEP 2: Exchanging for long-lived token...")
+
+    const longTokenUrl = new URL("https://graph.facebook.com/v20.0/oauth/access_token")
+    longTokenUrl.searchParams.set("grant_type", "fb_exchange_token")
+    longTokenUrl.searchParams.set("client_id", appId)
+    longTokenUrl.searchParams.set("client_secret", appSecret)
+    longTokenUrl.searchParams.set("fb_exchange_token", shortLivedToken)
+
+    const longTokenResponse = await fetch(longTokenUrl.toString())
+    const longTokenData = await longTokenResponse.json()
+
+    if (!longTokenResponse.ok || !longTokenData.access_token) {
+      logger.error("Failed to get long-lived token", { longTokenData, status: longTokenResponse.status })
+      return Response.redirect(
+        new URL(
+          `/influencer/profile?error=${encodeURIComponent(longTokenData.error?.message || "Failed to obtain long-lived token")}`,
+          req.url
+        )
+      )
+    }
+
+    const longLivedToken = longTokenData.access_token
+    const expiresIn = longTokenData.expires_in || 5184000 // 60 days
+    logger.info("✅ Long-lived token obtained", { expiresIn })
+
+    // ============================================================================
+    // STEP 3: Get Facebook Pages
+    // ============================================================================
+    logger.info("STEP 3: Fetching Facebook pages...")
+
+    const pagesUrl = new URL("https://graph.facebook.com/v20.0/me/accounts")
+    pagesUrl.searchParams.set("access_token", longLivedToken)
+    pagesUrl.searchParams.set("fields", "id,name,access_token,instagram_business_account")
+
+    const pagesResponse = await fetch(pagesUrl.toString())
+    const pagesData = await pagesResponse.json()
+
+    if (!pagesResponse.ok || !pagesData.data || pagesData.data.length === 0) {
+      logger.error("No Facebook pages found", { pagesData, status: pagesResponse.status })
+      return Response.redirect(
+        new URL(
+          `/influencer/profile?error=${encodeURIComponent("No Facebook pages found. Connect a Facebook page to your Instagram Business Account.")}`,
+          req.url
+        )
+      )
+    }
+
+    logger.info("✅ Facebook pages fetched", { pageCount: pagesData.data.length })
 
     // Find page with Instagram Business Account
-    const pageWithInstagram = pages.find((page) => page.instagram_business_account)
+    const pageWithInstagram = pagesData.data.find((page: any) => page.instagram_business_account)
 
     if (!pageWithInstagram) {
       logger.error("No Instagram Business Account found")
-      return NextResponse.redirect(
+      return Response.redirect(
         new URL(
-          `/influencer/profile/setup?error=${encodeURIComponent(
-            "No Instagram Business Account found. Please connect your Instagram Business account to your Facebook page."
-          )}`,
+          `/influencer/profile?error=${encodeURIComponent("No Instagram Business Account found. Convert your Instagram to a Business Account and link it to a Facebook page.")}`,
           req.url
         )
       )
     }
 
-    const igAccountId = pageWithInstagram.instagram_business_account.id
+    const instagramBusinessAccountId = pageWithInstagram.instagram_business_account.id
+    const pageId = pageWithInstagram.id
     const pageAccessToken = pageWithInstagram.access_token
 
-    logger.info("Found Instagram Business Account", { igAccountId })
+    logger.info("✅ Instagram Business Account found", { instagramBusinessAccountId, pageId })
 
-    // Step 4: Get Instagram Business Account details
-    logger.info("Fetching Instagram account details")
-    const igAccount = await getInstagramBusinessAccount(pageAccessToken, igAccountId)
+    // ============================================================================
+    // STEP 4: Get Instagram account info
+    // ============================================================================
+    logger.info("STEP 4: Fetching Instagram account data...")
 
-    // Step 5: Get comprehensive profile metrics
-    logger.info("Fetching profile metrics")
-    const profileMetrics = await getProfileMetrics(igAccountId, pageAccessToken)
+    const igAccountUrl = new URL(`https://graph.facebook.com/v20.0/${instagramBusinessAccountId}`)
+    igAccountUrl.searchParams.set("fields", "id,username,profile_picture_url,followers_count,follows_count,media_count")
+    igAccountUrl.searchParams.set("access_token", pageAccessToken)
 
-    // Step 6: Get media with insights
-    logger.info("Fetching media and insights")
-    const mediaWithInsights = await getAllMediaWithInsights(igAccountId, pageAccessToken, 50)
+    const igAccountResponse = await fetch(igAccountUrl.toString())
+    const igAccountData = await igAccountResponse.json()
 
-    // Step 7: Transform media to Post objects
-    logger.info("Transforming media data")
-    const userObjectId = new ObjectId(userId)
-    const posts: Post[] = mediaWithInsights.map((media) => {
-      const metrics: PostMetrics = {
-        likes: media.like_count || 0,
-        comments: media.comments_count || 0,
-        saves: media.insights.saved || 0,
-        shares: 0, // Not available in basic API
-        reach: media.insights.reach || 0,
-        impressions: media.insights.impressions || 0,
-        plays: media.insights.plays || media.insights.video_views || 0,
-        taps_forward: media.insights.taps_forward || 0,
-        taps_back: media.insights.taps_back || 0,
-        exits: media.insights.exits || 0,
-        link_clicks: 0, // Only for stories with links
-        watch_time: 0, // Not available in basic API
-        avg_watch_time: 0, // Not available in basic API
-        engagement_rate: 0, // Will be calculated
-      }
-
-      // Calculate engagement rate for this post
-      metrics.engagement_rate = calculatePostEngagementRate(metrics, igAccount.followers_count)
-
-      return {
-        post_id: media.id,
-        userId: userObjectId,
-        media_type: media.media_type,
-        caption: media.caption,
-        permalink: media.permalink,
-        timestamp: new Date(media.timestamp),
-        metrics,
-        created_at: new Date(),
-        updated_at: new Date(),
-      }
-    })
-
-    // Step 8: Calculate derived metrics
-    logger.info("Calculating derived metrics")
-    const calculatedMetrics: CalculatedMetrics = calculateAllMetrics(posts, igAccount.followers_count)
-
-    // Step 9: Parse demographics
-    const audienceCountry = profileMetrics.audience_country || {}
-    const audienceCity = profileMetrics.audience_city || {}
-    const audienceGenderAge = profileMetrics.audience_gender_age || {}
-
-    // Extract gender and age from gender_age
-    const audienceGender: Record<string, number> = {}
-    const audienceAge: Record<string, number> = {}
-
-    Object.entries(audienceGenderAge).forEach(([key, value]) => {
-      const [gender, age] = key.split(".")
-      if (gender && age) {
-        audienceGender[gender] = (audienceGender[gender] || 0) + (value as number)
-        audienceAge[age] = (audienceAge[age] || 0) + (value as number)
-      }
-    })
-
-    // Step 10: Build Instagram account object
-    const instagramAccount: InstagramAccount = {
-      account_id: igAccountId,
-      username: igAccount.username,
-      followers_count: igAccount.followers_count,
-      follows_count: igAccount.follows_count,
-      media_count: igAccount.media_count,
-      profile_views: profileMetrics.profile_views || 0,
-      website_clicks: profileMetrics.website_clicks || 0,
-      email_contacts: profileMetrics.email_contacts || 0,
-      phone_call_clicks: profileMetrics.phone_call_clicks || 0,
-      reach: profileMetrics.reach || 0,
-      impressions: profileMetrics.impressions || 0,
-      engagement: profileMetrics.engagement || 0,
-      online_followers: profileMetrics.online_followers || {},
-      demographics: {
-        audience_country: audienceCountry,
-        audience_city: audienceCity,
-        audience_gender: audienceGender,
-        audience_age: audienceAge,
-        audience_gender_age: audienceGenderAge,
-        audience_locale: profileMetrics.audience_locale || {},
-      },
-      calculated: calculatedMetrics,
+    if (!igAccountResponse.ok) {
+      logger.error("Failed to fetch IG account data", { igAccountData, status: igAccountResponse.status })
+      return Response.redirect(
+        new URL(
+          `/influencer/profile?error=${encodeURIComponent(igAccountData.error?.message || "Failed to fetch Instagram data")}`,
+          req.url
+        )
+      )
     }
 
-    // Step 11: Save Instagram account to database
-    logger.info("Saving Instagram account to database")
-    await updateInstagramAccount(userId, instagramAccount, accessToken, expiresIn)
-
-    // Step 12: Save posts to database
-    logger.info("Saving posts to database", { postCount: posts.length })
-    const postsUpserted = await bulkUpsertPosts(posts)
-
-    logger.info("Instagram connection successful", {
-      userId,
-      username: igAccount.username,
-      followers: igAccount.followers_count,
-      postsUpserted,
+    logger.info("✅ Instagram data fetched", {
+      username: igAccountData.username,
+      followers: igAccountData.followers_count
     })
 
-    // Step 13: Redirect to dashboard with success message
-    return NextResponse.redirect(
+    // ============================================================================
+    // STEP 5: Save to MongoDB
+    // ============================================================================
+    logger.info("STEP 5: Saving to MongoDB...")
+
+    const influencerProfilesCollection = await collections.influencerProfiles()
+    const tokenExpiresAt = new Date(Date.now() + expiresIn * 1000)
+
+    const profileUpdate = {
+      instagram_account: {
+        instagram_user_id: igAccountData.id,
+        instagram_business_account_id: instagramBusinessAccountId,
+        username: igAccountData.username,
+        access_token: pageAccessToken,
+        token_type: "long",
+        token_expires_at: tokenExpiresAt,
+        page_id: pageId,
+        is_connected: true,
+        last_synced_at: new Date(),
+      },
+      instagram_username: igAccountData.username,
+      profile_picture: igAccountData.profile_picture_url || undefined,
+      followers: igAccountData.followers_count || 0,
+      following: igAccountData.follows_count || 0,
+      updated_at: new Date(),
+    }
+
+    const updateResult = await influencerProfilesCollection.updateOne(
+      { user_id: new ObjectId(userId) },
+      { $set: profileUpdate },
+      { upsert: true }
+    )
+
+    logger.info("✅ MongoDB updated", {
+      matched: updateResult.matchedCount,
+      modified: updateResult.modifiedCount,
+      upserted: updateResult.upsertedCount,
+      userId,
+    })
+
+    // ============================================================================
+    // STEP 6: Update user's profile_completed status
+    // ============================================================================
+    logger.info("STEP 6: Updating user status...")
+
+    const usersCollection = await collections.users()
+    await usersCollection.updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: { profile_completed: true, updated_at: new Date() } }
+    )
+
+    logger.info("✅ Instagram connected successfully!", {
+      userId,
+      username: igAccountData.username,
+      followers: igAccountData.followers_count,
+    })
+
+    // Redirect to profile page with success
+    return Response.redirect(
       new URL(
-        `/influencer/dashboard?success=${encodeURIComponent("Instagram connected successfully!")}`,
+        `/influencer/profile?success=${encodeURIComponent("Instagram connected successfully!")}`,
         req.url
       )
     )
-  } catch (error: any) {
-    logger.error("Error in Instagram OAuth callback", error)
+  } catch (error) {
+    logger.error("❌ CRITICAL ERROR in Meta OAuth callback", {
+      error,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+    })
 
-    return NextResponse.redirect(
+    const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
+
+    return Response.redirect(
       new URL(
-        `/influencer/profile/setup?error=${encodeURIComponent(
-          error.message || "Failed to connect Instagram. Please try again."
-        )}`,
+        `/influencer/profile?error=${encodeURIComponent(`Connection failed: ${errorMessage}`)}`,
         req.url
       )
     )
