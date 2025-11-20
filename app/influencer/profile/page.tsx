@@ -553,7 +553,7 @@ export default function InfluencerProfileSetup() {
 
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="bio">
-                  Bio <span className="text-red-500">*</span>
+                  Bio
                 </Label>
                 <Textarea
                   id="bio"
@@ -561,7 +561,6 @@ export default function InfluencerProfileSetup() {
                   onChange={(e) => setBasicInfo({ ...basicInfo, bio: e.target.value })}
                   placeholder="Tell us about yourself and your content..."
                   rows={4}
-                  required
                 />
               </div>
 
@@ -694,6 +693,20 @@ export default function InfluencerProfileSetup() {
                   </AlertDescription>
                 </Alert>
 
+                {/* Success Alert when setup is ready */}
+                {setupStatus && setupStatus.status === "ready" && (
+                  <Alert className="bg-green-50 border-green-200">
+                    <Activity className="h-4 w-4 text-green-600" />
+                    <AlertDescription>
+                      <p className="font-medium text-green-900 mb-1">Setup Complete!</p>
+                      <p className="text-sm text-green-800">
+                        Your Instagram account <span className="font-semibold">@{setupStatus.username}</span> is ready to connect.
+                        Click the button below to complete the connection.
+                      </p>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {/* Guided Setup Wizard */}
                 {setupStatus && setupStatus.status !== "needs_connection" && setupStatus.status !== "ready" && (
                   <div className="space-y-4 p-4 border-2 border-orange-300 rounded-lg bg-orange-50">
@@ -786,49 +799,52 @@ export default function InfluencerProfileSetup() {
                   </div>
                 )}
 
-                {/* Setup Check Button */}
-                {!setupStatus || setupStatus.status !== "ready" ? (
-                  <Button
-                    onClick={handleCheckSetup}
-                    disabled={checkingSetup}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    {checkingSetup ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Checking Setup...
-                      </>
-                    ) : (
-                      <>
-                        <Activity className="mr-2 h-4 w-4" />
-                        Check My Setup
-                      </>
-                    )}
-                  </Button>
-                ) : null}
+                {/* Action Buttons */}
+                <div className="flex flex-col gap-3">
+                  {/* Setup Check Button */}
+                  {!setupStatus || setupStatus.status !== "ready" ? (
+                    <Button
+                      onClick={handleCheckSetup}
+                      disabled={checkingSetup}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      {checkingSetup ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Checking Setup...
+                        </>
+                      ) : (
+                        <>
+                          <Activity className="mr-2 h-4 w-4" />
+                          Check My Setup
+                        </>
+                      )}
+                    </Button>
+                  ) : null}
 
-                {/* Connect Button */}
-                {(!setupStatus || setupStatus.status === "needs_connection" || setupStatus.status === "ready" || setupStatus.status === "token_expired") && (
-                  <Button
-                    onClick={handleConnectInstagram}
-                    disabled={connecting}
-                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-                    size="lg"
-                  >
-                    {connecting ? (
-                      <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        Connecting...
-                      </>
-                    ) : (
-                      <>
-                        <Instagram className="mr-2 h-5 w-5" />
-                        Connect Instagram Account
-                      </>
-                    )}
-                  </Button>
-                )}
+                  {/* Connect Button */}
+                  {(!setupStatus || setupStatus.status === "needs_connection" || setupStatus.status === "ready" || setupStatus.status === "token_expired") && (
+                    <Button
+                      onClick={handleConnectInstagram}
+                      disabled={connecting}
+                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                      size="lg"
+                    >
+                      {connecting ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Connecting...
+                        </>
+                      ) : (
+                        <>
+                          <Instagram className="mr-2 h-5 w-5" />
+                          Connect Instagram Account
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
               </div>
             ) : (
               <>
