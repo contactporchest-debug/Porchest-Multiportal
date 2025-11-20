@@ -1,6 +1,7 @@
 "use client"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { signOut } from "next-auth/react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -79,7 +80,12 @@ export default function AdminSidebar() {
             <p className="text-xs text-white/60">System Administrator</p>
           </div>
         </div>
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-2 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+          onClick={() => signOut()}
+        >
           <LogOut className="h-4 w-4" />
           Sign Out
         </Button>
