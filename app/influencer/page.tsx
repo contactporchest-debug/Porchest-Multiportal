@@ -97,7 +97,9 @@ const recentCollaborations = [
 ]
 
 export default function InfluencerDashboard() {
-  const { data: session, status } = useSession()
+  const sessionHook = useSession() ?? {}
+  const session = sessionHook.data ?? null
+  const status = sessionHook.status ?? "loading"
   const [profile, setProfile] = useState<any>(null)
   const [posts, setPosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -115,7 +117,8 @@ export default function InfluencerDashboard() {
       // Fetch profile data
       const profileRes = await fetch("/api/influencer/profile")
       if (profileRes.ok) {
-        const profileData = await profileRes.json()
+        const profileJson = await profileRes.json().catch(() => null)
+        const profileData = profileJson ?? {}
         if (profileData.success && profileData.data?.profile) {
           setProfile(profileData.data.profile)
         }
@@ -125,7 +128,8 @@ export default function InfluencerDashboard() {
       try {
         const postsRes = await fetch("/api/influencer/posts")
         if (postsRes.ok) {
-          const postsData = await postsRes.json()
+          const postsJson = await postsRes.json().catch(() => null)
+          const postsData = postsJson ?? {}
           if (postsData.success && postsData.data?.posts) {
             setPosts(postsData.data.posts)
           }
