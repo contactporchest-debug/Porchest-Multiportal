@@ -16,7 +16,6 @@
   "dependencies": {
     "@auth/core": "^0.41.1",
     "@auth/mongodb-adapter": "^3.11.0",
-    "next-auth": "^5.0.0-beta.25",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "latest",
     "@radix-ui/react-alert-dialog": "latest",
@@ -59,8 +58,10 @@
     "lucide-react": "^0.454.0",
     "mongodb": "^6.20.0",
     "next": "^14.2.33",
+    "next-auth": "^5.0.0-beta.25",
     "next-themes": "latest",
     "nodemailer": "latest",
+    "openai": "^6.9.1",
     "react": "^18",
     "react-day-picker": "latest",
     "react-dom": "^18",
