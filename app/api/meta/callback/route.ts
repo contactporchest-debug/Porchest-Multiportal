@@ -272,9 +272,40 @@ export async function GET(req: NextRequest) {
     logger.info("✅ Calculated metrics", calculatedMetrics)
 
     // ============================================================================
-    // STEP 8: Store everything in MongoDB
+    // STEP 8: Parse audience demographics to extract gender and age separately
     // ============================================================================
-    logger.info("STEP 8: Starting MongoDB storage operations...")
+    logger.info("STEP 8: Parsing audience demographics...")
+
+    const audienceGenderAge = profileMetrics.audience_gender_age || {}
+    const audienceGender: Record<string, number> = {}
+    const audienceAge: Record<string, number> = {}
+
+    // Parse audience_gender_age to extract separate gender and age breakdowns
+    // Format: "M.18-24": 1200, "F.25-34": 1800, etc.
+    Object.entries(audienceGenderAge).forEach(([key, value]) => {
+      const parts = key.split(".")
+      if (parts.length === 2) {
+        const [gender, age] = parts
+        // Aggregate by gender
+        if (gender) {
+          audienceGender[gender] = (audienceGender[gender] || 0) + (value as number)
+        }
+        // Aggregate by age
+        if (age) {
+          audienceAge[age] = (audienceAge[age] || 0) + (value as number)
+        }
+      }
+    })
+
+    logger.info("✅ Audience demographics parsed", {
+      genderCount: Object.keys(audienceGender).length,
+      ageCount: Object.keys(audienceAge).length,
+    })
+
+    // ============================================================================
+    // STEP 9: Store everything in MongoDB
+    // ============================================================================
+    logger.info("STEP 9: Starting MongoDB storage operations...")
 
     let influencerProfilesCollection
     try {
@@ -318,10 +349,12 @@ export async function GET(req: NextRequest) {
         // Online followers (hourly breakdown)
         online_followers: profileMetrics.online_followers || {},
 
-        // Audience demographics
+        // Audience demographics - ALL FIELDS
         audience_country: profileMetrics.audience_country || {},
         audience_city: profileMetrics.audience_city || {},
-        audience_gender_age: profileMetrics.audience_gender_age || {},
+        audience_gender: audienceGender,           // ← ADDED: Separate gender breakdown
+        audience_age: audienceAge,                 // ← ADDED: Separate age breakdown
+        audience_gender_age: audienceGenderAge,    // ← Original combined format
         audience_locale: profileMetrics.audience_locale || {},
       },
       calculated_metrics: calculatedMetrics,
@@ -371,9 +404,9 @@ export async function GET(req: NextRequest) {
     }
 
     // ============================================================================
-    // STEP 9: Store individual posts in separate collection
+    // STEP 10: Store individual posts in separate collection
     // ============================================================================
-    logger.info("STEP 9: Starting posts storage...", { postsCount: posts.length })
+    logger.info("STEP 10: Starting posts storage...", { postsCount: posts.length })
 
     if (posts.length > 0) {
       let postsCollection
@@ -420,9 +453,9 @@ export async function GET(req: NextRequest) {
     }
 
     // ============================================================================
-    // STEP 10: Update user's profile_completed status
+    // STEP 11: Update user's profile_completed status
     // ============================================================================
-    logger.info("STEP 10: Updating user profile_completed status...")
+    logger.info("STEP 11: Updating user profile_completed status...")
 
     let usersCollection
     try {
