@@ -61,7 +61,7 @@ export async function POST(req: Request) {
 
     const pagesUrl = new URL("https://graph.facebook.com/v20.0/me/accounts");
     pagesUrl.searchParams.set("access_token", accessToken);
-    pagesUrl.searchParams.set("fields", "id,name,instagram_business_account");
+    pagesUrl.searchParams.set("fields", "id,name,access_token,instagram_business_account");
 
     let pagesData: any;
     try {
