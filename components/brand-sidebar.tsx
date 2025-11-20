@@ -10,10 +10,12 @@ import {
   MessageSquare,
   Settings,
   HelpCircle,
-  User
+  User,
+  LogOut,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { signOut } from "next-auth/react"
 
 const sidebarNavItems = [
   {
@@ -93,6 +95,14 @@ export function BrandSidebar() {
               </Link>
             </Button>
           ))}
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-500/10"
+            onClick={() => signOut()}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign Out
+          </Button>
         </div>
       </div>
     </div>

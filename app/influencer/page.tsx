@@ -1,6 +1,8 @@
 // @ts-nocheck
 "use client"
 
+import { useEffect, useState } from "react"
+import { useSession } from "next-auth/react"
 import dynamic from "next/dynamic"
 import { PortalLayout } from "@/components/portal-layout"
 import { InfluencerSidebar } from "@/components/influencer-sidebar"
@@ -8,10 +10,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { DollarSign, Users, Heart, Calendar, Star, Award, Target } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { DollarSign, Users, Heart, Calendar, Star, Award, Target, AlertCircle } from "lucide-react"
+import { formatNumber } from "@/lib/utils/calculations"
 
 // Dynamically import Recharts components with SSR disabled
-// This prevents hydration errors since Recharts uses browser APIs
 const LineChart = dynamic<any>(
   () => import("recharts").then((m) => m.LineChart || m.default),
   { ssr: false }
@@ -53,6 +56,7 @@ const Cell = dynamic<any>(
   { ssr: false }
 )
 
+// Placeholder data for charts (will be replaced with real data when available)
 const earningsData = [
   { month: "Jan", earnings: 2400, campaigns: 3 },
   { month: "Feb", earnings: 3200, campaigns: 4 },
@@ -60,13 +64,6 @@ const earningsData = [
   { month: "Apr", earnings: 4100, campaigns: 5 },
   { month: "May", earnings: 3600, campaigns: 4 },
   { month: "Jun", earnings: 4800, campaigns: 6 },
-]
-
-const engagementData = [
-  { name: "Likes", value: 45, color: "#FF6B6B" },
-  { name: "Comments", value: 25, color: "#4ECDC4" },
-  { name: "Shares", value: 20, color: "#45B7D1" },
-  { name: "Saves", value: 10, color: "#96CEB4" },
 ]
 
 const recentCollaborations = [
@@ -100,6 +97,91 @@ const recentCollaborations = [
 ]
 
 export default function InfluencerDashboard() {
+  const { data: session, status } = useSession()
+  const [profile, setProfile] = useState<any>(null)
+  const [posts, setPosts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      // Fetch profile data
+      const profileRes = await fetch("/api/influencer/profile")
+      if (profileRes.ok) {
+        const profileData = await profileRes.json()
+        if (profileData.success && profileData.data?.profile) {
+          setProfile(profileData.data.profile)
+        }
+      }
+
+      // Fetch posts data (optional - may not exist yet)
+      try {
+        const postsRes = await fetch("/api/influencer/posts")
+        if (postsRes.ok) {
+          const postsData = await postsRes.json()
+          if (postsData.success && postsData.data?.posts) {
+            setPosts(postsData.data.posts)
+          }
+        }
+      } catch (err) {
+        // Posts API may not exist, that's ok
+      }
+    } catch (err) {
+      setError("Failed to load dashboard data")
+      console.error("Dashboard fetch error:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Extract data from profile with fallbacks
+  const displayName = session?.user?.full_name || profile?.full_name || session?.user?.name || "User"
+  const niche = profile?.niche || "Content Creator"
+  const username = profile?.instagram_account?.username || ""
+  const profilePicture = profile?.instagram_account?.profile_picture_url || ""
+
+  // Instagram metrics
+  const metrics = profile?.instagram_metrics || {}
+  const followers = metrics.followers_count || profile?.followers || 0
+  const profileViews = metrics.profile_views || 0
+  const reach = metrics.reach || 0
+  const impressions = metrics.impressions || 0
+
+  // Calculated metrics
+  const calculated = profile?.calculated_metrics || {}
+  const engagementRate = calculated.engagement_rate_30_days || 0
+  const avgLikes = calculated.avg_likes || 0
+  const avgComments = calculated.avg_comments || 0
+  const avgReach = calculated.avg_reach || 0
+
+  // Calculate engagement breakdown from posts
+  const totalLikes = posts.reduce((sum, post) => sum + (post.metrics?.likes || 0), 0)
+  const totalComments = posts.reduce((sum, post) => sum + (post.metrics?.comments || 0), 0)
+  const totalSaves = posts.reduce((sum, post) => sum + (post.metrics?.saves || 0), 0)
+  const totalShares = posts.reduce((sum, post) => sum + (post.metrics?.shares || 0), 0)
+  const totalEngagements = totalLikes + totalComments + totalSaves + totalShares
+
+  const engagementData = totalEngagements > 0 ? [
+    { name: "Likes", value: totalLikes, color: "#FF6B6B" },
+    { name: "Comments", value: totalComments, color: "#4ECDC4" },
+    { name: "Shares", value: totalShares, color: "#45B7D1" },
+    { name: "Saves", value: totalSaves, color: "#96CEB4" },
+  ] : [
+    { name: "Likes", value: 45, color: "#FF6B6B" },
+    { name: "Comments", value: 25, color: "#4ECDC4" },
+    { name: "Shares", value: 20, color: "#45B7D1" },
+    { name: "Saves", value: 10, color: "#96CEB4" },
+  ]
+
+  const hasInstagramConnected = !!profile?.instagram_account?.instagram_user_id
+
   return (
     <PortalLayout
       sidebar={<InfluencerSidebar />}
@@ -108,6 +190,18 @@ export default function InfluencerDashboard() {
       breadcrumbs={[{ label: "Dashboard" }]}
     >
       <div className="space-y-6">
+        {!hasInstagramConnected && !loading && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Connect your Instagram account to see real-time metrics and analytics.
+              <Button variant="link" asChild className="ml-2 p-0 h-auto">
+                <a href="/influencer/profile">Go to Profile Setup</a>
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Profile Summary */}
         <Card>
           <CardHeader>
@@ -116,15 +210,27 @@ export default function InfluencerDashboard() {
           <CardContent>
             <div className="flex items-center space-x-4">
               <Avatar className="h-20 w-20">
-                <AvatarImage src="/placeholder.svg?height=80&width=80" alt="Profile" />
-                <AvatarFallback>SJ</AvatarFallback>
+                {profilePicture ? (
+                  <AvatarImage src={profilePicture} alt="Profile" />
+                ) : (
+                  <AvatarFallback>
+                    {displayName
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2)}
+                  </AvatarFallback>
+                )}
               </Avatar>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-2xl font-bold">Sarah Johnson</h2>
-                  <Badge variant="secondary">Fashion & Lifestyle</Badge>
+                  <h2 className="text-2xl font-bold">{displayName}</h2>
+                  <Badge variant="secondary">{niche}</Badge>
                 </div>
-                <p className="text-muted-foreground">@sarahjohnson • 125K followers</p>
+                <p className="text-muted-foreground">
+                  {username ? `@${username} • ` : ""}{formatNumber(followers)} followers
+                </p>
                 <div className="flex items-center gap-4 text-sm">
                   <div className="flex items-center gap-1">
                     <Star className="h-4 w-4 text-yellow-500" />
@@ -132,12 +238,14 @@ export default function InfluencerDashboard() {
                   </div>
                   <div className="flex items-center gap-1">
                     <Award className="h-4 w-4 text-blue-500" />
-                    <span>Top Creator</span>
+                    <span>{hasInstagramConnected ? "Connected" : "Setup Required"}</span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Target className="h-4 w-4 text-green-500" />
-                    <span>98% Completion Rate</span>
-                  </div>
+                  {engagementRate > 0 && (
+                    <div className="flex items-center gap-1">
+                      <Target className="h-4 w-4 text-green-500" />
+                      <span>{engagementRate.toFixed(2)}% Engagement</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -174,8 +282,12 @@ export default function InfluencerDashboard() {
               <Heart className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">4.2%</div>
-              <p className="text-xs text-muted-foreground">+0.5% from last month</p>
+              <div className="text-2xl font-bold">
+                {engagementRate > 0 ? `${engagementRate.toFixed(1)}%` : "N/A"}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {hasInstagramConnected ? "Last 30 days" : "Connect Instagram"}
+              </p>
             </CardContent>
           </Card>
 
@@ -185,8 +297,10 @@ export default function InfluencerDashboard() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">125K</div>
-              <p className="text-xs text-muted-foreground">+2.1K this month</p>
+              <div className="text-2xl font-bold">{formatNumber(followers)}</div>
+              <p className="text-xs text-muted-foreground">
+                {hasInstagramConnected ? "From Instagram" : "Not connected"}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -215,7 +329,11 @@ export default function InfluencerDashboard() {
           <Card>
             <CardHeader>
               <CardTitle>Engagement Breakdown</CardTitle>
-              <CardDescription>Distribution of engagement types</CardDescription>
+              <CardDescription>
+                {hasInstagramConnected && posts.length > 0
+                  ? "Distribution from your posts"
+                  : "Connect Instagram to see real data"}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
