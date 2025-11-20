@@ -21,7 +21,10 @@ interface InfluencerCardProps {
   influencer: {
     id: string;
     name: string;
+    username?: string;
     bio?: string;
+    niche?: string;
+    location?: string;
     profilePicture?: string;
     socialMedia?: any;
     totalFollowers: number;
@@ -34,10 +37,11 @@ interface InfluencerCardProps {
       video?: number;
       reel?: number;
     };
-    rating: number;
-    completedCampaigns: number;
+    rating?: number;
+    completedCampaigns?: number;
     predictedROI: number;
     predictedReach: number;
+    relevanceScore?: number;
   };
   onViewProfile?: () => void;
   onSendRequest?: () => void;
@@ -90,21 +94,35 @@ export function InfluencerCard({
                   <CheckCircle className="w-4 h-4 text-blue-500" />
                 )}
               </h3>
-              {influencer.primaryPlatform && (
-                <div className="flex items-center gap-1 text-xs text-slate-400">
-                  {getPlatformIcon(influencer.primaryPlatform)}
-                  <span>{influencer.primaryPlatform}</span>
-                </div>
+              {influencer.username && (
+                <p className="text-xs text-slate-400">@{influencer.username}</p>
+              )}
+              {influencer.niche && (
+                <Badge variant="secondary" className="mt-1 bg-[#ff7a00]/10 text-[#ff7a00] text-xs">
+                  {influencer.niche}
+                </Badge>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />
-            <span className="text-sm font-semibold text-white">
-              {influencer.rating.toFixed(1)}
-            </span>
+          <div className="flex flex-col items-end gap-1">
+            {influencer.relevanceScore !== undefined && (
+              <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                {influencer.relevanceScore}% match
+              </Badge>
+            )}
+            {influencer.rating !== undefined && influencer.rating > 0 && (
+              <div className="flex items-center gap-1">
+                <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                <span className="text-sm font-semibold text-white">
+                  {influencer.rating.toFixed(1)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
+        {influencer.location && (
+          <p className="text-xs text-slate-400 mt-2">📍 {influencer.location}</p>
+        )}
       </CardHeader>
 
       <CardContent className="space-y-4">
@@ -175,7 +193,7 @@ export function InfluencerCard({
 
         {/* Stats */}
         <div className="flex items-center justify-between text-xs text-slate-400">
-          <span>{influencer.completedCampaigns} campaigns completed</span>
+          <span>{influencer.completedCampaigns || 0} campaigns completed</span>
           <span>~{formatNumber(influencer.predictedReach)} reach</span>
         </div>
       </CardContent>

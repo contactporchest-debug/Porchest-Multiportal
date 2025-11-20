@@ -26,14 +26,15 @@ export default function InfluencerDiscovery() {
   const [platform, setPlatform] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
   const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [aiCriteria, setAiCriteria] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState<
-    Array<{ type: "user" | "bot"; content: string }>
+    Array<{ type: "user" | "bot"; content: string; criteria?: any }>
   >([
     {
       type: "bot",
       content:
-        "Hello! I'm your AI-powered influencer discovery assistant. Tell me about your campaign, and I'll help you find the perfect influencers!",
+        "Hello! I'm your AI-powered influencer discovery assistant. Tell me about your campaign in plain English, and I'll help you find the perfect influencers!",
     },
   ]);
 
@@ -79,16 +80,49 @@ export default function InfluencerDiscovery() {
       const data = await response.json();
 
       if (data.success) {
-        setRecommendations(data.recommendations);
+        setRecommendations(data.data.recommendations);
+        setAiCriteria(data.data.aiCriteria);
+
+        // Build a human-readable summary of what AI understood
+        const criteria = data.data.aiCriteria;
+        let criteriaText = "I understood your requirements as:\n";
+
+        if (criteria.niche && criteria.niche.length > 0) {
+          criteriaText += `• Niche: ${criteria.niche.join(", ")}\n`;
+        }
+        if (criteria.minFollowers || criteria.maxFollowers) {
+          const min = criteria.minFollowers?.toLocaleString() || "any";
+          const max = criteria.maxFollowers?.toLocaleString() || "unlimited";
+          criteriaText += `• Followers: ${min} - ${max}\n`;
+        }
+        if (criteria.minEngagementRate) {
+          criteriaText += `• Min Engagement: ${criteria.minEngagementRate}%\n`;
+        }
+        if (criteria.location && criteria.location.length > 0) {
+          criteriaText += `• Location: ${criteria.location.join(", ")}\n`;
+        }
+        if (criteria.language && criteria.language.length > 0) {
+          criteriaText += `• Languages: ${criteria.language.join(", ")}\n`;
+        }
+        if (criteria.budget) {
+          criteriaText += `• Budget: $${criteria.budget} per post\n`;
+        }
+        if (criteria.platform) {
+          criteriaText += `• Platform: ${criteria.platform}\n`;
+        }
+
+        criteriaText += `\nI found ${data.data.total} influencers matching your criteria. Here are the top recommendations sorted by relevance!`;
+
         setChatHistory((prev) => [
           ...prev,
           {
             type: "bot",
-            content: `I found ${data.total} influencers matching your criteria. Here are the top recommendations sorted by relevance!`,
+            content: criteriaText,
+            criteria: data.data.aiCriteria,
           },
         ]);
       } else {
-        throw new Error(data.error);
+        throw new Error(data.error?.message || "Unknown error");
       }
     } catch (error: any) {
       setChatHistory((prev) => [
@@ -140,7 +174,7 @@ export default function InfluencerDiscovery() {
                         : "bg-slate-700 text-slate-100"
                     }`}
                   >
-                    <p className="text-sm">{message.content}</p>
+                    <p className="text-sm whitespace-pre-line">{message.content}</p>
                   </div>
                 </div>
               ))}
