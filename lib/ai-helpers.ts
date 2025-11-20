@@ -1,9 +1,21 @@
 import OpenAI from "openai";
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy initialization of OpenAI client
+let openai: OpenAI | null = null;
+
+function getOpenAIClient() {
+  if (!openai) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error(
+        "OPENAI_API_KEY is not set. Please add it to your environment variables."
+      );
+    }
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+}
 
 export interface InfluencerCriteria {
   niche?: string[];
@@ -63,7 +75,8 @@ Response: {"niche": ["Tech"], "platform": "youtube", "minFollowers": 100000, "ma
 Query: "Need female fashion influencers aged 20-30 in the US who speak English, budget is $500 per post"
 Response: {"niche": ["Fashion"], "gender": "female", "ageRange": "20-30", "location": ["United States"], "language": ["English"], "budget": 500}`;
 
-    const response = await openai.chat.completions.create({
+    const client = getOpenAIClient();
+    const response = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
