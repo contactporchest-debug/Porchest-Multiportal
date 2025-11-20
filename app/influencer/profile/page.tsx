@@ -116,6 +116,8 @@ export default function InfluencerProfileSetup() {
   const [syncing, setSyncing] = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false)
+  const [checkingSetup, setCheckingSetup] = useState(false)
+  const [setupStatus, setSetupStatus] = useState<any>(null)
   const [newLanguage, setNewLanguage] = useState("")
   const [newBrandPref, setNewBrandPref] = useState("")
 
@@ -393,6 +395,7 @@ export default function InfluencerProfileSetup() {
         setInstagramAccount(null)
         setInstagramMetrics(null)
         setCalculatedMetrics(null)
+        setSetupStatus(null)
         setShowDisconnectDialog(false)
         await fetchProfile()
       } else {
@@ -406,6 +409,53 @@ export default function InfluencerProfileSetup() {
       })
     } finally {
       setDisconnecting(false)
+    }
+  }
+
+  const handleCheckSetup = async () => {
+    try {
+      setCheckingSetup(true)
+      console.log("Checking Instagram setup...")
+
+      const response = await fetch("/api/influencer/instagram/verify-setup", {
+        method: "POST",
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || "Failed to check setup")
+      }
+
+      if (data.success && data.data) {
+        setSetupStatus(data.data)
+        console.log("Setup status:", data.data)
+
+        // Show appropriate message based on status
+        if (data.data.status === "ready") {
+          toast({
+            title: "Setup Complete! 🎉",
+            description: data.data.message,
+          })
+        } else {
+          toast({
+            title: "Setup Incomplete",
+            description: data.data.message,
+            variant: "default",
+          })
+        }
+      } else {
+        throw new Error(data.error?.message || "Failed to verify setup")
+      }
+    } catch (err: any) {
+      console.error("Setup check error:", err)
+      toast({
+        title: "Error",
+        description: err.message || "Failed to check setup",
+        variant: "destructive",
+      })
+    } finally {
+      setCheckingSetup(false)
     }
   }
 
@@ -644,24 +694,141 @@ export default function InfluencerProfileSetup() {
                   </AlertDescription>
                 </Alert>
 
-                <Button
-                  onClick={handleConnectInstagram}
-                  disabled={connecting}
-                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-                  size="lg"
-                >
-                  {connecting ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Connecting...
-                    </>
-                  ) : (
-                    <>
-                      <Instagram className="mr-2 h-5 w-5" />
-                      Connect Instagram Account
-                    </>
-                  )}
-                </Button>
+                {/* Guided Setup Wizard */}
+                {setupStatus && setupStatus.status !== "needs_connection" && setupStatus.status !== "ready" && (
+                  <div className="space-y-4 p-4 border-2 border-orange-300 rounded-lg bg-orange-50">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-orange-100 rounded-full">
+                        <Activity className="h-5 w-5 text-orange-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-orange-900 mb-2">Setup Required</h4>
+                        <p className="text-sm text-orange-800 mb-4">{setupStatus.message}</p>
+
+                        {/* Step A: Convert to Business/Creator */}
+                        {setupStatus.step === "convert_to_business" && (
+                          <div className="space-y-3">
+                            <div className="p-3 bg-white rounded border border-orange-200">
+                              <p className="text-sm font-medium text-gray-900 mb-2">📱 Step A: Switch to Business or Creator Account</p>
+                              <p className="text-xs text-gray-600 mb-3">
+                                Your account <span className="font-semibold">@{setupStatus.username}</span> is currently a Personal account.
+                                Convert it to a Business or Creator account to access Instagram Insights.
+                              </p>
+                              <Button
+                                onClick={() => window.open("instagram://settings/account", "_blank")}
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                              >
+                                Open Instagram Settings
+                              </Button>
+                              <p className="text-xs text-gray-500 mt-2">
+                                If the link doesn't work, open Instagram app → Settings → Account → Switch to Professional Account
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Step B: Create Facebook Page */}
+                        {setupStatus.step === "create_page" && (
+                          <div className="space-y-3">
+                            <div className="p-3 bg-white rounded border border-orange-200">
+                              <p className="text-sm font-medium text-gray-900 mb-2">📄 Step B: Create a Facebook Page</p>
+                              <p className="text-xs text-gray-600 mb-3">
+                                You need a Facebook Page to link your Instagram Business Account. Create one now (it only takes a minute).
+                              </p>
+                              <Button
+                                onClick={() => window.open(setupStatus.action_url, "_blank")}
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                              >
+                                Create Facebook Page
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Step C: Link Instagram to Facebook Page */}
+                        {setupStatus.step === "link_instagram" && (
+                          <div className="space-y-3">
+                            <div className="p-3 bg-white rounded border border-orange-200">
+                              <p className="text-sm font-medium text-gray-900 mb-2">🔗 Step C: Link Instagram to Facebook Page</p>
+                              <p className="text-xs text-gray-600 mb-3">
+                                Connect your Instagram Business Account to your Facebook Page <span className="font-semibold">{setupStatus.page_name}</span>.
+                              </p>
+                              <Button
+                                onClick={() => window.open(setupStatus.action_url, "_blank")}
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                              >
+                                Open Facebook Page Settings
+                              </Button>
+                              <p className="text-xs text-gray-500 mt-2">
+                                Go to Instagram tab → Connect Account → Link your Instagram Business Account
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Token Expired */}
+                        {setupStatus.status === "token_expired" && (
+                          <div className="p-3 bg-white rounded border border-orange-200">
+                            <p className="text-sm font-medium text-gray-900 mb-2">🔄 Reconnection Required</p>
+                            <p className="text-xs text-gray-600 mb-3">
+                              Your Instagram connection has expired. Please reconnect to refresh your access.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Setup Check Button */}
+                {!setupStatus || setupStatus.status !== "ready" ? (
+                  <Button
+                    onClick={handleCheckSetup}
+                    disabled={checkingSetup}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {checkingSetup ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Checking Setup...
+                      </>
+                    ) : (
+                      <>
+                        <Activity className="mr-2 h-4 w-4" />
+                        Check My Setup
+                      </>
+                    )}
+                  </Button>
+                ) : null}
+
+                {/* Connect Button */}
+                {(!setupStatus || setupStatus.status === "needs_connection" || setupStatus.status === "ready" || setupStatus.status === "token_expired") && (
+                  <Button
+                    onClick={handleConnectInstagram}
+                    disabled={connecting}
+                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                    size="lg"
+                  >
+                    {connecting ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Connecting...
+                      </>
+                    ) : (
+                      <>
+                        <Instagram className="mr-2 h-5 w-5" />
+                        Connect Instagram Account
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
             ) : (
               <>

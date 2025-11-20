@@ -52,8 +52,8 @@ export async function GET(req: Request) {
       "instagram_basic",
       "instagram_manage_insights",
       "pages_show_list",
-      "business_management",
       "pages_read_engagement",
+      "public_profile",
     ].join(",");
 
     const state = Buffer.from(
