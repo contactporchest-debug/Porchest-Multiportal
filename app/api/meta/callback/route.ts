@@ -235,30 +235,34 @@ export async function GET(req: NextRequest) {
     logger.info("STEP 7: Calculating derived metrics...")
 
     // Transform media to Post format for calculations
-    const posts = mediaWithInsights.map((media) => ({
-      post_id: media.id,
-      userId: new ObjectId(userId),
-      media_type: media.media_type,
-      caption: media.caption || "",
-      permalink: media.permalink || "",
-      timestamp: new Date(media.timestamp),
-      metrics: {
-        likes: media.like_count || 0,
-        comments: media.comments_count || 0,
-        saves: media.insights?.saved || 0,
-        shares: media.insights?.shares || 0,
-        reach: media.insights?.reach || 0,
-        impressions: media.insights?.impressions || 0,
-        plays: media.insights?.plays || media.insights?.video_views || 0,
-        taps_forward: media.insights?.taps_forward || 0,
-        taps_back: media.insights?.taps_back || 0,
-        exits: media.insights?.exits || 0,
-        link_clicks: media.insights?.link_clicks || 0,
-        watch_time: media.insights?.total_interactions || 0,
-        avg_watch_time: 0,
-        engagement_rate: 0, // Will calculate below
-      },
-    }))
+    const posts = mediaWithInsights.map((media) => {
+      const insights = media.insights || {}
+
+      return {
+        post_id: media.id,
+        userId: new ObjectId(userId),
+        media_type: media.media_type,
+        caption: media.caption || "",
+        permalink: media.permalink || "",
+        timestamp: new Date(media.timestamp),
+        metrics: {
+          likes: media.like_count || insights.likes || 0,
+          comments: media.comments_count || insights.comments || 0,
+          saves: insights.saved || 0,
+          shares: insights.shares || 0,
+          reach: insights.reach || insights.carousel_album_reach || 0,
+          impressions: insights.impressions || insights.carousel_album_impressions || 0,
+          plays: insights.plays || insights.video_views || 0,
+          taps_forward: insights.taps_forward || 0,
+          taps_back: insights.taps_back || 0,
+          exits: insights.exits || 0,
+          link_clicks: 0,
+          watch_time: insights.total_interactions || 0,
+          avg_watch_time: 0,
+          engagement_rate: 0,
+        },
+      }
+    })
 
     // Calculate engagement rate for each post
     posts.forEach((post) => {

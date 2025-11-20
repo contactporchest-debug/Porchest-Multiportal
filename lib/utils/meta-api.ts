@@ -26,9 +26,6 @@ const getMetaRedirectUri = () => process.env.META_REDIRECT_URI!
 // OAUTH FUNCTIONS
 // ============================================================================
 
-/**
- * Generate OAuth URL for Facebook Login
- */
 export function getOAuthUrl(state: string): string {
   const appId = getMetaAppId()
   const redirectUri = getMetaRedirectUri()
@@ -52,9 +49,6 @@ export function getOAuthUrl(state: string): string {
   return `https://www.facebook.com/v20.0/dialog/oauth?${params.toString()}`
 }
 
-/**
- * Exchange authorization code for access token
- */
 export async function exchangeCodeForToken(code: string): Promise<MetaTokenResponse> {
   const appId = getMetaAppId()
   const appSecret = getMetaAppSecret()
@@ -81,9 +75,6 @@ export async function exchangeCodeForToken(code: string): Promise<MetaTokenRespo
   }
 }
 
-/**
- * Exchange short-lived token for long-lived token (60 days)
- */
 export async function exchangeForLongLivedToken(
   shortLivedToken: string
 ): Promise<MetaTokenResponse> {
@@ -115,9 +106,6 @@ export async function exchangeForLongLivedToken(
 // INSTAGRAM ACCOUNT FUNCTIONS
 // ============================================================================
 
-/**
- * Get Facebook Pages associated with the user
- */
 export async function getFacebookPages(accessToken: string): Promise<any[]> {
   const url = `${META_GRAPH_API_BASE_URL}/me/accounts?` +
     `fields=id,name,access_token,instagram_business_account&` +
@@ -138,9 +126,6 @@ export async function getFacebookPages(accessToken: string): Promise<any[]> {
   }
 }
 
-/**
- * Get Instagram Business Account from Facebook Page
- */
 export async function getInstagramBusinessAccount(
   pageAccessToken: string,
   igAccountId: string
@@ -178,9 +163,6 @@ export async function getInstagramBusinessAccount(
 // INSIGHTS FUNCTIONS
 // ============================================================================
 
-/**
- * Get Instagram account insights
- */
 export async function getAccountInsights(
   igAccountId: string,
   accessToken: string,
@@ -198,48 +180,37 @@ export async function getAccountInsights(
     const data = await response.json()
 
     if (!response.ok) {
-      throw new Error(data.error?.message || "Failed to fetch account insights")
+      logger.warn("Account insights unavailable", { metrics, error: data.error })
+      return []
     }
 
     return data.data || []
   } catch (error) {
-    logger.error("Error fetching account insights", error)
-    // Return empty array if insights aren't available (happens with new accounts)
+    logger.warn("Error fetching account insights", { metrics, error })
     return []
   }
 }
 
-/**
- * Get comprehensive profile metrics
- */
 export async function getProfileMetrics(
   igAccountId: string,
   accessToken: string
 ): Promise<Record<string, any>> {
   const metrics: Record<string, any> = {}
 
-  // Fetch basic account info
-  const accountInfo = await getInstagramBusinessAccount(accessToken, igAccountId)
-  metrics.followers_count = accountInfo.followers_count
-  metrics.follows_count = accountInfo.follows_count
-  metrics.media_count = accountInfo.media_count
-
-  // Fetch daily insights (last 30 days)
-  const dailyMetrics = [
-    "impressions",
-    "reach",
-    "profile_views",
-    "website_clicks",
-    "email_contacts",
-    "phone_call_clicks",
-  ]
-
   try {
+    const dailyMetrics = [
+      "impressions",
+      "reach",
+      "profile_views",
+      "website_clicks",
+      "email_contacts",
+      "phone_call_clicks",
+    ]
+
     const insights = await getAccountInsights(igAccountId, accessToken, dailyMetrics, "day")
 
     insights.forEach((insight) => {
       if (insight.values && insight.values.length > 0) {
-        // Sum up values from last 30 days
         const total = insight.values.reduce((sum, val) => {
           const value = typeof val.value === "number" ? val.value : 0
           return sum + value
@@ -248,18 +219,17 @@ export async function getProfileMetrics(
       }
     })
   } catch (error) {
-    logger.warn("Some daily metrics unavailable", { error })
+    logger.warn("Daily metrics unavailable", { error })
   }
 
-  // Fetch lifetime demographics
-  const demographicMetrics = [
-    "audience_country",
-    "audience_city",
-    "audience_gender_age",
-    "audience_locale",
-  ]
-
   try {
+    const demographicMetrics = [
+      "audience_country",
+      "audience_city",
+      "audience_gender_age",
+      "audience_locale",
+    ]
+
     const demographics = await getAccountInsights(
       igAccountId,
       accessToken,
@@ -276,7 +246,6 @@ export async function getProfileMetrics(
     logger.warn("Demographics unavailable", { error })
   }
 
-  // Fetch online followers
   try {
     const onlineFollowers = await getAccountInsights(
       igAccountId,
@@ -292,6 +261,21 @@ export async function getProfileMetrics(
     logger.warn("Online followers unavailable", { error })
   }
 
+  const engagementMetrics = ["engagement"]
+  try {
+    const engagement = await getAccountInsights(igAccountId, accessToken, engagementMetrics, "day")
+
+    if (engagement.length > 0 && engagement[0].values) {
+      const total = engagement[0].values.reduce((sum, val) => {
+        const value = typeof val.value === "number" ? val.value : 0
+        return sum + value
+      }, 0)
+      metrics.engagement = total
+    }
+  } catch (error) {
+    logger.warn("Engagement metric unavailable", { error })
+  }
+
   return metrics
 }
 
@@ -299,9 +283,6 @@ export async function getProfileMetrics(
 // MEDIA FUNCTIONS
 // ============================================================================
 
-/**
- * Get Instagram media (posts)
- */
 export async function getInstagramMedia(
   igAccountId: string,
   accessToken: string,
@@ -319,60 +300,74 @@ export async function getInstagramMedia(
     "comments_count",
   ].join(",")
 
-  const url = `${META_GRAPH_API_BASE_URL}/${igAccountId}/media?` +
+  let allMedia: InstagramMedia[] = []
+  let url = `${META_GRAPH_API_BASE_URL}/${igAccountId}/media?` +
     `fields=${fields}&` +
-    `limit=${limit}&` +
+    `limit=${Math.min(limit, 100)}&` +
     `access_token=${accessToken}`
 
   try {
-    const response = await fetch(url)
-    const data = await response.json()
+    while (url && allMedia.length < limit) {
+      const response = await fetch(url)
+      const data = await response.json()
 
-    if (!response.ok) {
-      throw new Error(data.error?.message || "Failed to fetch media")
+      if (!response.ok) {
+        throw new Error(data.error?.message || "Failed to fetch media")
+      }
+
+      if (data.data) {
+        allMedia = allMedia.concat(data.data)
+      }
+
+      if (data.paging && data.paging.next && allMedia.length < limit) {
+        url = data.paging.next
+      } else {
+        break
+      }
     }
 
-    return data.data || []
+    return allMedia.slice(0, limit)
   } catch (error) {
     logger.error("Error fetching Instagram media", error)
     return []
   }
 }
 
-/**
- * Get insights for a specific media post
- */
 export async function getMediaInsights(
   mediaId: string,
   accessToken: string,
-  mediaType: "IMAGE" | "VIDEO" | "CAROUSEL_ALBUM" | "STORY"
+  mediaType: string
 ): Promise<Record<string, any>> {
   let metrics: string[] = []
 
-  if (mediaType === "STORY") {
-    metrics = [
-      "impressions",
-      "reach",
-      "taps_forward",
-      "taps_back",
-      "exits",
-      "replies",
-    ]
-  } else if (mediaType === "VIDEO") {
+  if (mediaType === "VIDEO") {
     metrics = [
       "impressions",
       "reach",
       "saved",
       "video_views",
       "plays",
+      "total_interactions",
     ]
-  } else {
+  } else if (mediaType === "CAROUSEL_ALBUM") {
+    metrics = [
+      "impressions",
+      "reach",
+      "saved",
+      "engagement",
+      "carousel_album_impressions",
+      "carousel_album_reach",
+      "carousel_album_engagement",
+    ]
+  } else if (mediaType === "IMAGE") {
     metrics = [
       "impressions",
       "reach",
       "saved",
       "engagement",
     ]
+  } else {
+    return {}
   }
 
   const metricsParam = metrics.join(",")
@@ -385,8 +380,6 @@ export async function getMediaInsights(
     const data = await response.json()
 
     if (!response.ok) {
-      // Media insights might not be available for all posts
-      logger.warn("Media insights unavailable", { mediaId, error: data.error })
       return {}
     }
 
@@ -401,14 +394,93 @@ export async function getMediaInsights(
 
     return insights
   } catch (error) {
-    logger.warn("Error fetching media insights", { mediaId, error })
     return {}
   }
 }
 
-/**
- * Get comprehensive media insights for all posts
- */
+export async function getReelInsights(
+  mediaId: string,
+  accessToken: string
+): Promise<Record<string, any>> {
+  const metrics = [
+    "plays",
+    "reach",
+    "total_interactions",
+    "likes",
+    "comments",
+    "shares",
+    "saves",
+  ]
+
+  const metricsParam = metrics.join(",")
+  const url = `${META_GRAPH_API_BASE_URL}/${mediaId}/insights?` +
+    `metric=${metricsParam}&` +
+    `access_token=${accessToken}`
+
+  try {
+    const response = await fetch(url)
+    const data = await response.json()
+
+    if (!response.ok) {
+      return {}
+    }
+
+    const insights: Record<string, any> = {}
+    if (data.data) {
+      data.data.forEach((insight: InstagramInsight) => {
+        if (insight.values && insight.values.length > 0) {
+          insights[insight.name] = insight.values[0].value
+        }
+      })
+    }
+
+    return insights
+  } catch (error) {
+    return {}
+  }
+}
+
+export async function getStoryInsights(
+  mediaId: string,
+  accessToken: string
+): Promise<Record<string, any>> {
+  const metrics = [
+    "impressions",
+    "reach",
+    "taps_forward",
+    "taps_back",
+    "exits",
+    "replies",
+  ]
+
+  const metricsParam = metrics.join(",")
+  const url = `${META_GRAPH_API_BASE_URL}/${mediaId}/insights?` +
+    `metric=${metricsParam}&` +
+    `access_token=${accessToken}`
+
+  try {
+    const response = await fetch(url)
+    const data = await response.json()
+
+    if (!response.ok) {
+      return {}
+    }
+
+    const insights: Record<string, any> = {}
+    if (data.data) {
+      data.data.forEach((insight: InstagramInsight) => {
+        if (insight.values && insight.values.length > 0) {
+          insights[insight.name] = insight.values[0].value
+        }
+      })
+    }
+
+    return insights
+  } catch (error) {
+    return {}
+  }
+}
+
 export async function getAllMediaWithInsights(
   igAccountId: string,
   accessToken: string,
@@ -416,29 +488,34 @@ export async function getAllMediaWithInsights(
 ): Promise<Array<InstagramMedia & { insights: Record<string, any> }>> {
   const media = await getInstagramMedia(igAccountId, accessToken, limit)
 
-  // Fetch insights for each media item (with rate limiting)
-  const mediaWithInsights = await Promise.all(
-    media.map(async (item) => {
-      // Don't fetch insights for stories older than 24 hours
-      if (item.media_type === "STORY") {
-        const timestamp = new Date(item.timestamp)
-        const hoursSince = (Date.now() - timestamp.getTime()) / (1000 * 60 * 60)
-        if (hoursSince > 24) {
-          return { ...item, insights: {} }
-        }
+  const mediaWithInsights = []
+
+  for (const item of media) {
+    let insights: Record<string, any> = {}
+
+    if (item.media_type === "STORY") {
+      const timestamp = new Date(item.timestamp)
+      const hoursSince = (Date.now() - timestamp.getTime()) / (1000 * 60 * 60)
+
+      if (hoursSince <= 24) {
+        insights = await getStoryInsights(item.id, accessToken)
       }
+    } else if (item.media_type === "VIDEO" && item.media_url?.includes("reel")) {
+      insights = await getReelInsights(item.id, accessToken)
+      item.media_type = "REEL" as any
+    } else if (item.media_type === "VIDEO") {
+      insights = await getMediaInsights(item.id, accessToken, "VIDEO")
+    } else {
+      insights = await getMediaInsights(item.id, accessToken, item.media_type)
+    }
 
-      const insights = await getMediaInsights(item.id, accessToken, item.media_type)
-
-      // Add a small delay to avoid rate limiting
-      await new Promise((resolve) => setTimeout(resolve, 100))
-
-      return {
-        ...item,
-        insights,
-      }
+    mediaWithInsights.push({
+      ...item,
+      insights,
     })
-  )
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
 
   return mediaWithInsights
 }
