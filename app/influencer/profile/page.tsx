@@ -140,12 +140,14 @@ export default function InfluencerProfileSetup() {
           description: success,
         })
 
-        // Wait a bit for MongoDB to finalize writes, then refresh
-        console.log("Waiting 1 second for MongoDB sync, then refreshing profile...")
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        // Wait for MongoDB to finalize writes, then refresh
+        console.log("Waiting 2 seconds for MongoDB sync, then refreshing profile...")
+        await new Promise(resolve => setTimeout(resolve, 2000))
 
         // Now fetch the updated profile
+        console.log("Fetching profile after OAuth success...")
         await fetchProfile()
+        console.log("Profile fetch completed after OAuth")
 
         // Clean up URL
         router.replace("/influencer/profile")
@@ -177,7 +179,12 @@ export default function InfluencerProfileSetup() {
       setLoading(true)
       console.log("Fetching influencer profile...")
 
-      const response = await fetch("/api/influencer/profile")
+      const response = await fetch("/api/influencer/profile", {
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache",
+        },
+      })
       console.log("Fetch response status:", response.status)
 
       const data = await response.json()
@@ -186,6 +193,8 @@ export default function InfluencerProfileSetup() {
       if (data.success && data.data.profile) {
         const profile = data.data.profile
         console.log("Profile loaded:", profile)
+        console.log("Instagram account data:", profile.instagram_account)
+        console.log("Is connected?:", profile.instagram_account?.is_connected)
 
         // Set basic info (manual fields)
         setBasicInfo({
@@ -200,6 +209,7 @@ export default function InfluencerProfileSetup() {
 
         // Set Instagram account info
         if (profile.instagram_account?.is_connected) {
+          console.log("✅ Setting Instagram as connected:", profile.instagram_account)
           setInstagramAccount({
             username: profile.instagram_account.username || profile.instagram_username || "",
             is_connected: true,
@@ -217,6 +227,10 @@ export default function InfluencerProfileSetup() {
           if (profile.calculated_metrics) {
             setCalculatedMetrics(profile.calculated_metrics)
           }
+        } else {
+          console.log("❌ Instagram not connected or is_connected is false")
+          console.log("  - instagram_account exists?:", !!profile.instagram_account)
+          console.log("  - is_connected value:", profile.instagram_account?.is_connected)
         }
       } else {
         console.error("Profile fetch failed:", data)

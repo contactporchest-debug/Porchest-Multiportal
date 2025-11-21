@@ -499,6 +499,43 @@ export async function GET(req: NextRequest) {
       // Don't throw - this is non-critical
     }
 
+    // ============================================================================
+    // STEP 12: Verify the data was actually written
+    // ============================================================================
+    logger.info("STEP 12: Verifying data was written to MongoDB...")
+
+    const verifyProfile = await influencerProfilesCollection.findOne({ user_id: new ObjectId(userId) })
+
+    if (!verifyProfile) {
+      logger.error("VERIFICATION FAILED: Profile not found after write!", { userId })
+      return Response.redirect(
+        new URL(
+          `/influencer/profile?error=${encodeURIComponent("Profile verification failed. Please try reconnecting.")}`,
+          req.url
+        )
+      )
+    }
+
+    if (!verifyProfile.instagram_account || !verifyProfile.instagram_account.is_connected) {
+      logger.error("VERIFICATION FAILED: Instagram account not marked as connected!", {
+        userId,
+        hasInstagramAccount: !!verifyProfile.instagram_account,
+        isConnected: verifyProfile.instagram_account?.is_connected,
+      })
+      return Response.redirect(
+        new URL(
+          `/influencer/profile?error=${encodeURIComponent("Instagram connection verification failed. Please try again.")}`,
+          req.url
+        )
+      )
+    }
+
+    logger.info("✅ Verification passed - Instagram account properly saved", {
+      userId,
+      username: verifyProfile.instagram_account.username,
+      isConnected: verifyProfile.instagram_account.is_connected,
+    })
+
     logger.info("✅ Instagram metrics sync completed successfully!", {
       userId,
       username: igAccountData.username,
