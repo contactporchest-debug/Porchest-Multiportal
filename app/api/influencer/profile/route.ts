@@ -33,6 +33,12 @@ async function getProfileHandler(req: Request) {
       return forbiddenResponse("Influencer access required")
     }
 
+    logger.info("🔍 GET Profile - Session info", {
+      sessionUserId: session.user.id,
+      sessionEmail: session.user.email,
+      sessionRole: session.user.role,
+    })
+
     // Find user to get their ID
     const user = await getUserByEmail(session.user.email!)
     if (!user) {
@@ -42,9 +48,29 @@ async function getProfileHandler(req: Request) {
       return notFoundResponse("User")
     }
 
+    logger.info("🔍 GET Profile - User found in DB", {
+      userId: user._id.toString(),
+      userEmail: user.email,
+      profileCompleted: user.profile_completed,
+      sessionUserIdMatches: session.user.id === user._id.toString(),
+    })
+
     // Get influencer profile
     const influencerProfilesCollection = await collections.influencerProfiles()
     let profile = await influencerProfilesCollection.findOne({ user_id: user._id })
+
+    logger.info("🔍 GET Profile - MongoDB raw profile", {
+      profileExists: !!profile,
+      profileId: profile?._id.toString(),
+      profileUserId: profile?.user_id?.toString(),
+      authenticatedUserId: user._id.toString(),
+      userIdMatch: profile?.user_id?.toString() === user._id.toString(),
+      hasInstagramAccount: !!profile?.instagram_account,
+      hasInstagramMetrics: !!profile?.instagram_metrics,
+      hasCalculatedMetrics: !!profile?.calculated_metrics,
+      instagramConnected: profile?.instagram_account?.is_connected,
+      instagramUsername: profile?.instagram_account?.username,
+    })
 
     // If profile doesn't exist, create a default one
     if (!profile) {
@@ -85,8 +111,25 @@ async function getProfileHandler(req: Request) {
       })
     }
 
+    const sanitizedProfile = sanitizeDocument(profile)
+
+    // Extract Instagram-related fields from profile
+    const instagram_account = sanitizedProfile.instagram_account || null
+    const instagram_metrics = sanitizedProfile.instagram_metrics || null
+    const calculated_metrics = sanitizedProfile.calculated_metrics || null
+
+    logger.info("🔍 GET Profile - After sanitization", {
+      hasInstagramAccount: !!instagram_account,
+      hasInstagramMetrics: !!instagram_metrics,
+      hasCalculatedMetrics: !!calculated_metrics,
+      instagramConnected: instagram_account?.is_connected,
+    })
+
     return successResponse({
-      profile: sanitizeDocument(profile),
+      profile: sanitizedProfile,
+      instagram_account,
+      instagram_metrics,
+      calculated_metrics,
     })
   } catch (error) {
     return handleApiError(error)

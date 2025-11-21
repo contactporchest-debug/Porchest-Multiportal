@@ -190,11 +190,28 @@ export async function GET(req: NextRequest) {
     const pagesResponse = await fetch(pagesUrl.toString())
     const pagesData = await pagesResponse.json()
 
+    logger.info("Facebook Pages API response", {
+      status: pagesResponse.ok,
+      statusCode: pagesResponse.status,
+      hasData: !!pagesData.data,
+      dataLength: pagesData.data?.length || 0,
+      hasError: !!pagesData.error,
+      error: pagesData.error,
+      fullResponse: JSON.stringify(pagesData)
+    })
+
     if (!pagesResponse.ok || !pagesData.data || pagesData.data.length === 0) {
-      logger.error("No Facebook pages found", { pagesData, status: pagesResponse.status })
+      const errorMessage = pagesData.error?.message || "No Facebook pages found. Connect a Facebook page to your Instagram Business Account."
+      logger.error("No Facebook pages found", {
+        pagesData,
+        status: pagesResponse.status,
+        errorMessage,
+        errorType: pagesData.error?.type,
+        errorCode: pagesData.error?.code
+      })
       return Response.redirect(
         new URL(
-          `/influencer/profile?error=${encodeURIComponent("No Facebook pages found. Connect a Facebook page to your Instagram Business Account.")}`,
+          `/influencer/profile?error=${encodeURIComponent(errorMessage)}`,
           req.url
         )
       )

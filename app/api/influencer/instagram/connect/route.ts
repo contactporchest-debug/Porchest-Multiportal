@@ -51,8 +51,11 @@ export async function GET(req: Request) {
     const scope = [
       "instagram_basic",
       "instagram_manage_insights",
+      "instagram_manage_comments",
       "pages_show_list",
       "pages_read_engagement",
+      "pages_manage_metadata",
+      "business_management",
       "public_profile",
     ].join(",");
 

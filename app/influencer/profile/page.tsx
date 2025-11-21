@@ -121,6 +121,7 @@ export default function InfluencerProfileSetup() {
   const [setupStatus, setSetupStatus] = useState<any>(null)
   const [newLanguage, setNewLanguage] = useState("")
   const [newBrandPref, setNewBrandPref] = useState("")
+  const [lastOAuthError, setLastOAuthError] = useState<string | null>(null)
 
   const { toast } = useToast()
   const router = useRouter()
@@ -154,6 +155,7 @@ export default function InfluencerProfileSetup() {
         router.replace("/influencer/profile")
       } else if (error) {
         console.log("❌ OAuth error detected:", error)
+        setLastOAuthError(error)
         toast({
           title: "Error",
           description: error,
@@ -169,6 +171,7 @@ export default function InfluencerProfileSetup() {
         // Normal page load, just fetch profile
         console.log("Normal page load, fetching profile...")
         await fetchProfile()
+        setLastOAuthError(null)
       }
     }
 
@@ -194,10 +197,14 @@ export default function InfluencerProfileSetup() {
 
       if (data.success && data.data && data.data.profile) {
         const profile = data.data.profile
+        const instagram_account = data.data.instagram_account
+        const instagram_metrics = data.data.instagram_metrics
+        const calculated_metrics = data.data.calculated_metrics
+
         console.log("=== PROFILE OBJECT ===", profile)
-        console.log("=== instagram_account ===", profile.instagram_account)
-        console.log("=== instagram_metrics ===", profile.instagram_metrics)
-        console.log("=== calculated_metrics ===", profile.calculated_metrics)
+        console.log("=== instagram_account ===", instagram_account)
+        console.log("=== instagram_metrics ===", instagram_metrics)
+        console.log("=== calculated_metrics ===", calculated_metrics)
 
         // Set basic info (manual fields)
         setBasicInfo({
@@ -210,46 +217,40 @@ export default function InfluencerProfileSetup() {
           brand_preferences: profile.brand_preferences || [],
         })
 
-        // Check for Instagram connection - FIXED: Check all possible field variations
-        const hasInstagramAccount = !!(
-          profile.instagram_account ||
-          profile.instagramAccount ||
-          profile.instagram_username
-        )
-
-        const igAccount = profile.instagram_account || profile.instagramAccount
-        const isConnected = igAccount?.is_connected === true
+        // Check for Instagram connection
+        const hasInstagramAccount = instagram_account !== null
+        const isConnected = instagram_account?.is_connected === true
 
         console.log("=== CONNECTION CHECK ===")
         console.log("  hasInstagramAccount:", hasInstagramAccount)
-        console.log("  igAccount:", igAccount)
+        console.log("  instagram_account:", instagram_account)
         console.log("  isConnected:", isConnected)
 
         // Set Instagram account info if connected
-        if (isConnected && igAccount) {
+        if (isConnected && instagram_account) {
           console.log("✅ INSTAGRAM IS CONNECTED")
           setInstagramAccount({
-            username: igAccount.username || profile.instagram_username || "",
+            username: instagram_account.username || profile.instagram_username || "",
             is_connected: true,
-            last_synced_at: igAccount.last_synced_at
-              ? new Date(igAccount.last_synced_at)
+            last_synced_at: instagram_account.last_synced_at
+              ? new Date(instagram_account.last_synced_at)
               : new Date(),
           })
 
           // Set Instagram metrics
-          if (profile.instagram_metrics) {
-            console.log("✅ Setting Instagram metrics:", profile.instagram_metrics)
-            setInstagramMetrics(profile.instagram_metrics)
+          if (instagram_metrics) {
+            console.log("✅ Setting Instagram metrics:", instagram_metrics)
+            setInstagramMetrics(instagram_metrics)
           }
 
           // Set calculated metrics
-          if (profile.calculated_metrics) {
-            console.log("✅ Setting calculated metrics:", profile.calculated_metrics)
-            setCalculatedMetrics(profile.calculated_metrics)
+          if (calculated_metrics) {
+            console.log("✅ Setting calculated metrics:", calculated_metrics)
+            setCalculatedMetrics(calculated_metrics)
           }
         } else {
           console.log("❌ INSTAGRAM NOT CONNECTED")
-          console.log("  Reason: isConnected =", isConnected, ", igAccount =", !!igAccount)
+          console.log("  Reason: isConnected =", isConnected, ", hasInstagramAccount =", hasInstagramAccount)
           // Reset Instagram state
           setInstagramAccount(null)
           setInstagramMetrics(null)
@@ -347,6 +348,7 @@ export default function InfluencerProfileSetup() {
   const handleConnectInstagram = async () => {
     try {
       setConnecting(true)
+      setLastOAuthError(null) // Clear any previous errors
       console.log("Initiating Instagram connection...")
 
       const response = await fetch("/api/influencer/instagram/connect")
@@ -742,6 +744,34 @@ export default function InfluencerProfileSetup() {
                     </ul>
                   </AlertDescription>
                 </Alert>
+
+                {/* OAuth Error Alert */}
+                {lastOAuthError && (
+                  <Alert className="bg-red-50 border-red-200">
+                    <Activity className="h-4 w-4 text-red-600" />
+                    <AlertDescription>
+                      <p className="font-medium text-red-900 mb-2">Connection Failed</p>
+                      <p className="text-sm text-red-800 mb-3">{lastOAuthError}</p>
+                      <div className="text-xs text-red-700 space-y-1">
+                        <p className="font-medium">To fix this, please:</p>
+                        <ol className="list-decimal list-inside space-y-1 ml-2">
+                          <li>Create a Facebook Page (if you don't have one)</li>
+                          <li>Convert your Instagram to a Business or Creator account</li>
+                          <li>Link your Instagram Business Account to the Facebook Page</li>
+                          <li>Click "Check My Setup" below for detailed guidance</li>
+                        </ol>
+                      </div>
+                      <Button
+                        onClick={() => setLastOAuthError(null)}
+                        variant="ghost"
+                        size="sm"
+                        className="mt-2 text-red-700 hover:text-red-900 hover:bg-red-100"
+                      >
+                        Dismiss
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                )}
 
                 {/* Success Alert when setup is ready */}
                 {setupStatus && setupStatus.status === "ready" && (
