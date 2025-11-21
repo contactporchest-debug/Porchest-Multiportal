@@ -33,6 +33,12 @@ async function getProfileHandler(req: Request) {
       return forbiddenResponse("Influencer access required")
     }
 
+    logger.info("🔍 GET Profile - Session info", {
+      sessionUserId: session.user.id,
+      sessionEmail: session.user.email,
+      sessionRole: session.user.role,
+    })
+
     // Find user to get their ID
     const user = await getUserByEmail(session.user.email!)
     if (!user) {
@@ -42,9 +48,25 @@ async function getProfileHandler(req: Request) {
       return notFoundResponse("User")
     }
 
+    logger.info("🔍 GET Profile - User found in DB", {
+      userId: user._id.toString(),
+      userEmail: user.email,
+      profileCompleted: user.profile_completed,
+    })
+
     // Get influencer profile
     const influencerProfilesCollection = await collections.influencerProfiles()
     let profile = await influencerProfilesCollection.findOne({ user_id: user._id })
+
+    logger.info("🔍 GET Profile - MongoDB raw profile", {
+      profileExists: !!profile,
+      profileId: profile?._id.toString(),
+      hasInstagramAccount: !!profile?.instagram_account,
+      hasInstagramMetrics: !!profile?.instagram_metrics,
+      hasCalculatedMetrics: !!profile?.calculated_metrics,
+      instagramConnected: profile?.instagram_account?.is_connected,
+      instagramUsername: profile?.instagram_account?.username,
+    })
 
     // If profile doesn't exist, create a default one
     if (!profile) {
@@ -85,8 +107,17 @@ async function getProfileHandler(req: Request) {
       })
     }
 
+    const sanitizedProfile = sanitizeDocument(profile)
+
+    logger.info("🔍 GET Profile - After sanitization", {
+      hasInstagramAccount: !!sanitizedProfile.instagram_account,
+      hasInstagramMetrics: !!sanitizedProfile.instagram_metrics,
+      hasCalculatedMetrics: !!sanitizedProfile.calculated_metrics,
+      instagramConnected: sanitizedProfile.instagram_account?.is_connected,
+    })
+
     return successResponse({
-      profile: sanitizeDocument(profile),
+      profile: sanitizedProfile,
     })
   } catch (error) {
     return handleApiError(error)
