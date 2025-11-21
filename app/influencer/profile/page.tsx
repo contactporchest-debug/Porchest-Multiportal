@@ -729,15 +729,32 @@ export default function InfluencerProfileSetup() {
           <CardContent className="space-y-4">
             {!instagramAccount?.is_connected ? (
               <div className="space-y-4">
-                <Alert>
-                  <Instagram className="h-4 w-4" />
+                <Alert className="border-orange-200 bg-orange-50">
+                  <Instagram className="h-4 w-4 text-orange-600" />
                   <AlertDescription>
-                    To connect Instagram, you need:
-                    <ul className="list-disc list-inside mt-2 space-y-1">
-                      <li>An Instagram Business or Creator account</li>
-                      <li>A Facebook Page linked to your Instagram account</li>
-                      <li>Admin access to the Facebook Page</li>
+                    <p className="font-semibold text-orange-900 mb-2">Before Connecting Instagram:</p>
+                    <ul className="list-disc list-inside space-y-1.5 text-sm text-orange-800">
+                      <li>
+                        <strong>Create a Facebook Page</strong> (if you don't have one) at{" "}
+                        <a href="https://facebook.com/pages/create" target="_blank" rel="noopener noreferrer" className="underline hover:text-orange-900">
+                          facebook.com/pages/create
+                        </a>
+                      </li>
+                      <li>
+                        <strong>Convert to Business/Creator Account</strong> in Instagram app →
+                        Settings → Account → Switch to Professional Account
+                      </li>
+                      <li>
+                        <strong>Link Instagram to Facebook Page</strong> in Instagram app →
+                        Settings → Account → Linked Accounts → Facebook
+                      </li>
+                      <li>
+                        <strong>Allow ALL permissions</strong> when connecting (especially "pages_show_list")
+                      </li>
                     </ul>
+                    <p className="text-xs text-orange-700 mt-3">
+                      ⚠️ Most connection errors occur because one of these steps is missing. Please verify all steps before connecting.
+                    </p>
                   </AlertDescription>
                 </Alert>
 

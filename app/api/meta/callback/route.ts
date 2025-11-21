@@ -179,9 +179,46 @@ export async function GET(req: NextRequest) {
     logger.info("✅ Long-lived token obtained", { expiresIn })
 
     // ============================================================================
-    // STEP 3: Get Facebook Pages
+    // STEP 3: Check granted permissions
     // ============================================================================
-    logger.info("STEP 3: Fetching Facebook pages...")
+    logger.info("STEP 3: Checking granted permissions...")
+
+    const permissionsUrl = new URL("https://graph.facebook.com/v20.0/me/permissions")
+    permissionsUrl.searchParams.set("access_token", longLivedToken)
+
+    const permissionsResponse = await fetch(permissionsUrl.toString())
+    const permissionsData = await permissionsResponse.json()
+
+    logger.info("Permissions check response", { permissionsData })
+
+    if (permissionsResponse.ok && permissionsData.data) {
+      const grantedPermissions = permissionsData.data
+        .filter((p: any) => p.status === "granted")
+        .map((p: any) => p.permission)
+
+      logger.info("✅ Granted permissions", { grantedPermissions })
+
+      // Check if required permissions are granted
+      const requiredPermissions = ["pages_show_list", "instagram_basic", "instagram_manage_insights"]
+      const missingPermissions = requiredPermissions.filter(p => !grantedPermissions.includes(p))
+
+      if (missingPermissions.length > 0) {
+        logger.error("Missing required permissions", { missingPermissions, grantedPermissions })
+        return Response.redirect(
+          new URL(
+            `/influencer/profile?error=${encodeURIComponent(`Missing permissions: ${missingPermissions.join(", ")}. Please reconnect and allow all requested permissions.`)}`,
+            req.url
+          )
+        )
+      }
+    } else {
+      logger.warn("Could not check permissions", { permissionsData })
+    }
+
+    // ============================================================================
+    // STEP 4: Get Facebook Pages
+    // ============================================================================
+    logger.info("STEP 4: Fetching Facebook pages...")
 
     const pagesUrl = new URL("https://graph.facebook.com/v20.0/me/accounts")
     pagesUrl.searchParams.set("access_token", longLivedToken)
@@ -190,11 +227,35 @@ export async function GET(req: NextRequest) {
     const pagesResponse = await fetch(pagesUrl.toString())
     const pagesData = await pagesResponse.json()
 
-    if (!pagesResponse.ok || !pagesData.data || pagesData.data.length === 0) {
-      logger.error("No Facebook pages found", { pagesData, status: pagesResponse.status })
+    // Enhanced error logging
+    logger.info("Facebook pages API response", {
+      status: pagesResponse.status,
+      ok: pagesResponse.ok,
+      hasData: !!pagesData.data,
+      dataLength: pagesData.data?.length,
+      errorMessage: pagesData.error?.message,
+      errorCode: pagesData.error?.code,
+      fullResponse: pagesData
+    })
+
+    if (!pagesResponse.ok) {
+      logger.error("Facebook API error when fetching pages", {
+        status: pagesResponse.status,
+        error: pagesData.error
+      })
       return Response.redirect(
         new URL(
-          `/influencer/profile?error=${encodeURIComponent("No Facebook pages found. Connect a Facebook page to your Instagram Business Account.")}`,
+          `/influencer/profile?error=${encodeURIComponent(`Facebook API error: ${pagesData.error?.message || "Failed to fetch pages"}. Please try again or contact support.`)}`,
+          req.url
+        )
+      )
+    }
+
+    if (!pagesData.data || pagesData.data.length === 0) {
+      logger.error("No Facebook pages found for user", { userId, hasData: !!pagesData.data })
+      return Response.redirect(
+        new URL(
+          `/influencer/profile?error=${encodeURIComponent("No Facebook pages found. You need to create a Facebook Page first, then link it to your Instagram Business Account. Visit facebook.com/pages/create to create a page.")}`,
           req.url
         )
       )
@@ -222,9 +283,9 @@ export async function GET(req: NextRequest) {
     logger.info("✅ Instagram Business Account found", { instagramBusinessAccountId, pageId })
 
     // ============================================================================
-    // STEP 4: Get Instagram account info
+    // STEP 5: Get Instagram account info
     // ============================================================================
-    logger.info("STEP 4: Fetching Instagram account data...")
+    logger.info("STEP 5: Fetching Instagram account data...")
 
     const igAccountUrl = new URL(`https://graph.facebook.com/v20.0/${instagramBusinessAccountId}`)
     igAccountUrl.searchParams.set("fields", "id,username,profile_picture_url,followers_count,follows_count,media_count")
@@ -249,23 +310,23 @@ export async function GET(req: NextRequest) {
     })
 
     // ============================================================================
-    // STEP 5: Fetch comprehensive profile metrics
+    // STEP 6: Fetch comprehensive profile metrics
     // ============================================================================
-    logger.info("STEP 5: Fetching comprehensive profile metrics...")
+    logger.info("STEP 6: Fetching comprehensive profile metrics...")
     const profileMetrics = await getProfileMetrics(instagramBusinessAccountId, pageAccessToken)
     logger.info("✅ Profile metrics fetched", { metricsCount: Object.keys(profileMetrics).length })
 
     // ============================================================================
-    // STEP 6: Fetch all media with insights (last 100 posts)
+    // STEP 7: Fetch all media with insights (last 100 posts)
     // ============================================================================
-    logger.info("STEP 6: Fetching media with insights...")
+    logger.info("STEP 7: Fetching media with insights...")
     const mediaWithInsights = await getAllMediaWithInsights(instagramBusinessAccountId, pageAccessToken, 100)
     logger.info("✅ Media fetched", { mediaCount: mediaWithInsights.length })
 
     // ============================================================================
-    // STEP 7: Calculate derived metrics
+    // STEP 8: Calculate derived metrics
     // ============================================================================
-    logger.info("STEP 7: Calculating derived metrics...")
+    logger.info("STEP 8: Calculating derived metrics...")
 
     // Transform media to Post format for calculations
     const posts = mediaWithInsights.map((media) => {
@@ -309,9 +370,9 @@ export async function GET(req: NextRequest) {
     logger.info("✅ Calculated metrics", calculatedMetrics)
 
     // ============================================================================
-    // STEP 8: Parse audience demographics to extract gender and age separately
+    // STEP 9: Parse audience demographics to extract gender and age separately
     // ============================================================================
-    logger.info("STEP 8: Parsing audience demographics...")
+    logger.info("STEP 9: Parsing audience demographics...")
 
     const audienceGenderAge = profileMetrics.audience_gender_age || {}
     const audienceGender: Record<string, number> = {}
@@ -340,9 +401,9 @@ export async function GET(req: NextRequest) {
     })
 
     // ============================================================================
-    // STEP 9: Store everything in MongoDB
+    // STEP 10: Store everything in MongoDB
     // ============================================================================
-    logger.info("STEP 9: Starting MongoDB storage operations...")
+    logger.info("STEP 10: Starting MongoDB storage operations...")
 
     let influencerProfilesCollection
     try {
@@ -441,9 +502,9 @@ export async function GET(req: NextRequest) {
     }
 
     // ============================================================================
-    // STEP 10: Store individual posts in separate collection
+    // STEP 11: Store individual posts in separate collection
     // ============================================================================
-    logger.info("STEP 10: Starting posts storage...", { postsCount: posts.length })
+    logger.info("STEP 11: Starting posts storage...", { postsCount: posts.length })
 
     if (posts.length > 0) {
       let postsCollection
@@ -490,9 +551,9 @@ export async function GET(req: NextRequest) {
     }
 
     // ============================================================================
-    // STEP 11: Update user's profile_completed status
+    // STEP 12: Update user's profile_completed status
     // ============================================================================
-    logger.info("STEP 11: Updating user profile_completed status...")
+    logger.info("STEP 12: Updating user profile_completed status...")
 
     let usersCollection
     try {
@@ -533,9 +594,9 @@ export async function GET(req: NextRequest) {
     }
 
     // ============================================================================
-    // STEP 12: Verify the data was actually written
+    // STEP 13: Verify the data was actually written
     // ============================================================================
-    logger.info("STEP 12: Verifying data was written to MongoDB...")
+    logger.info("STEP 13: Verifying data was written to MongoDB...")
 
     const verifyProfile = await influencerProfilesCollection.findOne({ user_id: new ObjectId(userId) })
 

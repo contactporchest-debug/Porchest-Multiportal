@@ -48,12 +48,14 @@ export async function GET(req: Request) {
     }
 
     // Build OAuth URL with correct scopes for Instagram Business Account
+    // Note: Some permissions may require Facebook App Review for production use
     const scope = [
-      "instagram_basic",
-      "instagram_manage_insights",
-      "pages_show_list",
-      "pages_read_engagement",
-      "public_profile",
+      "instagram_basic",           // Read basic Instagram account info
+      "instagram_manage_insights", // Read Instagram insights and metrics
+      "pages_show_list",          // List Facebook Pages user manages
+      "pages_read_engagement",    // Read engagement data from Pages
+      "business_management",      // Manage business assets (helps with Pages access)
+      "public_profile",           // Access to public profile info
     ].join(",");
 
     const state = Buffer.from(

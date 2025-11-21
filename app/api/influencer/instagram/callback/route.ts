@@ -144,8 +144,47 @@ export async function GET(req: NextRequest) {
     logger.info("Long-lived token obtained successfully", { expiresIn });
 
     // ============================================================================
-    // STEP 3: Get Facebook Pages
+    // STEP 3: Check granted permissions
     // ============================================================================
+    logger.info("STEP 3: Checking granted permissions...");
+
+    const permissionsUrl = new URL("https://graph.facebook.com/v20.0/me/permissions");
+    permissionsUrl.searchParams.set("access_token", longLivedToken);
+
+    const permissionsResponse = await fetch(permissionsUrl.toString());
+    const permissionsData = await permissionsResponse.json();
+
+    logger.info("Permissions check response", { permissionsData });
+
+    if (permissionsResponse.ok && permissionsData.data) {
+      const grantedPermissions = permissionsData.data
+        .filter((p: any) => p.status === "granted")
+        .map((p: any) => p.permission);
+
+      logger.info("✅ Granted permissions", { grantedPermissions });
+
+      // Check if required permissions are granted
+      const requiredPermissions = ["pages_show_list", "instagram_basic", "instagram_manage_insights"];
+      const missingPermissions = requiredPermissions.filter(p => !grantedPermissions.includes(p));
+
+      if (missingPermissions.length > 0) {
+        logger.error("Missing required permissions", { missingPermissions, grantedPermissions });
+        return Response.redirect(
+          new URL(
+            `/influencer/profile?error=${encodeURIComponent(`Missing permissions: ${missingPermissions.join(", ")}. Please reconnect and allow all requested permissions.`)}`,
+            req.url
+          )
+        );
+      }
+    } else {
+      logger.warn("Could not check permissions", { permissionsData });
+    }
+
+    // ============================================================================
+    // STEP 4: Get Facebook Pages
+    // ============================================================================
+    logger.info("STEP 4: Fetching Facebook pages...");
+
     const pagesUrl = new URL("https://graph.facebook.com/v20.0/me/accounts");
     pagesUrl.searchParams.set("access_token", longLivedToken);
     pagesUrl.searchParams.set("fields", "id,name,access_token,instagram_business_account");
@@ -153,11 +192,35 @@ export async function GET(req: NextRequest) {
     const pagesResponse = await fetch(pagesUrl.toString());
     const pagesData = await pagesResponse.json();
 
-    if (!pagesResponse.ok || !pagesData.data || pagesData.data.length === 0) {
-      logger.error("No Facebook pages found", { pagesData, status: pagesResponse.status });
+    // Enhanced error logging
+    logger.info("Facebook pages API response", {
+      status: pagesResponse.status,
+      ok: pagesResponse.ok,
+      hasData: !!pagesData.data,
+      dataLength: pagesData.data?.length,
+      errorMessage: pagesData.error?.message,
+      errorCode: pagesData.error?.code,
+      fullResponse: pagesData
+    });
+
+    if (!pagesResponse.ok) {
+      logger.error("Facebook API error when fetching pages", {
+        status: pagesResponse.status,
+        error: pagesData.error
+      });
       return Response.redirect(
         new URL(
-          `/influencer/profile?error=${encodeURIComponent("No Facebook pages found. Please connect a Facebook page to your Instagram Business Account.")}`,
+          `/influencer/profile?error=${encodeURIComponent(`Facebook API error: ${pagesData.error?.message || "Failed to fetch pages"}. Please try again or contact support.`)}`,
+          req.url
+        )
+      );
+    }
+
+    if (!pagesData.data || pagesData.data.length === 0) {
+      logger.error("No Facebook pages found for user", { userId, hasData: !!pagesData.data });
+      return Response.redirect(
+        new URL(
+          `/influencer/profile?error=${encodeURIComponent("No Facebook pages found. You need to create a Facebook Page first, then link it to your Instagram Business Account. Visit facebook.com/pages/create to create a page.")}`,
           req.url
         )
       );
