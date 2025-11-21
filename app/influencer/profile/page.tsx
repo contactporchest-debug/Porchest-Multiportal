@@ -121,6 +121,7 @@ export default function InfluencerProfileSetup() {
   const [setupStatus, setSetupStatus] = useState<any>(null)
   const [newLanguage, setNewLanguage] = useState("")
   const [newBrandPref, setNewBrandPref] = useState("")
+  const [lastOAuthError, setLastOAuthError] = useState<string | null>(null)
 
   const { toast } = useToast()
   const router = useRouter()
@@ -154,6 +155,7 @@ export default function InfluencerProfileSetup() {
         router.replace("/influencer/profile")
       } else if (error) {
         console.log("❌ OAuth error detected:", error)
+        setLastOAuthError(error)
         toast({
           title: "Error",
           description: error,
@@ -169,6 +171,7 @@ export default function InfluencerProfileSetup() {
         // Normal page load, just fetch profile
         console.log("Normal page load, fetching profile...")
         await fetchProfile()
+        setLastOAuthError(null)
       }
     }
 
@@ -345,6 +348,7 @@ export default function InfluencerProfileSetup() {
   const handleConnectInstagram = async () => {
     try {
       setConnecting(true)
+      setLastOAuthError(null) // Clear any previous errors
       console.log("Initiating Instagram connection...")
 
       const response = await fetch("/api/influencer/instagram/connect")
@@ -740,6 +744,34 @@ export default function InfluencerProfileSetup() {
                     </ul>
                   </AlertDescription>
                 </Alert>
+
+                {/* OAuth Error Alert */}
+                {lastOAuthError && (
+                  <Alert className="bg-red-50 border-red-200">
+                    <Activity className="h-4 w-4 text-red-600" />
+                    <AlertDescription>
+                      <p className="font-medium text-red-900 mb-2">Connection Failed</p>
+                      <p className="text-sm text-red-800 mb-3">{lastOAuthError}</p>
+                      <div className="text-xs text-red-700 space-y-1">
+                        <p className="font-medium">To fix this, please:</p>
+                        <ol className="list-decimal list-inside space-y-1 ml-2">
+                          <li>Create a Facebook Page (if you don't have one)</li>
+                          <li>Convert your Instagram to a Business or Creator account</li>
+                          <li>Link your Instagram Business Account to the Facebook Page</li>
+                          <li>Click "Check My Setup" below for detailed guidance</li>
+                        </ol>
+                      </div>
+                      <Button
+                        onClick={() => setLastOAuthError(null)}
+                        variant="ghost"
+                        size="sm"
+                        className="mt-2 text-red-700 hover:text-red-900 hover:bg-red-100"
+                      >
+                        Dismiss
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                )}
 
                 {/* Success Alert when setup is ready */}
                 {setupStatus && setupStatus.status === "ready" && (
