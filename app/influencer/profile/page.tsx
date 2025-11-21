@@ -32,7 +32,8 @@ import {
   Globe,
   MapPin,
   Clock,
-  Activity
+  Activity,
+  CheckCircle
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -183,18 +184,20 @@ export default function InfluencerProfileSetup() {
         cache: "no-store",
         headers: {
           "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
         },
       })
       console.log("Fetch response status:", response.status)
 
       const data = await response.json()
-      console.log("Fetch response data:", data)
+      console.log("=== FULL API RESPONSE ===", JSON.stringify(data, null, 2))
 
-      if (data.success && data.data.profile) {
+      if (data.success && data.data && data.data.profile) {
         const profile = data.data.profile
-        console.log("Profile loaded:", profile)
-        console.log("Instagram account data:", profile.instagram_account)
-        console.log("Is connected?:", profile.instagram_account?.is_connected)
+        console.log("=== PROFILE OBJECT ===", profile)
+        console.log("=== instagram_account ===", profile.instagram_account)
+        console.log("=== instagram_metrics ===", profile.instagram_metrics)
+        console.log("=== calculated_metrics ===", profile.calculated_metrics)
 
         // Set basic info (manual fields)
         setBasicInfo({
@@ -207,36 +210,56 @@ export default function InfluencerProfileSetup() {
           brand_preferences: profile.brand_preferences || [],
         })
 
-        // Set Instagram account info
-        if (profile.instagram_account?.is_connected) {
-          console.log("✅ Setting Instagram as connected:", profile.instagram_account)
+        // Check for Instagram connection - FIXED: Check all possible field variations
+        const hasInstagramAccount = !!(
+          profile.instagram_account ||
+          profile.instagramAccount ||
+          profile.instagram_username
+        )
+
+        const igAccount = profile.instagram_account || profile.instagramAccount
+        const isConnected = igAccount?.is_connected === true
+
+        console.log("=== CONNECTION CHECK ===")
+        console.log("  hasInstagramAccount:", hasInstagramAccount)
+        console.log("  igAccount:", igAccount)
+        console.log("  isConnected:", isConnected)
+
+        // Set Instagram account info if connected
+        if (isConnected && igAccount) {
+          console.log("✅ INSTAGRAM IS CONNECTED")
           setInstagramAccount({
-            username: profile.instagram_account.username || profile.instagram_username || "",
+            username: igAccount.username || profile.instagram_username || "",
             is_connected: true,
-            last_synced_at: profile.instagram_account.last_synced_at
-              ? new Date(profile.instagram_account.last_synced_at)
+            last_synced_at: igAccount.last_synced_at
+              ? new Date(igAccount.last_synced_at)
               : new Date(),
           })
 
           // Set Instagram metrics
           if (profile.instagram_metrics) {
+            console.log("✅ Setting Instagram metrics:", profile.instagram_metrics)
             setInstagramMetrics(profile.instagram_metrics)
           }
 
           // Set calculated metrics
           if (profile.calculated_metrics) {
+            console.log("✅ Setting calculated metrics:", profile.calculated_metrics)
             setCalculatedMetrics(profile.calculated_metrics)
           }
         } else {
-          console.log("❌ Instagram not connected or is_connected is false")
-          console.log("  - instagram_account exists?:", !!profile.instagram_account)
-          console.log("  - is_connected value:", profile.instagram_account?.is_connected)
+          console.log("❌ INSTAGRAM NOT CONNECTED")
+          console.log("  Reason: isConnected =", isConnected, ", igAccount =", !!igAccount)
+          // Reset Instagram state
+          setInstagramAccount(null)
+          setInstagramMetrics(null)
+          setCalculatedMetrics(null)
         }
       } else {
-        console.error("Profile fetch failed:", data)
+        console.error("❌ Profile fetch failed - invalid response structure:", data)
       }
     } catch (err) {
-      console.error("Error fetching profile:", err)
+      console.error("❌ Error fetching profile:", err)
       toast({
         title: "Error",
         description: "Failed to load profile",
@@ -431,11 +454,16 @@ export default function InfluencerProfileSetup() {
       setCheckingSetup(true)
       console.log("Checking Instagram setup...")
 
+      // FIXED: First refetch the profile to get latest connection state
+      await fetchProfile()
+
       const response = await fetch("/api/influencer/instagram/verify-setup", {
         method: "POST",
+        cache: "no-store",
       })
 
       const data = await response.json()
+      console.log("=== VERIFY SETUP RESPONSE ===", data)
 
       if (!response.ok) {
         throw new Error(data.error?.message || "Failed to check setup")
@@ -450,6 +478,14 @@ export default function InfluencerProfileSetup() {
           toast({
             title: "Setup Complete! 🎉",
             description: data.data.message,
+          })
+          // Refetch profile to update UI with latest data
+          await fetchProfile()
+        } else if (data.data.status === "needs_connection") {
+          toast({
+            title: "Not Connected",
+            description: "Please connect your Instagram account to continue.",
+            variant: "default",
           })
         } else {
           toast({
@@ -815,8 +851,8 @@ export default function InfluencerProfileSetup() {
 
                 {/* Action Buttons */}
                 <div className="flex flex-col gap-3">
-                  {/* Setup Check Button */}
-                  {!setupStatus || setupStatus.status !== "ready" ? (
+                  {/* FIXED: Show Check Setup button when NOT connected */}
+                  {!instagramAccount?.is_connected && (
                     <Button
                       onClick={handleCheckSetup}
                       disabled={checkingSetup}
@@ -835,10 +871,44 @@ export default function InfluencerProfileSetup() {
                         </>
                       )}
                     </Button>
-                  ) : null}
+                  )}
 
-                  {/* Connect Button */}
-                  {(!setupStatus || setupStatus.status === "needs_connection" || setupStatus.status === "ready" || setupStatus.status === "token_expired") && (
+                  {/* FIXED: Show different button states based on connection */}
+                  {instagramAccount?.is_connected ? (
+                    <div className="flex flex-col gap-2">
+                      {/* Connected Status Card */}
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                          <span className="font-semibold text-green-900">Instagram Connected</span>
+                        </div>
+                        <p className="text-sm text-green-800 mb-1">@{instagramAccount.username}</p>
+                        <p className="text-xs text-green-600">
+                          Last synced: {new Date(instagramAccount.last_synced_at).toLocaleDateString()}
+                        </p>
+                      </div>
+
+                      {/* Re-sync Button */}
+                      <Button
+                        onClick={handleSyncInstagram}
+                        disabled={syncing}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        {syncing ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Syncing...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Re-sync Insights
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ) : (
                     <Button
                       onClick={handleConnectInstagram}
                       disabled={connecting}
