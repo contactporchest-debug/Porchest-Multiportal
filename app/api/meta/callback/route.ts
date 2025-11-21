@@ -7,6 +7,7 @@ import { NextRequest } from "next/server"
 import { ObjectId } from "mongodb"
 import { logger } from "@/lib/logger"
 import { collections } from "@/lib/db"
+import { auth } from "@/lib/auth"
 import {
   getProfileMetrics,
   getAllMediaWithInsights,
@@ -72,6 +73,38 @@ export async function GET(req: NextRequest) {
         )
       )
     }
+
+    // IMPORTANT: Verify the user who started OAuth is still logged in
+    const session = await auth();
+    if (!session || !session.user) {
+      logger.error("User not logged in during OAuth callback", { stateUserId: userId })
+      return Response.redirect(
+        new URL(
+          `/influencer/profile?error=${encodeURIComponent("Please log in and try connecting again")}`,
+          req.url
+        )
+      )
+    }
+
+    // Verify the logged-in user matches the one who started OAuth
+    if (session.user.id !== userId) {
+      logger.error("User account mismatch during OAuth callback", {
+        stateUserId: userId,
+        sessionUserId: session.user.id,
+        sessionEmail: session.user.email
+      })
+      return Response.redirect(
+        new URL(
+          `/influencer/profile?error=${encodeURIComponent("Account mismatch. Please log in with the account you used to start the connection process and try again.")}`,
+          req.url
+        )
+      )
+    }
+
+    logger.info("OAuth callback - user verified", {
+      userId,
+      email: session.user.email
+    })
 
     // Get environment variables
     const appId = process.env.META_APP_ID
