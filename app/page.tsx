@@ -1,269 +1,309 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen">
       <Navbar />
 
-      {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 text-white overflow-hidden">
-        <div className="absolute inset-0 bg-black opacity-10"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32">
+      {/* Hero Section - Glassmorphism */}
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+        {/* Animated gradient blobs */}
+        <div className="absolute top-20 left-10 w-96 h-96 bg-porchest-orange opacity-20 rounded-full blur-3xl animate-blob"></div>
+        <div className="absolute top-40 right-10 w-96 h-96 bg-porchest-orange-light opacity-15 rounded-full blur-3xl animate-blob animation-delay-2000"></div>
+        <div className="absolute bottom-20 left-1/2 w-96 h-96 bg-white opacity-10 rounded-full blur-3xl animate-blob animation-delay-4000"></div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32">
           <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-              Transform Your Business with
-              <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-pink-200">
-                Innovation & Strategy
-              </span>
-            </h1>
-            <p className="text-xl md:text-2xl mb-8 text-blue-100 max-w-3xl mx-auto">
-              Leading software development and digital marketing solutions to accelerate your growth
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/register"
-                className="px-8 py-4 bg-white text-blue-600 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-all shadow-xl hover:shadow-2xl"
-              >
-                Get Started Free
-              </Link>
-              <Link
-                href="#contact"
-                className="px-8 py-4 bg-transparent border-2 border-white text-white rounded-lg font-semibold text-lg hover:bg-white hover:text-blue-600 transition-all"
-              >
-                Contact Sales
-              </Link>
+            {/* Glass card container */}
+            <div className="glass-card p-8 md:p-12 max-w-5xl mx-auto">
+              <h1 className="text-4xl md:text-7xl font-bold mb-6 leading-tight text-white">
+                Transform Your Brand with{" "}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-porchest-orange via-porchest-orange-light to-white animate-gradient">
+                  Influencer Marketing
+                </span>
+              </h1>
+              <p className="text-xl md:text-2xl mb-10 text-gray-300 max-w-3xl mx-auto">
+                Connect brands with authentic influencers. Drive engagement, build trust, and achieve measurable ROI through data-driven campaigns.
+              </p>
+
+              {/* CTA Buttons with glass effect */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link
+                  href="/register"
+                  className="glass-button-primary px-8 py-4 rounded-xl font-semibold text-lg hover:scale-105 transition-all duration-300"
+                >
+                  Get Started Free
+                </Link>
+                <Link
+                  href="#about"
+                  className="glass-button px-8 py-4 rounded-xl font-semibold text-lg hover:scale-105 transition-all duration-300"
+                >
+                  Learn More
+                </Link>
+              </div>
+            </div>
+
+            {/* Stats Section */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 max-w-4xl mx-auto">
+              {[
+                { number: "10K+", label: "Influencers" },
+                { number: "500+", label: "Brands" },
+                { number: "5M+", label: "Reach" },
+                { number: "95%", label: "Success Rate" }
+              ].map((stat, index) => (
+                <div key={index} className="glass-card p-6 hover:glass-orange transition-all duration-300">
+                  <div className="text-3xl md:text-4xl font-bold text-porchest-orange mb-2">{stat.number}</div>
+                  <div className="text-sm text-gray-400">{stat.label}</div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-        <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M0 120L60 105C120 90 240 60 360 45C480 30 600 30 720 37.5C840 45 960 60 1080 67.5C1200 75 1320 75 1380 75L1440 75V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="white"/>
-          </svg>
         </div>
       </section>
 
-      {/* About Section */}
-      <section id="about" className="py-20 bg-white">
+      {/* About Section - Glassmorphism */}
+      <section id="about" className="relative py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-4">
-              Who We Are
+          {/* Section header */}
+          <div className="text-center mb-20">
+            <div className="glass-card inline-block px-6 py-2 mb-6">
+              <span className="text-porchest-orange font-semibold">WHO WE ARE</span>
+            </div>
+            <h2 className="text-4xl md:text-6xl font-bold text-white mb-6">
+              The Future of{" "}
+              <span className="text-porchest-orange">Influencer Marketing</span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Porchest is a full-service digital agency combining cutting-edge software development with data-driven marketing strategies
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+              Porchest connects brands with authentic influencers through AI-powered matching,
+              real-time analytics, and seamless campaign management.
             </p>
           </div>
 
+          {/* Feature cards */}
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow">
-              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-6">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                </svg>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Software Excellence</h3>
-              <p className="text-gray-600">
-                We build scalable, secure, and innovative software solutions tailored to your business needs using the latest technologies.
-              </p>
-            </div>
-
-            <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow">
-              <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center mb-6">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="glass-card p-8 rounded-2xl hover:glass-orange transition-all duration-500 group">
+              <div className="w-16 h-16 glass-orange rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <svg className="w-8 h-8 text-porchest-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Marketing Mastery</h3>
-              <p className="text-gray-600">
-                Strategic digital marketing campaigns that drive engagement, conversions, and measurable ROI through influencer partnerships.
+              <h3 className="text-2xl font-bold text-white mb-4">AI-Powered Matching</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Our intelligent algorithm matches brands with the perfect influencers based on audience demographics,
+                engagement rates, and brand alignment.
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-pink-50 to-red-50 p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow">
-              <div className="w-16 h-16 bg-pink-600 rounded-full flex items-center justify-center mb-6">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="glass-card p-8 rounded-2xl hover:glass-orange transition-all duration-500 group">
+              <div className="w-16 h-16 glass-orange rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <svg className="w-8 h-8 text-porchest-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-4">Real-Time Analytics</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Track campaign performance, engagement metrics, and ROI in real-time with comprehensive analytics dashboards and detailed reports.
+              </p>
+            </div>
+
+            <div className="glass-card p-8 rounded-2xl hover:glass-orange transition-all duration-500 group">
+              <div className="w-16 h-16 glass-orange rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <svg className="w-8 h-8 text-porchest-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Dedicated Team</h3>
-              <p className="text-gray-600">
-                Our expert team of developers, designers, and marketers work collaboratively to deliver exceptional results.
+              <h3 className="text-2xl font-bold text-white mb-4">Seamless Management</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Manage all your influencer campaigns from one platform. From discovery to payment, we handle everything for you.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Services Overview */}
-      <section className="py-20 bg-gray-50">
+      {/* How It Works - Glassmorphism */}
+      <section className="relative py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-4">
-              Our Services
+          <div className="text-center mb-20">
+            <div className="glass-card inline-block px-6 py-2 mb-6">
+              <span className="text-porchest-orange font-semibold">HOW IT WORKS</span>
+            </div>
+            <h2 className="text-4xl md:text-6xl font-bold text-white mb-6">
+              Simple, Fast, <span className="text-porchest-orange">Effective</span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Comprehensive solutions to power your digital transformation
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* Software Services Card */}
-            <Link href="/software-services" className="group">
-              <div className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all h-full border-2 border-transparent hover:border-blue-500">
-                <div className="flex items-center mb-6">
-                  <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 ml-4">Software Services</h3>
-                </div>
-                <p className="text-gray-600 mb-6">
-                  Custom software development, web applications, mobile apps, cloud solutions, and enterprise systems designed to scale with your business.
-                </p>
-                <span className="inline-flex items-center text-blue-600 font-semibold group-hover:translate-x-2 transition-transform">
-                  Learn More
-                  <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </span>
-              </div>
-            </Link>
-
-            {/* Marketing Services Card */}
-            <Link href="/marketing-services" className="group">
-              <div className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all h-full border-2 border-transparent hover:border-purple-500">
-                <div className="flex items-center mb-6">
-                  <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 ml-4">Marketing Services</h3>
-                </div>
-                <p className="text-gray-600 mb-6">
-                  Influencer marketing, social media management, content creation, SEO, and performance marketing to amplify your brand reach.
-                </p>
-                <span className="inline-flex items-center text-purple-600 font-semibold group-hover:translate-x-2 transition-transform">
-                  Learn More
-                  <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </span>
-              </div>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section id="testimonials" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-4">
-              Client Success Stories
-            </h2>
-            <p className="text-xl text-gray-600">
-              Hear from businesses we've helped transform
-            </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-gradient-to-br from-blue-50 to-white p-8 rounded-2xl shadow-lg">
-              <div className="flex items-center mb-6">
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                  TS
-                </div>
-                <div className="ml-4">
-                  <h4 className="font-bold text-gray-900">TechStyle Fashion</h4>
-                  <p className="text-sm text-gray-600">E-commerce Brand</p>
-                </div>
-              </div>
-              <p className="text-gray-700 mb-4">
-                "Porchest transformed our digital presence. Their influencer marketing campaign generated 500K impressions and increased our sales by 180% in just 3 months."
-              </p>
-              <div className="flex text-yellow-400">
-                {[...Array(5)].map((_, i) => (
-                  <svg key={i} className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                ))}
-              </div>
-            </div>
+            {[
+              {
+                step: "01",
+                title: "Connect Your Account",
+                description: "Sign up and link your Instagram or TikTok account. Our AI analyzes your audience and engagement patterns.",
+                icon: (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                )
+              },
+              {
+                step: "02",
+                title: "Get Matched",
+                description: "Our platform matches you with brands or influencers that align with your goals, audience, and values.",
+                icon: (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                )
+              },
+              {
+                step: "03",
+                title: "Launch & Grow",
+                description: "Execute campaigns, track performance in real-time, and watch your influence (or brand) grow exponentially.",
+                icon: (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                )
+              }
+            ].map((item, index) => (
+              <div key={index} className="relative group">
+                {/* Connector line */}
+                {index < 2 && (
+                  <div className="hidden md:block absolute top-24 left-full w-full h-0.5 bg-gradient-to-r from-porchest-orange to-transparent opacity-30"></div>
+                )}
 
-            <div className="bg-gradient-to-br from-purple-50 to-white p-8 rounded-2xl shadow-lg">
-              <div className="flex items-center mb-6">
-                <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                  FL
-                </div>
-                <div className="ml-4">
-                  <h4 className="font-bold text-gray-900">FitLife Nutrition</h4>
-                  <p className="text-sm text-gray-600">Health & Wellness</p>
-                </div>
-              </div>
-              <p className="text-gray-700 mb-4">
-                "The custom platform Porchest built for us streamlined our entire influencer collaboration process. ROI tracking has never been easier. Highly recommended!"
-              </p>
-              <div className="flex text-yellow-400">
-                {[...Array(5)].map((_, i) => (
-                  <svg key={i} className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-pink-50 to-white p-8 rounded-2xl shadow-lg">
-              <div className="flex items-center mb-6">
-                <div className="w-16 h-16 bg-gradient-to-r from-pink-600 to-red-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                  GC
-                </div>
-                <div className="ml-4">
-                  <h4 className="font-bold text-gray-900">Global Corp</h4>
-                  <p className="text-sm text-gray-600">Enterprise Solutions</p>
+                <div className="glass-card p-8 rounded-2xl hover:glass-orange transition-all duration-500">
+                  <div className="text-6xl font-bold text-porchest-orange opacity-20 mb-4">{item.step}</div>
+                  <div className="w-16 h-16 glass-orange rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                    <svg className="w-8 h-8 text-porchest-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      {item.icon}
+                    </svg>
+                  </div>
+                  <h3 className="text-2xl font-bold text-white mb-4">{item.title}</h3>
+                  <p className="text-gray-400 leading-relaxed">{item.description}</p>
                 </div>
               </div>
-              <p className="text-gray-700 mb-4">
-                "Working with Porchest was seamless. They delivered our enterprise application on time and within budget. The technical expertise is outstanding."
-              </p>
-              <div className="flex text-yellow-400">
-                {[...Array(5)].map((_, i) => (
-                  <svg key={i} className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section id="contact" className="py-20 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-5xl font-bold mb-6">
-            Ready to Transform Your Business?
-          </h2>
-          <p className="text-xl mb-8 text-blue-100 max-w-2xl mx-auto">
-            Join hundreds of successful businesses that trust Porchest with their digital growth
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/register"
-              className="px-8 py-4 bg-white text-blue-600 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-all shadow-xl hover:shadow-2xl"
-            >
-              Start Free Trial
+      {/* Portals Section - Glassmorphism */}
+      <section className="relative py-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-20">
+            <div className="glass-card inline-block px-6 py-2 mb-6">
+              <span className="text-porchest-orange font-semibold">CHOOSE YOUR PATH</span>
+            </div>
+            <h2 className="text-4xl md:text-6xl font-bold text-white mb-6">
+              Join as <span className="text-porchest-orange">Brand</span> or{" "}
+              <span className="text-porchest-orange">Influencer</span>
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {/* Brand Portal Card */}
+            <Link href="/register?role=brand" className="group">
+              <div className="glass-card p-10 rounded-3xl hover:glass-orange transition-all duration-500 h-full">
+                <div className="text-center">
+                  <div className="w-20 h-20 glass-orange rounded-full flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
+                    <svg className="w-10 h-10 text-porchest-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                  <h3 className="text-3xl font-bold text-white mb-4">For Brands</h3>
+                  <p className="text-gray-400 mb-8 leading-relaxed">
+                    Find the perfect influencers for your brand. Launch campaigns, track ROI, and scale your marketing efforts.
+                  </p>
+                  <ul className="text-left space-y-3 mb-8">
+                    <li className="flex items-center text-gray-300">
+                      <svg className="w-5 h-5 text-porchest-orange mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      AI-powered influencer discovery
+                    </li>
+                    <li className="flex items-center text-gray-300">
+                      <svg className="w-5 h-5 text-porchest-orange mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      Campaign management tools
+                    </li>
+                    <li className="flex items-center text-gray-300">
+                      <svg className="w-5 h-5 text-porchest-orange mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      Real-time performance analytics
+                    </li>
+                  </ul>
+                  <div className="glass-button-primary px-6 py-3 rounded-xl font-semibold inline-block">
+                    Join as Brand →
+                  </div>
+                </div>
+              </div>
             </Link>
-            <a
-              href="mailto:info@porchest.com"
-              className="px-8 py-4 bg-transparent border-2 border-white text-white rounded-lg font-semibold text-lg hover:bg-white hover:text-blue-600 transition-all"
-            >
-              Contact Us
-            </a>
+
+            {/* Influencer Portal Card */}
+            <Link href="/register?role=influencer" className="group">
+              <div className="glass-card p-10 rounded-3xl hover:glass-orange transition-all duration-500 h-full">
+                <div className="text-center">
+                  <div className="w-20 h-20 glass-orange rounded-full flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
+                    <svg className="w-10 h-10 text-porchest-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-3xl font-bold text-white mb-4">For Influencers</h3>
+                  <p className="text-gray-400 mb-8 leading-relaxed">
+                    Monetize your influence. Get matched with top brands, manage collaborations, and grow your income.
+                  </p>
+                  <ul className="text-left space-y-3 mb-8">
+                    <li className="flex items-center text-gray-300">
+                      <svg className="w-5 h-5 text-porchest-orange mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      Automatic brand matching
+                    </li>
+                    <li className="flex items-center text-gray-300">
+                      <svg className="w-5 h-5 text-porchest-orange mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      Earnings & insights dashboard
+                    </li>
+                    <li className="flex items-center text-gray-300">
+                      <svg className="w-5 h-5 text-porchest-orange mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      Secure & timely payments
+                    </li>
+                  </ul>
+                  <div className="glass-button-primary px-6 py-3 rounded-xl font-semibold inline-block">
+                    Join as Influencer →
+                  </div>
+                </div>
+              </div>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section - Glassmorphism */}
+      <section className="relative py-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="glass-card p-12 md:p-20 rounded-3xl text-center relative overflow-hidden">
+            {/* Decorative elements */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-porchest-orange opacity-10 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-porchest-orange-light opacity-10 rounded-full blur-3xl"></div>
+
+            <div className="relative z-10">
+              <h2 className="text-4xl md:text-6xl font-bold text-white mb-6">
+                Ready to <span className="text-porchest-orange">Transform</span> Your Marketing?
+              </h2>
+              <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
+                Join thousands of brands and influencers already using Porchest to drive authentic engagement and measurable results.
+              </p>
+              <Link
+                href="/register"
+                className="glass-button-primary px-10 py-5 rounded-xl font-semibold text-xl inline-block hover:scale-105 transition-all duration-300"
+              >
+                Start Your Journey Today
+              </Link>
+            </div>
           </div>
         </div>
       </section>

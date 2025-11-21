@@ -49,6 +49,30 @@
     background: linear-gradient(180deg, #000000 0%, #140A00 100%);
     background-attachment: fixed;
     font-feature-settings: "rlig" 1, "calt" 1;
+    position: relative;
+  }
+
+  /* Abstract line background pattern */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('/abstract-lines.svg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0.6;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Ensure content is above background */
+  body > * {
+    position: relative;
+    z-index: 1;
   }
 }
 
@@ -93,6 +117,54 @@
     -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.15);
     box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.3);
+  }
+
+  .glass-input {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 0.75rem;
+    color: white;
+    transition: all 0.3s ease;
+  }
+
+  .glass-input:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 122, 0, 0.5);
+    box-shadow: 0 0 20px rgba(255, 122, 0, 0.2);
+    outline: none;
+  }
+
+  .glass-button {
+    background: linear-gradient(120deg, rgba(255,122,0,0.2), rgba(255,122,0,0.1));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 122, 0, 0.4);
+    border-radius: 0.75rem;
+    color: white;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(255, 122, 0, 0.2);
+  }
+
+  .glass-button:hover {
+    background: linear-gradient(120deg, rgba(255,122,0,0.4), rgba(255,122,0,0.3));
+    border-color: rgba(255, 122, 0, 0.6);
+    box-shadow: 0 6px 20px rgba(255, 122, 0, 0.4);
+    transform: translateY(-2px);
+  }
+
+  .glass-button-primary {
+    background: linear-gradient(120deg, #FF7A00, #FF9533);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 20px rgba(255, 122, 0, 0.4);
+  }
+
+  .glass-button-primary:hover {
+    background: linear-gradient(120deg, #FF9533, #FFAA66);
+    box-shadow: 0 6px 30px rgba(255, 122, 0, 0.6);
+    transform: translateY(-2px);
   }
 
   /* Updated layout spacing for centered content with equal spacing on all sides */
