@@ -109,15 +109,23 @@ async function getProfileHandler(req: Request) {
 
     const sanitizedProfile = sanitizeDocument(profile)
 
+    // Extract Instagram-related fields from profile
+    const instagram_account = sanitizedProfile.instagram_account || null
+    const instagram_metrics = sanitizedProfile.instagram_metrics || null
+    const calculated_metrics = sanitizedProfile.calculated_metrics || null
+
     logger.info("🔍 GET Profile - After sanitization", {
-      hasInstagramAccount: !!sanitizedProfile.instagram_account,
-      hasInstagramMetrics: !!sanitizedProfile.instagram_metrics,
-      hasCalculatedMetrics: !!sanitizedProfile.calculated_metrics,
-      instagramConnected: sanitizedProfile.instagram_account?.is_connected,
+      hasInstagramAccount: !!instagram_account,
+      hasInstagramMetrics: !!instagram_metrics,
+      hasCalculatedMetrics: !!calculated_metrics,
+      instagramConnected: instagram_account?.is_connected,
     })
 
     return successResponse({
       profile: sanitizedProfile,
+      instagram_account,
+      instagram_metrics,
+      calculated_metrics,
     })
   } catch (error) {
     return handleApiError(error)
