@@ -52,6 +52,7 @@ async function getProfileHandler(req: Request) {
       userId: user._id.toString(),
       userEmail: user.email,
       profileCompleted: user.profile_completed,
+      sessionUserIdMatches: session.user.id === user._id.toString(),
     })
 
     // Get influencer profile
@@ -61,6 +62,9 @@ async function getProfileHandler(req: Request) {
     logger.info("🔍 GET Profile - MongoDB raw profile", {
       profileExists: !!profile,
       profileId: profile?._id.toString(),
+      profileUserId: profile?.user_id?.toString(),
+      authenticatedUserId: user._id.toString(),
+      userIdMatch: profile?.user_id?.toString() === user._id.toString(),
       hasInstagramAccount: !!profile?.instagram_account,
       hasInstagramMetrics: !!profile?.instagram_metrics,
       hasCalculatedMetrics: !!profile?.calculated_metrics,
