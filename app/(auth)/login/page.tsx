@@ -19,6 +19,7 @@ import {
   ArrowLeft,
   Mail,
   Chrome,
+  Lock,
 } from "lucide-react"
 
 export default function LoginPage() {
@@ -73,39 +74,53 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-slate-100 p-4">
-      <Card className="w-full max-w-md shadow-md border border-slate-200">
-        <CardHeader className="text-center pb-2">
-          <div className="flex items-center justify-between mb-4">
-            <Link href="/">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-slate-600 hover:text-slate-900"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Home
-              </Button>
-            </Link>
-          </div>
-          <CardTitle className="text-2xl font-bold text-slate-900">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Animated gradient blobs */}
+      <div className="absolute top-10 right-10 w-96 h-96 bg-porchest-orange opacity-15 rounded-full blur-3xl animate-blob"></div>
+      <div className="absolute bottom-10 left-10 w-96 h-96 bg-porchest-orange-light opacity-10 rounded-full blur-3xl animate-blob animation-delay-2000"></div>
+
+      {/* Glass card container */}
+      <div className="glass-card w-full max-w-md p-8 rounded-3xl relative z-10">
+        {/* Back to Home button */}
+        <div className="mb-6">
+          <Link href="/">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Home
+            </Button>
+          </Link>
+        </div>
+
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-white mb-2">
             Welcome Back
-          </CardTitle>
-          <CardDescription className="text-slate-600">
+          </h1>
+          <p className="text-gray-400">
             Sign in to access your portal
-          </CardDescription>
-        </CardHeader>
+          </p>
+        </div>
 
-        <CardContent className="space-y-6">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+        {/* Error Alert */}
+        {error && (
+          <Alert variant="destructive" className="mb-6 glass-card border-red-500/50">
+            <AlertDescription className="text-red-200">{error}</AlertDescription>
+          </Alert>
+        )}
 
-          <form onSubmit={handleEmailLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+        {/* Login Form */}
+        <form onSubmit={handleEmailLogin} className="space-y-5">
+          {/* Email Input */}
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-gray-300">
+              Email Address
+            </Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <Input
                 id="email"
                 type="email"
@@ -114,11 +129,18 @@ export default function LoginPage() {
                 placeholder="you@example.com"
                 required
                 disabled={isLoadingGoogle || isLoadingEmail}
+                className="glass-input pl-10 py-6 text-white placeholder:text-gray-500"
               />
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+          {/* Password Input */}
+          <div className="space-y-2">
+            <Label htmlFor="password" className="text-gray-300">
+              Password
+            </Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <Input
                 id="password"
                 type="password"
@@ -127,71 +149,85 @@ export default function LoginPage() {
                 placeholder="Enter your password"
                 required
                 disabled={isLoadingGoogle || isLoadingEmail}
+                className="glass-input pl-10 py-6 text-white placeholder:text-gray-500"
               />
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoadingGoogle || isLoadingEmail}
-            >
-              {isLoadingEmail ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                <>
-                  <Mail className="mr-2 h-4 w-4" />
-                  Sign in with Email
-                </>
-              )}
-            </Button>
-          </form>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-slate-200" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-slate-500">Or continue with</span>
             </div>
           </div>
 
+          {/* Sign In Button */}
           <Button
-            type="button"
-            onClick={handleGoogle}
-            variant="outline"
-            className="w-full"
+            type="submit"
+            className="w-full glass-button-primary py-6 text-lg font-semibold"
             disabled={isLoadingGoogle || isLoadingEmail}
           >
-            {isLoadingGoogle ? (
+            {isLoadingEmail ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Continuing with Google...
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Signing in...
               </>
             ) : (
               <>
-                <Chrome className="mr-2 h-4 w-4" />
-                Continue with Google
+                <Mail className="mr-2 h-5 w-5" />
+                Sign in with Email
               </>
             )}
           </Button>
+        </form>
 
-          <div className="text-center space-y-2">
-            <p className="text-sm text-slate-600">
-              Don't have an account?{" "}
-              <Link href="/register" className="font-medium text-orange-600 hover:text-orange-700">
-                Sign up
-              </Link>
-            </p>
-            <p className="text-xs text-slate-500">
-              Emails are sent from{" "}
-              <span className="font-medium">contact.porchest@gmail.com</span>
-            </p>
+        {/* Divider */}
+        <div className="relative my-8">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-white/20" />
           </div>
-        </CardContent>
-      </Card>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="glass-card px-3 py-1 text-gray-400 text-sm">
+              Or continue with
+            </span>
+          </div>
+        </div>
+
+        {/* Google Sign In */}
+        <Button
+          type="button"
+          onClick={handleGoogle}
+          variant="outline"
+          className="w-full glass-button py-6 text-lg font-semibold border-white/20"
+          disabled={isLoadingGoogle || isLoadingEmail}
+        >
+          {isLoadingGoogle ? (
+            <>
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Continuing with Google...
+            </>
+          ) : (
+            <>
+              <Chrome className="mr-2 h-5 w-5" />
+              Continue with Google
+            </>
+          )}
+        </Button>
+
+        {/* Sign Up Link */}
+        <div className="text-center mt-8 space-y-3">
+          <p className="text-gray-400">
+            Don't have an account?{" "}
+            <Link
+              href="/register"
+              className="font-semibold text-porchest-orange hover:text-porchest-orange-light transition-colors"
+            >
+              Sign up
+            </Link>
+          </p>
+          <p className="text-xs text-gray-500">
+            Emails are sent from{" "}
+            <span className="font-medium text-gray-400">contact.porchest@gmail.com</span>
+          </p>
+        </div>
+      </div>
+
+      {/* Decorative corner accents */}
+      <div className="absolute top-0 left-0 w-32 h-32 border-t-2 border-l-2 border-porchest-orange/30 rounded-tl-3xl"></div>
+      <div className="absolute bottom-0 right-0 w-32 h-32 border-b-2 border-r-2 border-porchest-orange/30 rounded-br-3xl"></div>
     </div>
   )
 }
