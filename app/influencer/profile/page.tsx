@@ -194,10 +194,14 @@ export default function InfluencerProfileSetup() {
 
       if (data.success && data.data && data.data.profile) {
         const profile = data.data.profile
+        const instagram_account = data.data.instagram_account
+        const instagram_metrics = data.data.instagram_metrics
+        const calculated_metrics = data.data.calculated_metrics
+
         console.log("=== PROFILE OBJECT ===", profile)
-        console.log("=== instagram_account ===", profile.instagram_account)
-        console.log("=== instagram_metrics ===", profile.instagram_metrics)
-        console.log("=== calculated_metrics ===", profile.calculated_metrics)
+        console.log("=== instagram_account ===", instagram_account)
+        console.log("=== instagram_metrics ===", instagram_metrics)
+        console.log("=== calculated_metrics ===", calculated_metrics)
 
         // Set basic info (manual fields)
         setBasicInfo({
@@ -210,46 +214,40 @@ export default function InfluencerProfileSetup() {
           brand_preferences: profile.brand_preferences || [],
         })
 
-        // Check for Instagram connection - FIXED: Check all possible field variations
-        const hasInstagramAccount = !!(
-          profile.instagram_account ||
-          profile.instagramAccount ||
-          profile.instagram_username
-        )
-
-        const igAccount = profile.instagram_account || profile.instagramAccount
-        const isConnected = igAccount?.is_connected === true
+        // Check for Instagram connection
+        const hasInstagramAccount = instagram_account !== null
+        const isConnected = instagram_account?.is_connected === true
 
         console.log("=== CONNECTION CHECK ===")
         console.log("  hasInstagramAccount:", hasInstagramAccount)
-        console.log("  igAccount:", igAccount)
+        console.log("  instagram_account:", instagram_account)
         console.log("  isConnected:", isConnected)
 
         // Set Instagram account info if connected
-        if (isConnected && igAccount) {
+        if (isConnected && instagram_account) {
           console.log("✅ INSTAGRAM IS CONNECTED")
           setInstagramAccount({
-            username: igAccount.username || profile.instagram_username || "",
+            username: instagram_account.username || profile.instagram_username || "",
             is_connected: true,
-            last_synced_at: igAccount.last_synced_at
-              ? new Date(igAccount.last_synced_at)
+            last_synced_at: instagram_account.last_synced_at
+              ? new Date(instagram_account.last_synced_at)
               : new Date(),
           })
 
           // Set Instagram metrics
-          if (profile.instagram_metrics) {
-            console.log("✅ Setting Instagram metrics:", profile.instagram_metrics)
-            setInstagramMetrics(profile.instagram_metrics)
+          if (instagram_metrics) {
+            console.log("✅ Setting Instagram metrics:", instagram_metrics)
+            setInstagramMetrics(instagram_metrics)
           }
 
           // Set calculated metrics
-          if (profile.calculated_metrics) {
-            console.log("✅ Setting calculated metrics:", profile.calculated_metrics)
-            setCalculatedMetrics(profile.calculated_metrics)
+          if (calculated_metrics) {
+            console.log("✅ Setting calculated metrics:", calculated_metrics)
+            setCalculatedMetrics(calculated_metrics)
           }
         } else {
           console.log("❌ INSTAGRAM NOT CONNECTED")
-          console.log("  Reason: isConnected =", isConnected, ", igAccount =", !!igAccount)
+          console.log("  Reason: isConnected =", isConnected, ", hasInstagramAccount =", hasInstagramAccount)
           // Reset Instagram state
           setInstagramAccount(null)
           setInstagramMetrics(null)
