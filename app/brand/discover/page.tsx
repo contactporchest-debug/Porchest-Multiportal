@@ -79,46 +79,64 @@ export default function InfluencerDiscovery() {
 
       const data = await response.json();
 
-      if (data.success) {
-        setRecommendations(data.data.recommendations);
-        setAiCriteria(data.data.aiCriteria);
+      if (data.success && data.data) {
+        // Defensive: ensure recommendations is always an array
+        const recommendations = data.data.recommendations || [];
+        const criteria = data.data.aiCriteria || {};
+        const total = data.data.total || 0;
+
+        setRecommendations(recommendations);
+        setAiCriteria(criteria);
 
         // Build a human-readable summary of what AI understood
-        const criteria = data.data.aiCriteria;
         let criteriaText = "I understood your requirements as:\n";
+        let hasCriteria = false;
 
-        if (criteria.niche && criteria.niche.length > 0) {
+        if (criteria.niche && Array.isArray(criteria.niche) && criteria.niche.length > 0) {
           criteriaText += `• Niche: ${criteria.niche.join(", ")}\n`;
+          hasCriteria = true;
         }
         if (criteria.minFollowers || criteria.maxFollowers) {
           const min = criteria.minFollowers?.toLocaleString() || "any";
           const max = criteria.maxFollowers?.toLocaleString() || "unlimited";
           criteriaText += `• Followers: ${min} - ${max}\n`;
+          hasCriteria = true;
         }
         if (criteria.minEngagementRate) {
           criteriaText += `• Min Engagement: ${criteria.minEngagementRate}%\n`;
+          hasCriteria = true;
         }
-        if (criteria.location && criteria.location.length > 0) {
+        if (criteria.location && Array.isArray(criteria.location) && criteria.location.length > 0) {
           criteriaText += `• Location: ${criteria.location.join(", ")}\n`;
+          hasCriteria = true;
         }
-        if (criteria.language && criteria.language.length > 0) {
+        if (criteria.language && Array.isArray(criteria.language) && criteria.language.length > 0) {
           criteriaText += `• Languages: ${criteria.language.join(", ")}\n`;
+          hasCriteria = true;
         }
         if (criteria.budget) {
           criteriaText += `• Budget: $${criteria.budget} per post\n`;
+          hasCriteria = true;
         }
         if (criteria.platform) {
           criteriaText += `• Platform: ${criteria.platform}\n`;
+          hasCriteria = true;
         }
 
-        criteriaText += `\nI found ${data.data.total} influencers matching your criteria. Here are the top recommendations sorted by relevance!`;
+        if (!hasCriteria) {
+          criteriaText = "I couldn't parse specific criteria from your query. Showing all available influencers.\n";
+        }
+
+        criteriaText += `\nI found ${total} influencer${total !== 1 ? 's' : ''} matching your criteria. ${
+          recommendations.length > 0 ? 'Here are the top recommendations sorted by relevance!' : ''
+        }`;
 
         setChatHistory((prev) => [
           ...prev,
           {
             type: "bot",
             content: criteriaText,
-            criteria: data.data.aiCriteria,
+            criteria: criteria,
           },
         ]);
       } else {
