@@ -20,6 +20,7 @@ import {
   calculateRelevanceScore,
   InfluencerCriteria,
 } from "@/lib/ai-helpers";
+import { parseRequirementsFree } from "@/lib/ai-helpers-free";
 import { logger } from "@/lib/logger";
 
 // Validation schema for influencer recommendation request
@@ -55,23 +56,34 @@ async function recommendHandler(req: Request) {
       query: validatedData.query,
     });
 
-    // 🤖 STEP 1: Use AI to parse plain English requirements
+    // 🤖 STEP 1: Parse plain English requirements
     let aiCriteria: InfluencerCriteria;
-    try {
-      aiCriteria = await parseInfluencerRequirements(validatedData.query);
-      logger.info("AI Criteria Parsed", { criteria: aiCriteria });
+    let parsingMethod = "unknown";
 
-      // Override AI-parsed budget if explicitly provided in request
+    try {
+      // Try OpenAI-powered parsing if API key is available
+      if (process.env.OPENAI_API_KEY) {
+        aiCriteria = await parseInfluencerRequirements(validatedData.query);
+        parsingMethod = "openai";
+        logger.info("AI Criteria Parsed (OpenAI)", { criteria: aiCriteria });
+      } else {
+        // Use FREE rule-based parser if no OpenAI key
+        aiCriteria = parseRequirementsFree(validatedData.query);
+        parsingMethod = "free";
+        logger.info("AI Criteria Parsed (Free)", { criteria: aiCriteria });
+      }
+
+      // Override parsed budget if explicitly provided in request
       if (validatedData.budget) {
         aiCriteria.budget = validatedData.budget;
       }
 
-      // Override AI-parsed platform if explicitly provided
+      // Override parsed platform if explicitly provided
       if (validatedData.platform) {
         aiCriteria.platform = validatedData.platform;
       }
 
-      // Merge explicit categories with AI-parsed niche
+      // Merge explicit categories with parsed niche
       if (validatedData.categories && validatedData.categories.length > 0) {
         aiCriteria.niche = [
           ...(aiCriteria.niche || []),
@@ -79,13 +91,17 @@ async function recommendHandler(req: Request) {
         ];
       }
     } catch (aiError: any) {
-      logger.error("AI Parsing Failed", { error: aiError.message });
-      // Fall back to basic filtering if AI fails
-      aiCriteria = {
-        niche: validatedData.categories,
-        platform: validatedData.platform,
-        budget: validatedData.budget,
-      };
+      logger.error("AI Parsing Failed - Using Free Fallback", { error: aiError.message });
+      // Fall back to FREE rule-based parser on any error
+      aiCriteria = parseRequirementsFree(validatedData.query);
+      parsingMethod = "free-fallback";
+
+      // Apply explicit filters if available
+      if (validatedData.budget) aiCriteria.budget = validatedData.budget;
+      if (validatedData.platform) aiCriteria.platform = validatedData.platform;
+      if (validatedData.categories && validatedData.categories.length > 0) {
+        aiCriteria.niche = [...(aiCriteria.niche || []), ...validatedData.categories];
+      }
     }
 
     // 🔍 STEP 2: Build MongoDB filter from AI-extracted criteria
@@ -174,6 +190,7 @@ async function recommendHandler(req: Request) {
       recommendations,
       total: recommendations.length,
       aiCriteria,
+      parsingMethod, // "openai" | "free" | "free-fallback"
       filters: {
         query: validatedData.query,
         parsedCriteria: aiCriteria,
