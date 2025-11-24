@@ -117,8 +117,8 @@ async function chatRecommendHandler(req: Request) {
 
     const hasEnoughCriteria =
       !chatResult.needs_followup &&
-      (mergedCriteria.niche.length > 0 ||
-        mergedCriteria.min_followers !== null);
+      mergedCriteria.niche.length > 0 &&
+      mergedCriteria.locations.length > 0;
 
     if (hasEnoughCriteria) {
       // Convert ChatCriteria to InfluencerCriteria for buildMongoFilter
