@@ -13,7 +13,7 @@ import {
 import { validateRequest } from "@/lib/validations";
 import { withRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit";
 import { z } from "zod";
-import { chatAndExtract, ChatCriteria } from "@/lib/ai-chat-parser";
+import { chatAndExtractGemini, chatAndExtractFallback, ChatCriteria } from "@/lib/ai-gemini";
 import { buildMongoFilter, calculateRelevanceScore } from "@/lib/ai-helpers";
 import { logger } from "@/lib/logger";
 
@@ -61,24 +61,55 @@ async function chatRecommendHandler(req: Request) {
       hasCriteria: !!validatedData.criteria,
     });
 
-    // 💬 STEP 1: Chat and extract criteria
+    // 💬 STEP 1: Chat and extract criteria using Gemini or regex fallback
     let chatResult;
-    let method = "llm";
+    let method = "gemini";
 
     try {
-      chatResult = await chatAndExtract(
+      if (process.env.GEMINI_API_KEY) {
+        // Try Gemini first
+        chatResult = await chatAndExtractGemini(
+          validatedData.message,
+          validatedData.criteria
+        );
+        method = "gemini";
+      } else {
+        // No Gemini key, use regex fallback
+        chatResult = chatAndExtractFallback(
+          validatedData.message,
+          validatedData.criteria
+        );
+        method = "regex-fallback";
+      }
+    } catch (error: any) {
+      logger.error("Gemini extraction failed, using regex fallback", { error: error.message });
+      // Fallback to regex parser on any error
+      chatResult = chatAndExtractFallback(
         validatedData.message,
         validatedData.criteria
       );
-      method = process.env.OPENAI_API_KEY ? "llm" : "regex-fallback";
-    } catch (error: any) {
-      logger.error("Chat extraction failed", { error: error.message });
-      throw error;
+      method = "regex-fallback";
     }
+
+    // Merge criteria (stateless)
+    const mergedCriteria: ChatCriteria = validatedData.criteria
+      ? {
+          niche: chatResult.criteria_update.niche.length > 0 ? chatResult.criteria_update.niche : validatedData.criteria.niche,
+          platform: chatResult.criteria_update.platform || validatedData.criteria.platform,
+          locations: chatResult.criteria_update.locations.length > 0 ? chatResult.criteria_update.locations : validatedData.criteria.locations,
+          min_followers: chatResult.criteria_update.min_followers ?? validatedData.criteria.min_followers,
+          max_followers: chatResult.criteria_update.max_followers ?? validatedData.criteria.max_followers,
+          min_engagement_rate: chatResult.criteria_update.min_engagement_rate ?? validatedData.criteria.min_engagement_rate,
+          min_reach: chatResult.criteria_update.min_reach ?? validatedData.criteria.min_reach,
+          budget: chatResult.criteria_update.budget ?? validatedData.criteria.budget,
+          gender: chatResult.criteria_update.gender || validatedData.criteria.gender,
+          languages: chatResult.criteria_update.languages.length > 0 ? chatResult.criteria_update.languages : validatedData.criteria.languages,
+        }
+      : chatResult.criteria_update;
 
     logger.info("Chat Result", {
       needs_followup: chatResult.needs_followup,
-      criteria: chatResult.criteria,
+      criteria: mergedCriteria,
     });
 
     // 🔍 STEP 2: Check if we should query influencers
@@ -86,21 +117,21 @@ async function chatRecommendHandler(req: Request) {
 
     const hasEnoughCriteria =
       !chatResult.needs_followup &&
-      (chatResult.criteria.niche.length > 0 ||
-        chatResult.criteria.min_followers !== null);
+      (mergedCriteria.niche.length > 0 ||
+        mergedCriteria.min_followers !== null);
 
     if (hasEnoughCriteria) {
       // Convert ChatCriteria to InfluencerCriteria for buildMongoFilter
       const influencerCriteria = {
-        niche: chatResult.criteria.niche.length > 0 ? chatResult.criteria.niche : undefined,
-        platform: chatResult.criteria.platform || undefined,
-        location: chatResult.criteria.locations.length > 0 ? chatResult.criteria.locations : undefined,
-        minFollowers: chatResult.criteria.min_followers || undefined,
-        maxFollowers: chatResult.criteria.max_followers || undefined,
-        minEngagementRate: chatResult.criteria.min_engagement_rate || undefined,
-        budget: chatResult.criteria.budget || undefined,
-        gender: chatResult.criteria.gender || undefined,
-        language: chatResult.criteria.languages.length > 0 ? chatResult.criteria.languages : undefined,
+        niche: mergedCriteria.niche.length > 0 ? mergedCriteria.niche : undefined,
+        platform: mergedCriteria.platform || undefined,
+        location: mergedCriteria.locations.length > 0 ? mergedCriteria.locations : undefined,
+        minFollowers: mergedCriteria.min_followers || undefined,
+        maxFollowers: mergedCriteria.max_followers || undefined,
+        minEngagementRate: mergedCriteria.min_engagement_rate || undefined,
+        budget: mergedCriteria.budget || undefined,
+        gender: mergedCriteria.gender || undefined,
+        language: mergedCriteria.languages.length > 0 ? mergedCriteria.languages : undefined,
       };
 
       // Build MongoDB filter
@@ -179,7 +210,7 @@ async function chatRecommendHandler(req: Request) {
     // 📤 STEP 3: Return standardized response
     return successResponse({
       assistant_message: chatResult.assistant_message,
-      criteria: chatResult.criteria,
+      criteria: mergedCriteria,
       needs_followup: chatResult.needs_followup,
       followup_questions: chatResult.followup_questions,
       matches: matches,

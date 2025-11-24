@@ -16,6 +16,7 @@
   "dependencies": {
     "@auth/core": "^0.41.1",
     "@auth/mongodb-adapter": "^3.11.0",
+    "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "latest",
     "@radix-ui/react-alert-dialog": "latest",

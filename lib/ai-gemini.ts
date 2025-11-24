@@ -1,22 +1,5 @@
-import OpenAI from "openai";
-import { parseRequirementsFree, InfluencerCriteria } from "./ai-helpers-free";
-
-// Lazy initialization of OpenAI client
-let openai: OpenAI | null = null;
-
-function getOpenAIClient() {
-  if (!openai) {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error(
-        "OPENAI_API_KEY is not set. Please add it to your environment variables."
-      );
-    }
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-  return openai;
-}
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { parseRequirementsFree } from "./ai-helpers-free";
 
 export interface ChatCriteria {
   niche: string[];
@@ -31,93 +14,114 @@ export interface ChatCriteria {
   languages: string[];
 }
 
-export interface ChatResult {
+export interface ChatAndExtractResult {
   assistant_message: string;
-  criteria: ChatCriteria;
+  criteria_update: ChatCriteria;
   needs_followup: boolean;
   followup_questions: string[];
 }
 
-const SYSTEM_PROMPT = `You are a brand-to-influencer strategist. Have a natural conversation. Ask follow-up questions if needed. ALSO output strict JSON in this exact format: { assistant_message: string, criteria: { niche: string[], platform: "instagram"|"youtube"|"tiktok"|null, locations: string[], min_followers: number|null, max_followers: number|null, min_engagement_rate: number|null, min_reach: number|null, budget: number|null, gender: "male"|"female"|null, languages: string[] }, needs_followup: boolean, followup_questions: string[] } Return ONLY valid JSON. No markdown.`;
+const GEMINI_SYSTEM_PROMPT = `You are a brand-to-influencer strategist.
+Have a natural conversation.
+Ask follow-up questions if needed.
+ALSO output strict JSON in this exact format:
+{
+assistant_message: string,
+criteria: {
+niche: string[],
+platform: "instagram"|"youtube"|"tiktok"|null,
+locations: string[],
+min_followers: number|null,
+max_followers: number|null,
+min_engagement_rate: number|null,
+min_reach: number|null,
+budget: number|null,
+gender: "male"|"female"|null,
+languages: string[]
+},
+needs_followup: boolean,
+followup_questions: string[]
+}
+Return ONLY valid JSON. No markdown.`;
 
 /**
- * Stateless chat function that extracts criteria from conversation
+ * Chat and extract criteria using Google Gemini
  * @param message - User's message
  * @param currentCriteria - Current criteria from client (or null)
  * @returns Chat result with assistant message and updated criteria
  */
-export async function chatAndExtract(
+export async function chatAndExtractGemini(
   message: string,
   currentCriteria: ChatCriteria | null
-): Promise<ChatResult> {
+): Promise<ChatAndExtractResult> {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is not set");
+  }
+
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+  // Build context from current criteria
+  const criteriaContext = currentCriteria
+    ? `\n\nCurrent extracted criteria: ${JSON.stringify(currentCriteria, null, 2)}\n\nUpdate these criteria based on the new message. Preserve existing values unless the user explicitly changes them.`
+    : "\n\nNo criteria extracted yet. Start fresh.";
+
+  const prompt = `${GEMINI_SYSTEM_PROMPT}${criteriaContext}\n\nUser message: ${message}`;
+
   try {
-    // Use OpenAI if available
-    if (process.env.OPENAI_API_KEY) {
-      const client = getOpenAIClient();
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
-      // Build context from current criteria
-      const criteriaContext = currentCriteria
-        ? `\n\nCurrent extracted criteria: ${JSON.stringify(currentCriteria, null, 2)}\n\nUpdate these criteria based on the new message. Preserve existing values unless the user explicitly changes them.`
-        : "\n\nNo criteria extracted yet. Start fresh.";
-
-      const response = await client.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: SYSTEM_PROMPT + criteriaContext,
-          },
-          {
-            role: "user",
-            content: message,
-          },
-        ],
-        temperature: 0.7,
-        response_format: { type: "json_object" },
-      });
-
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error("No response from OpenAI");
-      }
-
-      const result: ChatResult = JSON.parse(content);
-
-      // Merge with existing criteria (server-side merge)
-      if (currentCriteria) {
-        result.criteria = {
-          niche: result.criteria.niche.length > 0 ? result.criteria.niche : currentCriteria.niche,
-          platform: result.criteria.platform || currentCriteria.platform,
-          locations: result.criteria.locations.length > 0 ? result.criteria.locations : currentCriteria.locations,
-          min_followers: result.criteria.min_followers ?? currentCriteria.min_followers,
-          max_followers: result.criteria.max_followers ?? currentCriteria.max_followers,
-          min_engagement_rate: result.criteria.min_engagement_rate ?? currentCriteria.min_engagement_rate,
-          min_reach: result.criteria.min_reach ?? currentCriteria.min_reach,
-          budget: result.criteria.budget ?? currentCriteria.budget,
-          gender: result.criteria.gender || currentCriteria.gender,
-          languages: result.criteria.languages.length > 0 ? result.criteria.languages : currentCriteria.languages,
-        };
-      }
-
-      return result;
-    } else {
-      // Fallback to regex parser
-      return chatAndExtractFallback(message, currentCriteria);
+    // Remove markdown code blocks if present
+    let jsonText = text.trim();
+    if (jsonText.startsWith("```json")) {
+      jsonText = jsonText.replace(/^```json\n/, "").replace(/\n```$/, "");
+    } else if (jsonText.startsWith("```")) {
+      jsonText = jsonText.replace(/^```\n/, "").replace(/\n```$/, "");
     }
+
+    // Parse JSON
+    const parsed = JSON.parse(jsonText);
+
+    // Validate structure
+    if (!parsed.assistant_message || !parsed.criteria || typeof parsed.needs_followup !== "boolean") {
+      throw new Error("Invalid response structure from Gemini");
+    }
+
+    // Ensure criteria has all required fields with defaults
+    const criteria: ChatCriteria = {
+      niche: parsed.criteria.niche || [],
+      platform: parsed.criteria.platform || null,
+      locations: parsed.criteria.locations || [],
+      min_followers: parsed.criteria.min_followers ?? null,
+      max_followers: parsed.criteria.max_followers ?? null,
+      min_engagement_rate: parsed.criteria.min_engagement_rate ?? null,
+      min_reach: parsed.criteria.min_reach ?? null,
+      budget: parsed.criteria.budget ?? null,
+      gender: parsed.criteria.gender || null,
+      languages: parsed.criteria.languages || [],
+    };
+
+    return {
+      assistant_message: parsed.assistant_message,
+      criteria_update: criteria,
+      needs_followup: parsed.needs_followup,
+      followup_questions: parsed.followup_questions || [],
+    };
   } catch (error: any) {
-    console.error("Error in chatAndExtract:", error);
-    // Fallback on error
-    return chatAndExtractFallback(message, currentCriteria);
+    console.error("Gemini API error:", error);
+    throw new Error(`Gemini parsing failed: ${error.message}`);
   }
 }
 
 /**
  * Fallback: Use regex parser + hardcoded friendly responses
  */
-function chatAndExtractFallback(
+export function chatAndExtractFallback(
   message: string,
   currentCriteria: ChatCriteria | null
-): ChatResult {
+): ChatAndExtractResult {
   // Use existing regex parser
   const parsed = parseRequirementsFree(message);
 
@@ -202,7 +206,7 @@ function chatAndExtractFallback(
 
   return {
     assistant_message: assistantMessage,
-    criteria: mergedCriteria,
+    criteria_update: mergedCriteria,
     needs_followup: needsFollowup,
     followup_questions: followupQuestions,
   };
