@@ -125,6 +125,51 @@ function isGreeting(message: string): boolean {
 }
 
 /**
+ * Handle negations and "only" modifiers for locations
+ */
+function handleLocationNegations(
+  message: string,
+  locations: string[],
+  currentLocations: string[]
+): string[] {
+  const lowerMsg = message.toLowerCase();
+
+  // Check for "only in X" pattern - replaces all locations with X
+  const onlyMatch = lowerMsg.match(/only\s+in\s+(\w+(?:\s+\w+)*)/i);
+  if (onlyMatch) {
+    const location = onlyMatch[1];
+    // Capitalize first letter of each word
+    const capitalized = location.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    return [capitalized];
+  }
+
+  // Check for "not in X", "exclude X", "no X" patterns
+  const negationPatterns = [
+    /not\s+in\s+(\w+(?:\s+\w+)*)/gi,
+    /exclude\s+(\w+(?:\s+\w+)*)/gi,
+    /no\s+(\w+(?:\s+\w+)*)/gi,
+  ];
+
+  let resultLocations = [...locations];
+  if (resultLocations.length === 0 && currentLocations.length > 0) {
+    resultLocations = [...currentLocations];
+  }
+
+  for (const pattern of negationPatterns) {
+    let match;
+    while ((match = pattern.exec(lowerMsg)) !== null) {
+      const excludeLocation = match[1].toLowerCase();
+      // Remove locations that match (case-insensitive)
+      resultLocations = resultLocations.filter(
+        loc => loc.toLowerCase() !== excludeLocation && !loc.toLowerCase().includes(excludeLocation)
+      );
+    }
+  }
+
+  return resultLocations;
+}
+
+/**
  * Fallback: Use regex parser + hardcoded friendly responses
  */
 export function chatAndExtractFallback(
@@ -175,21 +220,31 @@ export function chatAndExtractFallback(
     languages: parsed.language || [],
   };
 
-  // Merge with current criteria
+  // Handle location negations and "only" modifiers
+  const processedLocations = handleLocationNegations(
+    message,
+    newCriteria.locations,
+    currentCriteria?.locations || []
+  );
+
+  // Merge with current criteria - REPLACE arrays when update is non-empty
   const mergedCriteria: ChatCriteria = currentCriteria
     ? {
-        niche: newCriteria.niche.length > 0 ? [...new Set([...currentCriteria.niche, ...newCriteria.niche])] : currentCriteria.niche,
+        niche: newCriteria.niche.length > 0 ? newCriteria.niche : currentCriteria.niche,
         platform: newCriteria.platform || currentCriteria.platform,
-        locations: newCriteria.locations.length > 0 ? [...new Set([...currentCriteria.locations, ...newCriteria.locations])] : currentCriteria.locations,
+        locations: processedLocations.length > 0 ? processedLocations : currentCriteria.locations,
         min_followers: newCriteria.min_followers ?? currentCriteria.min_followers,
         max_followers: newCriteria.max_followers ?? currentCriteria.max_followers,
         min_engagement_rate: newCriteria.min_engagement_rate ?? currentCriteria.min_engagement_rate,
         min_reach: newCriteria.min_reach ?? currentCriteria.min_reach,
         budget: newCriteria.budget ?? currentCriteria.budget,
         gender: newCriteria.gender || currentCriteria.gender,
-        languages: newCriteria.languages.length > 0 ? [...new Set([...currentCriteria.languages, ...newCriteria.languages])] : currentCriteria.languages,
+        languages: newCriteria.languages.length > 0 ? newCriteria.languages : currentCriteria.languages,
       }
-    : newCriteria;
+    : {
+        ...newCriteria,
+        locations: processedLocations,
+      };
 
   // Generate friendly response
   let assistantMessage = "Got it! ";
@@ -218,15 +273,18 @@ export function chatAndExtractFallback(
     assistantMessage = "I'd love to help you find the perfect influencers! Please share your requirements:\n\n• What niche or category? (e.g., Fashion, Tech, Beauty, Fitness)\n• Which location?\n• Follower range?\n• Your budget per post?\n• Preferred platform? (Instagram, YouTube, TikTok)";
   }
 
-  // Check if we have enough criteria
+  // Check if we have enough criteria - require niche AND location
   const hasEnoughCriteria =
-    mergedCriteria.niche.length > 0 || mergedCriteria.min_followers !== null;
+    mergedCriteria.niche.length > 0 && mergedCriteria.locations.length > 0;
 
   const needsFollowup = !hasEnoughCriteria;
   const followupQuestions: string[] = [];
 
   if (mergedCriteria.niche.length === 0) {
     followupQuestions.push("What niche or category are you interested in? (e.g., Fashion, Tech, Beauty)");
+  }
+  if (mergedCriteria.locations.length === 0) {
+    followupQuestions.push("Which location do you prefer?");
   }
   if (!mergedCriteria.platform) {
     followupQuestions.push("Which platform would you prefer? (Instagram, YouTube, TikTok)");
