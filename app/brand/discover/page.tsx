@@ -20,16 +20,26 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 
+interface ChatCriteria {
+  niche: string[];
+  platform: "instagram" | "youtube" | "tiktok" | null;
+  locations: string[];
+  min_followers: number | null;
+  max_followers: number | null;
+  min_engagement_rate: number | null;
+  min_reach: number | null;
+  budget: number | null;
+  gender: "male" | "female" | null;
+  languages: string[];
+}
+
 export default function InfluencerDiscovery() {
   const [query, setQuery] = useState("");
-  const [budget, setBudget] = useState("");
-  const [platform, setPlatform] = useState("");
-  const [categories, setCategories] = useState<string[]>([]);
   const [recommendations, setRecommendations] = useState<any[]>([]);
-  const [aiCriteria, setAiCriteria] = useState<any>(null);
+  const [criteria, setCriteria] = useState<ChatCriteria | null>(null);
   const [loading, setLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState<
-    Array<{ type: "user" | "bot"; content: string; criteria?: any }>
+    Array<{ type: "user" | "bot"; content: string; }>
   >([
     {
       type: "bot",
@@ -38,27 +48,6 @@ export default function InfluencerDiscovery() {
     },
   ]);
 
-  const availableCategories = [
-    "Fashion",
-    "Beauty",
-    "Tech",
-    "Lifestyle",
-    "Fitness",
-    "Food",
-    "Travel",
-    "Gaming",
-    "Business",
-    "Health",
-  ];
-
-  const toggleCategory = (category: string) => {
-    setCategories((prev) =>
-      prev.includes(category)
-        ? prev.filter((c) => c !== category)
-        : [...prev, category]
-    );
-  };
-
   const searchInfluencers = async () => {
     if (!query.trim()) return;
 
@@ -66,59 +55,39 @@ export default function InfluencerDiscovery() {
     setChatHistory((prev) => [...prev, { type: "user", content: query }]);
 
     try {
-      const response = await fetch("/api/brand/recommend-influencers", {
+      const response = await fetch("/api/brand/chat-recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          query,
-          budget: budget ? parseInt(budget) : null,
-          categories,
-          platform: platform || null,
+          message: query,
+          criteria: criteria,
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        setRecommendations(data.data.recommendations);
-        setAiCriteria(data.data.aiCriteria);
+        // Update criteria in state (stateless on backend, but tracked in frontend)
+        setCriteria(data.data.criteria);
 
-        // Build a human-readable summary of what AI understood
-        const criteria = data.data.aiCriteria;
-        let criteriaText = "I understood your requirements as:\n";
-
-        if (criteria.niche && criteria.niche.length > 0) {
-          criteriaText += `• Niche: ${criteria.niche.join(", ")}\n`;
-        }
-        if (criteria.minFollowers || criteria.maxFollowers) {
-          const min = criteria.minFollowers?.toLocaleString() || "any";
-          const max = criteria.maxFollowers?.toLocaleString() || "unlimited";
-          criteriaText += `• Followers: ${min} - ${max}\n`;
-        }
-        if (criteria.minEngagementRate) {
-          criteriaText += `• Min Engagement: ${criteria.minEngagementRate}%\n`;
-        }
-        if (criteria.location && criteria.location.length > 0) {
-          criteriaText += `• Location: ${criteria.location.join(", ")}\n`;
-        }
-        if (criteria.language && criteria.language.length > 0) {
-          criteriaText += `• Languages: ${criteria.language.join(", ")}\n`;
-        }
-        if (criteria.budget) {
-          criteriaText += `• Budget: $${criteria.budget} per post\n`;
-        }
-        if (criteria.platform) {
-          criteriaText += `• Platform: ${criteria.platform}\n`;
+        // Update matches if available
+        if (data.data.matches && data.data.matches.length > 0) {
+          setRecommendations(data.data.matches);
         }
 
-        criteriaText += `\nI found ${data.data.total} influencers matching your criteria. Here are the top recommendations sorted by relevance!`;
+        // Add assistant message to chat
+        let assistantMessage = data.data.assistant_message;
+
+        // If we got matches, add count info
+        if (data.data.matches && data.data.matches.length > 0) {
+          assistantMessage += `\n\nI found ${data.data.matches.length} influencers matching your criteria!`;
+        }
 
         setChatHistory((prev) => [
           ...prev,
           {
             type: "bot",
-            content: criteriaText,
-            criteria: data.data.aiCriteria,
+            content: assistantMessage,
           },
         ]);
       } else {
@@ -187,61 +156,27 @@ export default function InfluencerDiscovery() {
               )}
             </CardContent>
 
-            <div className="border-t p-4 space-y-4">
-              {/* Filters */}
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-xs text-slate-400">Budget (per post)</Label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                    <Input
-                      type="number"
-                      placeholder="Max budget"
-                      value={budget}
-                      onChange={(e) => setBudget(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
+            <div className="border-t p-4">
+              {/* Current Criteria Display */}
+              {criteria && (
+                <div className="mb-3 text-xs text-slate-400 space-y-1">
+                  {criteria.niche.length > 0 && (
+                    <div>📌 Niche: {criteria.niche.join(", ")}</div>
+                  )}
+                  {criteria.platform && (
+                    <div>📱 Platform: {criteria.platform}</div>
+                  )}
+                  {criteria.min_followers && (
+                    <div>👥 Min Followers: {criteria.min_followers.toLocaleString()}</div>
+                  )}
+                  {criteria.locations.length > 0 && (
+                    <div>📍 Location: {criteria.locations.join(", ")}</div>
+                  )}
+                  {criteria.budget && (
+                    <div>💰 Budget: ${criteria.budget}</div>
+                  )}
                 </div>
-
-                <div>
-                  <Label className="text-xs text-slate-400">Platform</Label>
-                  <Select value={platform} onValueChange={setPlatform}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Any platform" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Any Platform</SelectItem>
-                      <SelectItem value="instagram">Instagram</SelectItem>
-                      <SelectItem value="youtube">YouTube</SelectItem>
-                      <SelectItem value="tiktok">TikTok</SelectItem>
-                      <SelectItem value="twitter">Twitter</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label className="text-xs text-slate-400 mb-2 block">
-                    Categories
-                  </Label>
-                  <div className="flex flex-wrap gap-1">
-                    {availableCategories.slice(0, 5).map((cat) => (
-                      <Badge
-                        key={cat}
-                        variant={categories.includes(cat) ? "default" : "outline"}
-                        className={`cursor-pointer text-xs ${
-                          categories.includes(cat)
-                            ? "bg-[#ff7a00] hover:bg-[#ff7a00]/90"
-                            : ""
-                        }`}
-                        onClick={() => toggleCategory(cat)}
-                      >
-                        {cat}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              )}
 
               {/* Input */}
               <div className="flex gap-2">
