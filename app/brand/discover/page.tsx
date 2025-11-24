@@ -129,7 +129,9 @@ export default function InfluencerDiscovery() {
             </CardHeader>
 
             <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
-              {chatHistory.map((message, index) => (
+              {Array.isArray(chatHistory) && chatHistory.map((message, index) => {
+                if (!message) return null;
+                return (
                 <div
                   key={index}
                   className={`flex ${
@@ -143,10 +145,11 @@ export default function InfluencerDiscovery() {
                         : "bg-slate-700 text-slate-100"
                     }`}
                   >
-                    <p className="text-sm whitespace-pre-line">{message.content}</p>
+                    <p className="text-sm whitespace-pre-line">{message.content || ""}</p>
                   </div>
                 </div>
-              ))}
+                );
+              })}
               {loading && (
                 <div className="flex justify-start">
                   <div className="bg-slate-700 text-slate-100 rounded-lg p-3">
@@ -160,7 +163,7 @@ export default function InfluencerDiscovery() {
               {/* Current Criteria Display */}
               {criteria && (
                 <div className="mb-3 text-xs text-slate-400 space-y-1">
-                  {criteria.niche.length > 0 && (
+                  {criteria.niche && criteria.niche.length > 0 && (
                     <div>📌 Niche: {criteria.niche.join(", ")}</div>
                   )}
                   {criteria.platform && (
@@ -169,7 +172,7 @@ export default function InfluencerDiscovery() {
                   {criteria.min_followers && (
                     <div>👥 Min Followers: {criteria.min_followers.toLocaleString()}</div>
                   )}
-                  {criteria.locations.length > 0 && (
+                  {criteria.locations && criteria.locations.length > 0 && (
                     <div>📍 Location: {criteria.locations.join(", ")}</div>
                   )}
                   {criteria.budget && (
@@ -234,7 +237,9 @@ export default function InfluencerDiscovery() {
                 </div>
               ) : (
                 <div className="grid md:grid-cols-2 gap-4">
-                  {recommendations.map((influencer) => (
+                  {Array.isArray(recommendations) && recommendations.map((influencer) => {
+                    if (!influencer) return null;
+                    return (
                     <InfluencerCard
                       key={influencer.id}
                       influencer={influencer}
@@ -245,7 +250,8 @@ export default function InfluencerDiscovery() {
                         // Handle send request - TODO: implement collaboration request
                       }}
                     />
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
