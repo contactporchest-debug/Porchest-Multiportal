@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Send, Bot, User, Instagram, Youtube, Tiktok, TrendingUp, Users, Target } from "lucide-react"
+import { Send, Bot, User, Instagram, Youtube, Video, TrendingUp, Users, Target } from "lucide-react"
 
 interface Message {
   id: number
@@ -92,7 +92,7 @@ export default function AIRecommendations() {
       case "youtube":
         return <Youtube className="h-4 w-4" />
       case "tiktok":
-        return <Tiktok className="h-4 w-4" />
+        return <Video className="h-4 w-4" />
       default:
         return <Users className="h-4 w-4" />
     }
@@ -151,7 +151,9 @@ export default function AIRecommendations() {
           </CardHeader>
 
           <CardContent className="flex-1 overflow-y-auto space-y-4">
-            {messages.map((message) => (
+            {Array.isArray(messages) && messages.map((message) => {
+              if (!message) return null;
+              return (
               <div key={message.id}>
                 {/* Message Bubble */}
                 <div
@@ -180,14 +182,16 @@ export default function AIRecommendations() {
                         : "bg-muted"
                     }`}
                   >
-                    <p className="text-sm">{message.content}</p>
+                    <p className="text-sm">{message.content || ""}</p>
                   </div>
                 </div>
 
                 {/* Influencer Cards */}
-                {message.influencers && (
+                {message.influencers && Array.isArray(message.influencers) && (
                   <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3 ml-11">
-                    {message.influencers.map((influencer) => (
+                    {message.influencers.map((influencer) => {
+                      if (!influencer) return null;
+                      return (
                       <Card key={influencer.id} className="hover:shadow-lg transition-shadow">
                         <CardHeader className="pb-3">
                           <div className="flex items-center gap-3">
@@ -213,7 +217,7 @@ export default function AIRecommendations() {
                         <CardContent className="space-y-3">
                           {/* Niches */}
                           <div className="flex flex-wrap gap-1">
-                            {influencer.niche.map((n, idx) => (
+                            {Array.isArray(influencer.niche) && influencer.niche.map((n, idx) => (
                               <Badge key={idx} variant="secondary" className="text-xs">
                                 {n}
                               </Badge>
@@ -269,11 +273,13 @@ export default function AIRecommendations() {
                           </div>
                         </CardContent>
                       </Card>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
 
             {isTyping && (
               <div className="flex items-start gap-3">
