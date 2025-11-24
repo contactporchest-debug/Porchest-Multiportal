@@ -116,12 +116,48 @@ export async function chatAndExtractGemini(
 }
 
 /**
+ * Detect if message is a greeting or small talk
+ */
+function isGreeting(message: string): boolean {
+  const lowerMsg = message.toLowerCase().trim();
+  const greetingPatterns = /^(hi|hello|hey|assalam|salam|good morning|good evening|good afternoon|thanks|thank you|how are you|what's up|whats up|howdy)\b/i;
+  return greetingPatterns.test(lowerMsg);
+}
+
+/**
  * Fallback: Use regex parser + hardcoded friendly responses
  */
 export function chatAndExtractFallback(
   message: string,
   currentCriteria: ChatCriteria | null
 ): ChatAndExtractResult {
+  // Check for greetings first
+  if (isGreeting(message)) {
+    return {
+      assistant_message: "Hello! 👋 I'm here to help you find the perfect influencers for your brand campaign.\n\nTo get started, please tell me:\n• What niche or category? (e.g., Fashion, Tech, Beauty, Fitness)\n• Which location? (e.g., United States, Pakistan, India)\n• Follower range? (e.g., 50k-500k)\n• Your budget per post? (e.g., $500)\n• Preferred platform? (Instagram, YouTube, TikTok)",
+      criteria_update: {
+        niche: [],
+        platform: null,
+        locations: [],
+        min_followers: null,
+        max_followers: null,
+        min_engagement_rate: null,
+        min_reach: null,
+        budget: null,
+        gender: null,
+        languages: [],
+      },
+      needs_followup: true,
+      followup_questions: [
+        "What niche or category are you interested in? (e.g., Fashion, Tech, Beauty)",
+        "Which location do you prefer?",
+        "What's your ideal follower count range?",
+        "What's your budget per post?",
+        "Which platform would you prefer? (Instagram, YouTube, TikTok)"
+      ],
+    };
+  }
+
   // Use existing regex parser
   const parsed = parseRequirementsFree(message);
 
@@ -178,7 +214,8 @@ export function chatAndExtractFallback(
   if (parts.length > 0) {
     assistantMessage += parts.join(" ") + ". ";
   } else {
-    assistantMessage = "I'm here to help! ";
+    // No criteria found - ask for requirements
+    assistantMessage = "I'd love to help you find the perfect influencers! Please share your requirements:\n\n• What niche or category? (e.g., Fashion, Tech, Beauty, Fitness)\n• Which location?\n• Follower range?\n• Your budget per post?\n• Preferred platform? (Instagram, YouTube, TikTok)";
   }
 
   // Check if we have enough criteria

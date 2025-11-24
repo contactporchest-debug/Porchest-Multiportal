@@ -35,41 +35,18 @@ interface InfluencerCard {
   rating: number
 }
 
-const sampleInfluencers: InfluencerCard[] = [
-  {
-    id: "1",
-    name: "Emma Williams",
-    avatar: "/placeholder.svg",
-    niche: ["Fashion", "Lifestyle", "Sustainability"],
-    followers: 555000,
-    engagement: 4.8,
-    platform: "instagram",
-    price: 3500,
-    rating: 4.9,
-  },
-  {
-    id: "2",
-    name: "Alex Rodriguez",
-    avatar: "/placeholder.svg",
-    niche: ["Fitness", "Health", "Nutrition"],
-    followers: 695000,
-    engagement: 6.2,
-    platform: "tiktok",
-    price: 4000,
-    rating: 4.8,
-  },
-  {
-    id: "3",
-    name: "Maya Chen",
-    avatar: "/placeholder.svg",
-    niche: ["Tech", "Gadgets", "Reviews"],
-    followers: 420000,
-    engagement: 5.1,
-    platform: "youtube",
-    price: 3000,
-    rating: 4.7,
-  },
-]
+interface ChatCriteria {
+  niche: string[];
+  platform: "instagram" | "youtube" | "tiktok" | null;
+  locations: string[];
+  min_followers: number | null;
+  max_followers: number | null;
+  min_engagement_rate: number | null;
+  min_reach: number | null;
+  budget: number | null;
+  gender: "male" | "female" | null;
+  languages: string[];
+}
 
 const initialMessages: Message[] = [
   {
@@ -84,6 +61,7 @@ export default function AIRecommendations() {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [input, setInput] = useState("")
   const [isTyping, setIsTyping] = useState(false)
+  const [criteria, setCriteria] = useState<ChatCriteria | null>(null)
 
   const getPlatformIcon = (platform: string) => {
     switch (platform) {
@@ -98,7 +76,7 @@ export default function AIRecommendations() {
     }
   }
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return
 
     // Add user message
@@ -109,21 +87,60 @@ export default function AIRecommendations() {
     }
 
     setMessages([...messages, userMessage])
+    const currentInput = input
     setInput("")
     setIsTyping(true)
 
-    // Simulate AI response
-    setTimeout(() => {
-      const botMessage: Message = {
+    try {
+      const response = await fetch("/api/brand/chat-recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: currentInput,
+          criteria: criteria,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Update criteria in state
+        setCriteria(data.data.criteria)
+
+        // Build bot response with matches if available
+        const botMessage: Message = {
+          id: messages.length + 2,
+          type: "bot",
+          content: data.data.assistant_message || "",
+          influencers: data.data.matches && data.data.matches.length > 0
+            ? data.data.matches.map((match: any) => ({
+                id: match.id,
+                name: match.name,
+                avatar: match.profilePicture || "/placeholder.svg",
+                niche: Array.isArray(match.niche) ? [match.niche] : [],
+                followers: match.totalFollowers || 0,
+                engagement: match.engagementRate || 0,
+                platform: match.primaryPlatform || "instagram",
+                price: match.pricing?.post || 0,
+                rating: match.rating || 0,
+              }))
+            : undefined,
+        }
+
+        setMessages((prev) => [...prev, botMessage])
+      } else {
+        throw new Error(data.error?.message || "Unknown error")
+      }
+    } catch (error: any) {
+      const errorMessage: Message = {
         id: messages.length + 2,
         type: "bot",
-        content:
-          "Based on your requirements, I've found these top influencers who would be perfect for your campaign. They have strong engagement rates and align with your target audience.",
-        influencers: sampleInfluencers,
+        content: `Sorry, I encountered an error: ${error.message}. Please try again.`,
       }
-      setMessages((prev) => [...prev, botMessage])
+      setMessages((prev) => [...prev, errorMessage])
+    } finally {
       setIsTyping(false)
-    }, 1500)
+    }
   }
 
   return (
