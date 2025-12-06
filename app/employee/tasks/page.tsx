@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Search, Filter, Clock, CheckCircle, AlertCircle } from "lucide-react"
 import PortalLayout from "@/components/portal-layout"
-import EmployeeSidebar from "@/components/employee-sidebar"
+import { EmployeeSidebar } from "@/components/employee-sidebar"
 import { mockData } from "@/lib/mock-data"
 
 export default function TaskBoard() {

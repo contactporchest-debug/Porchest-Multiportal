@@ -3,7 +3,7 @@
  * Production-ready AI chatbot with tool calling
  */
 
-import { GoogleGenerativeAI, FunctionDeclarationSchemaType } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { logger } from "@/lib/logger";
 import { searchInfluencers, SearchFilters, InfluencerSearchResult, parseFollowerCount } from "@/lib/searchInfluencers";
 
@@ -43,55 +43,55 @@ const searchInfluencersTool = {
     influencer discovery, or finding creators. Extract criteria from conversation
     and call this function with appropriate filters.`,
   parameters: {
-    type: FunctionDeclarationSchemaType.OBJECT,
+    type: "OBJECT",
     properties: {
       categories: {
-        type: FunctionDeclarationSchemaType.ARRAY,
+        type: "ARRAY",
         description: "Content categories/niches (e.g., ['Fashion', 'Tech', 'Beauty', 'Fitness', 'Travel', 'Food'])",
         items: {
-          type: FunctionDeclarationSchemaType.STRING,
+          type: "STRING",
         },
       },
       location: {
-        type: FunctionDeclarationSchemaType.STRING,
+        type: "STRING",
         description: "Geographic location (e.g., 'United States', 'Pakistan', 'India', 'United Kingdom')",
       },
       minFollowers: {
-        type: FunctionDeclarationSchemaType.NUMBER,
+        type: "NUMBER",
         description: "Minimum follower count (e.g., 50000 for 50k)",
       },
       maxFollowers: {
-        type: FunctionDeclarationSchemaType.NUMBER,
+        type: "NUMBER",
         description: "Maximum follower count (e.g., 500000 for 500k)",
       },
       minEngagementRate: {
-        type: FunctionDeclarationSchemaType.NUMBER,
+        type: "NUMBER",
         description: "Minimum engagement rate as percentage (e.g., 3.5 for 3.5%)",
       },
       platforms: {
-        type: FunctionDeclarationSchemaType.ARRAY,
+        type: "ARRAY",
         description: "Social media platforms (e.g., ['Instagram', 'YouTube', 'TikTok'])",
         items: {
-          type: FunctionDeclarationSchemaType.STRING,
+          type: "STRING",
         },
       },
       verified: {
-        type: FunctionDeclarationSchemaType.BOOLEAN,
+        type: "BOOLEAN",
         description: "Whether the influencer must be verified (true/false)",
       },
       maxPricePerPost: {
-        type: FunctionDeclarationSchemaType.NUMBER,
+        type: "NUMBER",
         description: "Maximum budget per post in USD (e.g., 500)",
       },
       languages: {
-        type: FunctionDeclarationSchemaType.ARRAY,
+        type: "ARRAY",
         description: "Languages spoken (e.g., ['English', 'Spanish', 'Urdu'])",
         items: {
-          type: FunctionDeclarationSchemaType.STRING,
+          type: "STRING",
         },
       },
       minRating: {
-        type: FunctionDeclarationSchemaType.NUMBER,
+        type: "NUMBER",
         description: "Minimum rating (1-5 scale)",
       },
     },
