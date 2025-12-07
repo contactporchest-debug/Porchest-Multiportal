@@ -54,7 +54,11 @@ const roleOptions: RoleOption[] = [
 ];
 
 export default function ChooseRolePage() {
-  const { data: session, status } = useSession();
+  // Safe destructuring - prevents build crashes if useSession returns undefined
+  const sessionData = useSession();
+  const session = sessionData?.data;
+  const status = sessionData?.status || "loading";
+
   const router = useRouter();
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
