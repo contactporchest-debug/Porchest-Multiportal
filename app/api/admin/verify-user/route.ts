@@ -79,10 +79,8 @@ async function verifyUserHandler(req: Request) {
 
     if (validatedData.action === "approve") {
       updateData.status = "ACTIVE";
-      updateData.verified = true;
-      updateData.verified_at = new Date();
     } else {
-      updateData.status = "REJECTED";
+      updateData.status = "SUSPENDED";
       updateData.rejection_reason = validatedData.reason || "No reason provided";
     }
 
@@ -109,11 +107,9 @@ async function verifyUserHandler(req: Request) {
       changes: {
         before: {
           status: user.status,
-          verified: user.verified,
         },
         after: {
           status: updateData.status,
-          verified: updateData.verified || false,
           rejection_reason: updateData.rejection_reason,
         },
       },

@@ -69,7 +69,7 @@ async function getProfileHandler(req: Request) {
       const defaultProfile = {
         user_id: user._id,
         brand_id: generateUniqueBrandId(),
-        brand_name: user.company || user.full_name || "",
+        brand_name: user.full_name || "",
         contact_email: user.email || "",
         representative_name: user.full_name || "",
         niche: "",

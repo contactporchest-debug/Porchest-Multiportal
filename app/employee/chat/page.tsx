@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Send, Phone, Video, MoreVertical, Search } from "lucide-react"
 import PortalLayout from "@/components/portal-layout"
-import EmployeeSidebar from "@/components/employee-sidebar"
+import { EmployeeSidebar } from "@/components/employee-sidebar"
 import { mockData } from "@/lib/mock-data"
 
 export default function TeamChat() {

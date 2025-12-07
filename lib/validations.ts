@@ -82,9 +82,8 @@ export const userRoleSchema = z.enum([
 ]);
 
 export const userStatusSchema = z.enum([
-  "PENDING",
   "ACTIVE",
-  "REJECTED",
+  "INACTIVE",
   "SUSPENDED",
 ]);
 
@@ -93,8 +92,7 @@ export const registerSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
   role: userRoleSchema,
-  phone: phoneSchema,
-  company: z.string().max(200).optional(),
+  // phone and company removed - now stored in portal-specific profiles
 });
 
 export const updateUserSchema = z.object({

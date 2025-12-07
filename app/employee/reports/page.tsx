@@ -20,7 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns"
 import { CalendarIcon, FileText, Send, Clock, CheckCircle } from "lucide-react"
 import PortalLayout from "@/components/portal-layout"
-import EmployeeSidebar from "@/components/employee-sidebar"
+import { EmployeeSidebar } from "@/components/employee-sidebar"
 import { mockData } from "@/lib/mock-data"
 
 export default function Reports() {

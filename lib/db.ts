@@ -32,6 +32,8 @@ export const collections = {
   campaigns: () => getCollection<Types.Campaign>("campaigns"),
   influencerProfiles: () => getCollection<Types.InfluencerProfile>("influencer_profiles"),
   brandProfiles: () => getCollection<Types.BrandProfile>("brand_profiles"),
+  employeeProfiles: () => getCollection<Types.EmployeeProfile>("employee_profiles"),
+  clientProfiles: () => getCollection<Types.ClientProfile>("client_profiles"),
   collaborationRequests: () => getCollection<Types.CollaborationRequest>("collaboration_requests"),
   projects: () => getCollection<Types.Project>("projects"),
   dailyReports: () => getCollection<Types.DailyReport>("daily_reports"),
@@ -128,7 +130,7 @@ export async function getUserById(id: string | ObjectId): Promise<Types.User | n
 }
 
 /**
- * Create user
+ * Create user (master identity only - no portal-specific data)
  */
 export async function createUser(data: Types.UserCreateInput): Promise<Types.User> {
   const col = await collections.users();
@@ -138,11 +140,8 @@ export async function createUser(data: Types.UserCreateInput): Promise<Types.Use
     email: data.email.toLowerCase(),
     password_hash: data.password_hash,
     role: data.role,
-    status: data.status || "PENDING",
-    verified: data.verified || false,
+    status: data.status || "INACTIVE",
     profile_completed: data.profile_completed || false,
-    phone: data.phone,
-    company: data.company,
     created_at: data.created_at || new Date(),
     updated_at: data.updated_at || new Date(),
   };

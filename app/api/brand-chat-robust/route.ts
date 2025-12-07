@@ -1,13 +1,13 @@
 /**
- * Brand Discovery Chatbot API Route - FIXED VERSION
- * POST /api/brand-chat
+ * Brand Discovery Chatbot API - Production Robust Version
+ * POST /api/brand-chat-robust
  *
- * FIXES:
- * - Intent gate runs on EVERY message (mandatory)
- * - Fresh criteria extraction every time
- * - Smart merge with overwrite rules
- * - MongoDB search on every influencer intent
- * - Auto-retry with relaxation
+ * Features:
+ * - Intent detection gate (force DB search)
+ * - 2-step criteria extraction (Gemini JSON + Zod + regex fallback)
+ * - Fuzzy MongoDB search with scoring
+ * - Auto-retry with filter relaxation
+ * - Deterministic formatting (no hallucinations)
  * - Comprehensive logging
  */
 
@@ -28,15 +28,18 @@ import { logger } from "@/lib/logger";
 import { z } from "zod";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Import our modules
+// Import our robust modules
 import {
   extractCriteriaWithGemini,
   type ChatMessage,
   type SearchCriteria,
 } from "@/lib/extractCriteriaWithGemini";
-import { mergeCriteria, isIntentChange } from "@/lib/mergeCriteria";
 import { searchInfluencersWithRetry } from "@/lib/searchInfluencersRobust";
-import { isInfluencerSearchIntent, isGreeting } from "@/lib/intentDetection";
+import {
+  isInfluencerSearchIntent,
+  isGreeting,
+  isQuestion,
+} from "@/lib/intentDetection";
 import {
   formatInfluencerList,
   formatCriteriaSummary,
@@ -58,44 +61,38 @@ const brandChatRequestSchema = z.object({
     )
     .optional()
     .default([]),
-  previousCriteria: z
-    .object({
-      category: z.string().optional(),
-      location: z.string().optional(),
-      minFollowers: z.number().optional(),
-      maxFollowers: z.number().optional(),
-      minEngagement: z.number().optional(),
-      platforms: z.array(z.string()).optional(),
-      verified: z.boolean().optional(),
-    })
-    .optional()
-    .nullable(),
 });
 
 // ============================================================================
 // SYSTEM PROMPT
 // ============================================================================
 
-const CHATBOT_SYSTEM_PROMPT = `You are an expert Brand-to-Influencer Marketing Strategist AI.
+const BRAND_CHATBOT_SYSTEM_PROMPT = `You are an expert Brand-to-Influencer Marketing Strategist AI.
 
 **CRITICAL RULES:**
-1. When user asks for influencers, they will be provided from DATABASE - NEVER invent data
-2. You will receive a formatted list of REAL influencers - use ONLY that data
-3. NEVER make up influencer names, usernames, followers, or metrics
-4. If list is empty, ask follow-up questions to refine criteria
-5. Always summarize search criteria before presenting results
-6. Be concise, professional, and data-driven
+1. When user asks for influencers, they will be provided from the DATABASE - NEVER invent influencer data
+2. NEVER make up influencer names, usernames, followers, or metrics
+3. You will receive a formatted list of REAL influencers - use ONLY that data
+4. If the list is empty, ask follow-up questions to refine search criteria
+5. Always summarize the search criteria before presenting results
+6. Be concise, professional, and helpful
+
+**YOUR ROLE:**
+- Help brands understand the influencer matches
+- Explain why these influencers fit their criteria
+- Suggest refinements if needed
+- Be conversational but data-driven
 
 **RESPONSE STYLE:**
 - Professional yet friendly
 - Focus on ROI and campaign fit
+- Use bullet points for clarity
 - Highlight unique strengths
-- Keep responses under 200 words
 
-Remember: Use REAL data only. You are a strategic advisor.`;
+Remember: You are a strategic advisor using REAL data to help brands make smart decisions.`;
 
 // ============================================================================
-// HELPER: GENERATE NATURAL RESPONSE
+// HELPER: GENERATE GEMINI RESPONSE
 // ============================================================================
 
 async function generateNaturalResponse(
@@ -107,6 +104,7 @@ async function generateNaturalResponse(
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
+    // Fallback without Gemini
     return influencerList;
   }
 
@@ -114,7 +112,7 @@ async function generateNaturalResponse(
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
-      systemInstruction: CHATBOT_SYSTEM_PROMPT,
+      systemInstruction: BRAND_CHATBOT_SYSTEM_PROMPT,
     });
 
     const chat = model.startChat({
@@ -131,12 +129,15 @@ Search criteria: ${criteriaSummary}
 Database results:
 ${influencerList}
 
-Provide a natural, concise response using ONLY this real data. Do NOT invent influencers.`;
+Provide a natural, helpful response about these REAL influencers. Do NOT add fake influencers or make up data.`;
 
     const result = await chat.sendMessage(prompt);
-    return result.response.text();
+    const response = result.response;
+
+    return response.text();
   } catch (error) {
     logger.error("Gemini natural response failed", error);
+    // Fallback to raw list
     return influencerList;
   }
 }
@@ -145,13 +146,13 @@ Provide a natural, concise response using ONLY this real data. Do NOT invent inf
 // MAIN API HANDLER
 // ============================================================================
 
-async function brandChatHandler(req: Request) {
+async function brandChatRobustHandler(req: Request) {
   const requestId = Math.random().toString(36).substring(7);
 
   try {
-    logger.info(`[${requestId}] === NEW REQUEST ===`);
+    logger.info(`[${requestId}] Request started`);
 
-    // 🔐 AUTHENTICATION
+    // 🔐 AUTHENTICATION CHECK
     const session = await auth();
 
     if (!session || !session.user) {
@@ -162,9 +163,12 @@ async function brandChatHandler(req: Request) {
       return unauthorizedResponse("Brand access required");
     }
 
-    logger.info(`[${requestId}] User authenticated`, { userId: session.user.id });
+    logger.info(`[${requestId}] User authenticated`, {
+      userId: session.user.id,
+      role: session.user.role,
+    });
 
-    // 📥 VALIDATE REQUEST
+    // 📥 PARSE & VALIDATE REQUEST
     const body = await req.json();
     const validationResult = brandChatRequestSchema.safeParse(body);
 
@@ -174,13 +178,11 @@ async function brandChatHandler(req: Request) {
       );
     }
 
-    const { message, chatHistory, previousCriteria } = validationResult.data;
+    const { message, chatHistory } = validationResult.data;
 
-    logger.info(`[${requestId}] Request parsed`, {
+    logger.info(`[${requestId}] Request validated`, {
       message,
       historyLength: chatHistory.length,
-      hasPreviousCriteria: !!previousCriteria,
-      previousCriteria,
     });
 
     // 👋 HANDLE GREETINGS
@@ -205,14 +207,10 @@ What are you looking for?`;
         reply: greetingResponse,
         influencers: [],
         intent: "greeting",
-        criteria: null,
       });
     }
 
-    // ============================================================================
-    // MANDATORY INTENT GATE (RUNS ON EVERY MESSAGE)
-    // ============================================================================
-
+    // 🎯 INTENT DETECTION GATE
     const hasSearchIntent = isInfluencerSearchIntent(message);
 
     logger.info(`[${requestId}] Intent detection`, { hasSearchIntent });
@@ -222,33 +220,21 @@ What are you looking for?`;
     // ============================================================================
 
     if (hasSearchIntent) {
-      logger.info(`[${requestId}] === INFLUENCER SEARCH PATH ===`);
+      logger.info(`[${requestId}] INFLUENCER SEARCH PATH`);
 
-      // STEP 1: Extract criteria from current message
-      const newCriteria = await extractCriteriaWithGemini(message, chatHistory);
+      // STEP 1: Extract criteria (Gemini JSON + Zod + regex fallback)
+      const criteria = await extractCriteriaWithGemini(message, chatHistory);
 
-      logger.info(`[${requestId}] New criteria extracted`, { newCriteria });
+      logger.info(`[${requestId}] Criteria extracted`, { criteria });
 
-      // STEP 2: Merge with previous criteria (smart overwrite rules)
-      const finalCriteria = mergeCriteria(previousCriteria || null, newCriteria, message);
-
-      logger.info(`[${requestId}] Final criteria after merge`, { finalCriteria });
-
-      // STEP 3: Detect if this is an intent change
-      const isChange = isIntentChange(previousCriteria || null, newCriteria, message);
-
-      if (isChange) {
-        logger.info(`[${requestId}] INTENT CHANGE DETECTED - user switched topics`);
-      }
-
-      // STEP 4: Check minimum criteria
+      // STEP 2: Validate minimum criteria
       const hasMinimumCriteria =
-        finalCriteria.category || finalCriteria.location || finalCriteria.minFollowers;
+        criteria.category || criteria.location || criteria.minFollowers;
 
       if (!hasMinimumCriteria) {
         logger.info(`[${requestId}] Insufficient criteria, asking follow-up`);
 
-        const followUpQuestions = generateFollowUpQuestions(finalCriteria);
+        const followUpQuestions = generateFollowUpQuestions(criteria);
 
         const followUpResponse = `I'd love to help you find influencers! To get the best matches, please provide:
 
@@ -259,14 +245,14 @@ ${followUpQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n")}
         return successResponse({
           reply: followUpResponse,
           influencers: [],
-          criteria: finalCriteria,
+          criteria,
           intent: "search",
           needsMoreInfo: true,
         });
       }
 
-      // STEP 5: Search MongoDB with auto-retry relaxation
-      const { results, relaxed } = await searchInfluencersWithRetry(finalCriteria, {
+      // STEP 3: Search MongoDB with scoring + auto-retry relaxation
+      const { results, relaxed } = await searchInfluencersWithRetry(criteria, {
         limit: 10,
         allowRelaxation: true,
       });
@@ -274,21 +260,19 @@ ${followUpQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n")}
       logger.info(`[${requestId}] Search complete`, {
         count: results.length,
         relaxed,
-        finalCriteria,
       });
 
-      // STEP 6: Format results deterministically
-      const criteriaSummary = formatCriteriaSummary(finalCriteria);
+      // STEP 4: Format results deterministically
+      const criteriaSummary = formatCriteriaSummary(criteria);
       const influencerList = formatInfluencerList(results);
 
       logger.info(`[${requestId}] Results formatted`, {
         listLength: influencerList.length,
-        criteriaSummary,
       });
 
-      // STEP 7: Handle no results
+      // STEP 5: Handle no results
       if (results.length === 0) {
-        logger.info(`[${requestId}] No results found`);
+        logger.info(`[${requestId}] No results after relaxation`);
 
         const noResultsResponse = `I couldn't find any influencers matching your criteria${relaxed ? " (even after expanding the search)" : ""}.
 
@@ -306,13 +290,13 @@ Would you like to adjust your search?`;
         return successResponse({
           reply: noResultsResponse,
           influencers: [],
-          criteria: finalCriteria,
+          criteria,
           relaxed,
           intent: "search",
         });
       }
 
-      // STEP 8: Generate natural response using REAL data
+      // STEP 6: Generate natural response with Gemini (using REAL data only)
       const naturalResponse = await generateNaturalResponse(
         message,
         chatHistory,
@@ -322,20 +306,20 @@ Would you like to adjust your search?`;
 
       logger.info(`[${requestId}] Natural response generated`);
 
-      // Add relaxation notice if applicable
+      // Add relaxation notice if filters were relaxed
       let finalResponse = naturalResponse;
       if (relaxed) {
-        finalResponse = `ℹ️ *I expanded your search to find more matches.*\n\n` + finalResponse;
+        finalResponse =
+          `ℹ️ *I expanded your search criteria to find more matches.*\n\n` + finalResponse;
       }
 
       return successResponse({
         reply: finalResponse,
         influencers: results,
-        criteria: finalCriteria,
+        criteria,
         relaxed,
         intent: "search",
-        intentChange: isChange,
-        method: "robust-fixed",
+        method: "robust-deterministic",
       });
     }
 
@@ -343,14 +327,15 @@ Would you like to adjust your search?`;
     // PATH 2: GENERAL CHAT (NON-SEARCH)
     // ============================================================================
 
-    logger.info(`[${requestId}] === GENERAL CHAT PATH ===`);
+    logger.info(`[${requestId}] GENERAL CHAT PATH`);
 
+    // Use Gemini for general conversation
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      const fallbackResponse = `I'm here to help you discover influencers for your campaigns!
+      const fallbackResponse = `I'm here to help you discover influencers for your brand campaigns!
 
-Try asking:
+Try asking something like:
 • "Find fashion influencers in New York with 100k+ followers"
 • "Show me verified tech creators on YouTube"
 • "I need beauty influencers in Los Angeles"
@@ -368,7 +353,7 @@ What kind of influencers are you looking for?`;
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({
         model: "gemini-1.5-flash",
-        systemInstruction: CHATBOT_SYSTEM_PROMPT,
+        systemInstruction: BRAND_CHATBOT_SYSTEM_PROMPT,
       });
 
       const chat = model.startChat({
@@ -379,9 +364,10 @@ What kind of influencers are you looking for?`;
       });
 
       const result = await chat.sendMessage(message);
+      const response = result.response;
 
       return successResponse({
-        reply: result.response.text(),
+        reply: response.text(),
         influencers: [],
         intent: "general",
       });
@@ -412,4 +398,4 @@ What are you looking for?`;
 // EXPORT WITH RATE LIMITING
 // ============================================================================
 
-export const POST = withRateLimit(brandChatHandler, RATE_LIMIT_CONFIGS.ai);
+export const POST = withRateLimit(brandChatRobustHandler, RATE_LIMIT_CONFIGS.ai);
