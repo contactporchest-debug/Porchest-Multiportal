@@ -1,33 +1,71 @@
+/**
+ * Next.js Middleware - Route Protection and Authentication
+ *
+ * This middleware runs on EVERY request before it reaches the page or API route.
+ * It handles:
+ * 1. Authentication checks (is user logged in?)
+ * 2. Role-based access control (can user access this portal?)
+ * 3. Account status verification (is account active?)
+ * 4. Profile completion checks (has user completed setup?)
+ * 5. Automatic redirects to appropriate pages
+ *
+ * Middleware runs on Edge Runtime (lightweight, fast, no MongoDB access).
+ * For database queries, use API routes instead.
+ *
+ * Flow:
+ * User Request → Middleware → Check Auth → Check Role → Check Status → Allow/Redirect
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { auth } from "@/lib/auth-middleware";
+import { auth } from "@/lib/auth-middleware"; // Edge-compatible auth function (no MongoDB)
 
+/**
+ * Middleware Function
+ *
+ * Executes on every request to protected routes.
+ * Validates authentication, authorization, and redirects as needed.
+ *
+ * @param req - The incoming HTTP request
+ * @returns NextResponse - Either allows request or redirects to appropriate page
+ */
 export async function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+  const { pathname } = req.nextUrl; // Get the requested URL path
 
-  // Get session using Edge-compatible auth (no MongoDB)
+  // Get session using Edge-compatible auth (no MongoDB access in Edge runtime)
   const session = await auth();
 
-  // Define public routes that don't require authentication
+  /**
+   * Public Routes - No Authentication Required
+   *
+   * These routes are accessible to anyone, even users who are not logged in.
+   * Includes: homepage, login, signup, auth pages, and public API routes.
+   */
   const publicRoutes = [
-    "/",
-    "/login",
-    "/signup",
-    "/auth",
-    "/services",
-    "/about",
-    "/contact",
-    "/api/auth",
+    "/", // Homepage
+    "/login", // Login page
+    "/signup", // Registration page
+    "/auth", // Auth-related pages
+    "/services", // Services page
+    "/about", // About page
+    "/contact", // Contact page
+    "/api/auth", // NextAuth API routes
   ];
 
+  // Check if current path is a public route
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
 
-  // If user is logged in and trying to access login/signup, redirect appropriately
+  /**
+   * Redirect Logged-In Users Away from Login/Signup
+   *
+   * If a logged-in user tries to access login or signup pages,
+   * redirect them based on their role or to role selection.
+   */
   if (session?.user && (pathname === "/login" || pathname === "/signup")) {
     const role = session.user.role?.toLowerCase();
 
     // Check if user needs to choose a role (new Google OAuth users)
-    // @ts-ignore - needsRole is a custom field
+    // @ts-ignore - needsRole is a custom field added in auth.config.ts
     if (!role || session.user.needsRole) {
       // Prevent redirect loop - only redirect if not already on choose-role
       if (pathname !== "/auth/choose-role") {
@@ -36,23 +74,33 @@ export async function middleware(req: NextRequest) {
       return NextResponse.next();
     }
 
-    // User has a role, redirect to their portal
+    // User has a role, redirect to their appropriate portal
     return NextResponse.redirect(new URL(`/${role}`, req.url));
   }
 
-  // Allow public routes
+  // Allow public routes without authentication
   if (isPublicRoute) {
-    return NextResponse.next();
+    return NextResponse.next(); // Continue to the requested page
   }
 
-  // Protected routes - require authentication
+  /**
+   * Authentication Check for Protected Routes
+   *
+   * If user is not logged in and trying to access a protected route,
+   * redirect to login page with a callback URL to return after login.
+   */
   if (!session?.user) {
     const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("callbackUrl", pathname);
+    loginUrl.searchParams.set("callbackUrl", pathname); // Store the original destination
     return NextResponse.redirect(loginUrl);
   }
 
-  // Check if user needs to choose a role (before checking status)
+  /**
+   * Role Selection Check
+   *
+   * New Google OAuth users don't have a role yet.
+   * Redirect them to choose a role before accessing any portal.
+   */
   const userRole = session.user.role?.toLowerCase();
   // @ts-ignore - needsRole is a custom field
   if (!userRole || session.user.needsRole) {
@@ -63,7 +111,13 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check if user account is active
+  /**
+   * Account Status Check
+   *
+   * Check if user's account is active.
+   * Inactive accounts are pending admin approval.
+   * Suspended accounts cannot access the platform.
+   */
   if (session.user.status !== "ACTIVE") {
     // Prevent redirect loop - only redirect if not already on pending-approval
     if (pathname !== "/auth/pending-approval") {
@@ -72,25 +126,36 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Role-based route protection
+  /**
+   * Role-Based Access Control (RBAC)
+   *
+   * Ensures users can only access their designated portal.
+   * For example, brands can't access /influencer, influencers can't access /brand, etc.
+   */
   const roleBasedRoutes = [
-    { path: "/brand", role: "brand" },
-    { path: "/influencer", role: "influencer" },
-    { path: "/client", role: "client" },
-    { path: "/employee", role: "employee" },
-    { path: "/admin", role: "admin" },
+    { path: "/brand", role: "brand" }, // Brand portal
+    { path: "/influencer", role: "influencer" }, // Influencer portal
+    { path: "/client", role: "client" }, // Client portal
+    { path: "/employee", role: "employee" }, // Employee portal
+    { path: "/admin", role: "admin" }, // Admin portal
   ];
 
+  // Check if user is trying to access a portal they don't have access to
   for (const route of roleBasedRoutes) {
     if (pathname.startsWith(route.path) && userRole !== route.role) {
-      // User trying to access wrong portal, redirect to their portal
+      // User trying to access wrong portal, redirect to their correct portal
       return NextResponse.redirect(new URL(`/${userRole}`, req.url));
     }
   }
 
-  // Brand profile completion check
+  /**
+   * Brand Profile Completion Check
+   *
+   * Brand users must complete their profile setup before accessing other features.
+   * This ensures we have all necessary business information before they create campaigns.
+   */
   if (userRole === "brand" && pathname.startsWith("/brand")) {
-    // Allow access to profile-setup page and brand profile API routes
+    // Allow access to profile-setup page and related API routes
     if (
       pathname === "/brand/profile-setup" ||
       pathname.startsWith("/api/brand/profile") ||
@@ -103,16 +168,21 @@ export async function middleware(req: NextRequest) {
     // Use !== true to catch both false and undefined values
     const profileCompleted = session.user.profileCompleted;
     if (profileCompleted !== true) {
-      // Prevent redirect loop
+      // Prevent redirect loop - only redirect if not already on profile-setup
       if (pathname !== "/brand/profile-setup") {
         return NextResponse.redirect(new URL("/brand/profile-setup", req.url));
       }
     }
   }
 
-  // Influencer profile completion check
+  /**
+   * Influencer Profile Completion Check
+   *
+   * Influencer users must complete their profile before accessing other features.
+   * This ensures we have their social media data and preferences.
+   */
   if (userRole === "influencer" && pathname.startsWith("/influencer")) {
-    // Allow access to profile page and influencer profile API routes
+    // Allow access to profile page and related API routes
     if (
       pathname === "/influencer/profile" ||
       pathname.startsWith("/api/influencer/profile") ||
@@ -125,16 +195,32 @@ export async function middleware(req: NextRequest) {
     // Use !== true to catch both false and undefined values
     const profileCompleted = session.user.profileCompleted;
     if (profileCompleted !== true) {
-      // Prevent redirect loop
+      // Prevent redirect loop - only redirect if not already on profile page
       if (pathname !== "/influencer/profile") {
         return NextResponse.redirect(new URL("/influencer/profile", req.url));
       }
     }
   }
 
+  // All checks passed - allow request to proceed
   return NextResponse.next();
 }
 
+/**
+ * Middleware Configuration
+ *
+ * The matcher defines which routes this middleware should run on.
+ * By using a negative lookahead regex, we exclude certain paths:
+ * - NextAuth API routes (/api/auth/*) - handled by NextAuth internally
+ * - Static files (_next/static/*) - no need for auth checks on JS/CSS
+ * - Image optimization (_next/image/*) - no need for auth on images
+ * - Public assets (favicon.ico, .png, .jpg, .svg, .ico) - publicly accessible
+ *
+ * The middleware will run on ALL other routes, including:
+ * - All portal pages (/brand/*, /influencer/*, /admin/*, etc.)
+ * - All API routes except /api/auth/*
+ * - Public pages (homepage, login, signup, etc.)
+ */
 export const config = {
   matcher: [
     /*
@@ -143,7 +229,7 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public folder files
+     * - public folder files (.png, .jpg, .svg, .ico)
      */
     "/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.jpg$|.*\\.svg$|.*\\.ico$).*)",
   ],
