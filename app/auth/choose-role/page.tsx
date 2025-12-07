@@ -1,5 +1,9 @@
 "use client";
 
+// Force dynamic rendering to prevent prerendering during build
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -54,7 +58,11 @@ const roleOptions: RoleOption[] = [
 ];
 
 export default function ChooseRolePage() {
-  const { data: session, status } = useSession();
+  // Safe destructuring - prevents build crashes if useSession returns undefined
+  const sessionData = useSession();
+  const session = sessionData?.data;
+  const status = sessionData?.status || "loading";
+
   const router = useRouter();
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
