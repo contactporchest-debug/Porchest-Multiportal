@@ -5,15 +5,8 @@ export const fetchCache = "force-no-store";
 
 import { auth } from "@/lib/auth";
 import { collections } from "@/lib/db";
-import {
-  successResponse,
-  unauthorizedResponse,
-  badRequestResponse,
-  handleApiError,
-} from "@/lib/api-response";
-import { withRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit";
+import { NextResponse } from "next/server";
 import { z } from "zod";
-import { ObjectId } from "mongodb";
 
 // Validation schema for role selection
 const setRoleSchema = z.object({
@@ -39,23 +32,36 @@ function generateUniqueBrandId(): string {
  * POST /api/auth/set-role
  * Set role for new OAuth users
  * Creates user record with role + matching portal profile
- *
- * RATE LIMIT: 10 requests per minute per IP
  */
-async function setRoleHandler(req: Request) {
+export async function POST(req: Request) {
   try {
     // Check authentication
     const session = await auth();
     if (!session || !session.user) {
-      return unauthorizedResponse("Authentication required");
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
     }
 
     // Parse and validate request body
-    const body = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 }
+      );
+    }
+
     const validation = setRoleSchema.safeParse(body);
 
     if (!validation.success) {
-      return badRequestResponse(validation.error.errors[0].message);
+      return NextResponse.json(
+        { error: validation.error.errors[0].message },
+        { status: 400 }
+      );
     }
 
     const { role } = validation.data;
@@ -69,12 +75,18 @@ async function setRoleHandler(req: Request) {
     });
 
     if (!existingUser) {
-      return badRequestResponse("User not found in database");
+      return NextResponse.json(
+        { error: "User not found in database" },
+        { status: 404 }
+      );
     }
 
     // Check if user already has a role
     if (existingUser.role) {
-      return badRequestResponse("User already has a role assigned");
+      return NextResponse.json(
+        { error: "User already has a role assigned" },
+        { status: 400 }
+      );
     }
 
     // Determine status based on role
@@ -97,7 +109,10 @@ async function setRoleHandler(req: Request) {
     );
 
     if (updateResult.modifiedCount === 0) {
-      return badRequestResponse("Failed to update user role");
+      return NextResponse.json(
+        { error: "Failed to update user role" },
+        { status: 500 }
+      );
     }
 
     // Create matching portal profile based on role
@@ -166,7 +181,8 @@ async function setRoleHandler(req: Request) {
       redirectUrl = "/portal";
     }
 
-    return successResponse({
+    // Return success response with redirect URL
+    return NextResponse.json({
       message: `Role set to ${role} successfully`,
       role,
       status,
@@ -174,9 +190,13 @@ async function setRoleHandler(req: Request) {
       redirectUrl,
     });
   } catch (error) {
-    return handleApiError(error);
+    console.error("Error in set-role API:", error);
+
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "An unexpected error occurred",
+      },
+      { status: 500 }
+    );
   }
 }
-
-// Export with rate limiting applied
-export const POST = withRateLimit(setRoleHandler, RATE_LIMIT_CONFIGS.auth);
