@@ -171,22 +171,47 @@ export const authConfig: NextAuthConfig = {
         }
       }
 
-      // Re-fetch profile status when session is updated for brand users
-      if (trigger === "update" && token.role === "brand") {
+      // Re-fetch user data from database when session is updated
+      // This ensures role changes are reflected immediately
+      if (trigger === "update") {
         try {
           const client = await clientPromise;
           const db = client.db("porchest_db");
-          const profile = await db.collection("brand_profiles").findOne({
-            user_id: new (await import("mongodb")).ObjectId(token.id as string)
-          });
-          token.profileCompleted = profile?.profile_completed ?? false;
+
+          // Get user's email from token
+          const userEmail = token.email as string;
+          if (userEmail) {
+            const dbUser = await db.collection("users").findOne({
+              email: userEmail,
+            });
+
+            if (dbUser) {
+              // Update token with latest user data from DB
+              token.needsRole = !dbUser.role;
+              token.role = dbUser.role || null;
+              token.status = dbUser.status || null;
+              token.id = token.id || dbUser._id.toString();
+
+              // Fetch profile_completed status for brand users
+              if (dbUser.role === "brand") {
+                try {
+                  const profile = await db.collection("brand_profiles").findOne({
+                    user_id: new (await import("mongodb")).ObjectId(token.id as string)
+                  });
+                  token.profileCompleted = profile?.profile_completed ?? false;
+                } catch (error) {
+                  console.error("Error fetching brand profile:", error);
+                  token.profileCompleted = false;
+                }
+              }
+            }
+          }
         } catch (error) {
-          console.error("Error re-fetching profile_completed:", error);
-          token.profileCompleted = false;
+          console.error("Error re-fetching user data on session update:", error);
         }
       }
 
-      // Update token when session is updated
+      // Merge any additional session data
       if (trigger === "update" && session) {
         token = { ...token, ...session };
       }
