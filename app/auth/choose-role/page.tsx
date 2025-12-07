@@ -1,9 +1,5 @@
 "use client";
 
-// Force dynamic rendering to prevent prerendering during build
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
