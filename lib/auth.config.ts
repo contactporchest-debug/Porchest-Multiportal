@@ -109,24 +109,21 @@ export const authConfig: NextAuthConfig = {
       return true;
     },
     async redirect({ url, baseUrl }) {
-      // If user needs to choose a role, redirect to role selection page
-      // (This will be checked in the choose-role page itself using session)
-      if (url.includes("/auth/choose-role")) {
+      // Safely handle redirects to prevent open redirect vulnerabilities
+      // and infinite loops
+
+      // Allow relative URLs (start with /)
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`;
+      }
+
+      // Allow URLs that start with baseUrl (same domain)
+      if (url.startsWith(baseUrl)) {
         return url;
       }
 
-      // If coming from set-role API with redirect URL, use it
-      if (url.startsWith(baseUrl) && !url.includes("/api/auth/callback")) {
-        return url;
-      }
-
-      // After successful sign in, redirect to /portal
-      // The /portal page will check if user needs to choose a role
-      if (url === baseUrl || url === `${baseUrl}/` || url.includes("/api/auth")) {
-        return `${baseUrl}/portal`;
-      }
-
-      // Default to portal
+      // For any other case (external URLs, auth callbacks, etc.)
+      // Redirect to /portal, which will handle role-based routing
       return `${baseUrl}/portal`;
     },
     async jwt({ token, user, trigger, session }) {
