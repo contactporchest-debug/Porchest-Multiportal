@@ -140,13 +140,15 @@ async function handleCampaignInvite(event: EventData): Promise<void> {
   const usersCollection = await collections.users()
   const campaignsCollection = await collections.campaigns()
   const influencerProfilesCollection = await collections.influencerProfiles()
+  const brandProfilesCollection = await collections.brandProfiles()
 
   const campaign = await campaignsCollection.findOne({ _id: new ObjectId(campaignId) })
   const brand = await usersCollection.findOne({ _id: new ObjectId(brandId) })
+  const brandProfile = await brandProfilesCollection.findOne({ user_id: new ObjectId(brandId) })
 
   if (!campaign || !brand) return
 
-  const brandName = brand.company || brand.full_name || "A brand"
+  const brandName = brandProfile?.brand_name || brand.full_name || "A brand"
 
   // Send email to each invited influencer
   for (const influencerId of influencerIds as string[]) {
@@ -185,6 +187,7 @@ async function handlePostSubmitted(event: EventData): Promise<void> {
   const campaignsCollection = await collections.campaigns()
   const postsCollection = await collections.posts()
   const influencerProfilesCollection = await collections.influencerProfiles()
+  const brandProfilesCollection = await collections.brandProfiles()
 
   const post = await postsCollection.findOne({ _id: new ObjectId(postId) })
   const campaign = await campaignsCollection.findOne({ _id: new ObjectId(campaignId) })
@@ -192,6 +195,7 @@ async function handlePostSubmitted(event: EventData): Promise<void> {
   if (!post || !campaign) return
 
   const brand = await usersCollection.findOne({ _id: campaign.brand_id })
+  const brandProfile = await brandProfilesCollection.findOne({ user_id: campaign.brand_id })
   const influencer = await usersCollection.findOne({ _id: new ObjectId(influencerId) })
   const influencerProfile = await influencerProfilesCollection.findOne({
     user_id: new ObjectId(influencerId),
@@ -200,7 +204,7 @@ async function handlePostSubmitted(event: EventData): Promise<void> {
   if (!brand?.email || !influencer) return
 
   const template = emailTemplates.postSubmitted(
-    brand.company || brand.full_name || "Brand",
+    brandProfile?.brand_name || brand.full_name || "Brand",
     influencerProfile?.full_name || influencer.full_name || influencer.email,
     campaign.name,
     post.post_url
@@ -284,11 +288,13 @@ async function handleCollaborationAccepted(event: EventData): Promise<void> {
   const usersCollection = await collections.users()
   const campaignsCollection = await collections.campaigns()
   const influencerProfilesCollection = await collections.influencerProfiles()
+  const brandProfilesCollection = await collections.brandProfiles()
 
   const campaign = await campaignsCollection.findOne({ _id: new ObjectId(campaignId) })
   if (!campaign) return
 
   const brand = await usersCollection.findOne({ _id: campaign.brand_id })
+  const brandProfile = await brandProfilesCollection.findOne({ user_id: campaign.brand_id })
   const influencer = await usersCollection.findOne({ _id: new ObjectId(influencerId) })
   const profile = await influencerProfilesCollection.findOne({
     user_id: new ObjectId(influencerId),
@@ -297,7 +303,7 @@ async function handleCollaborationAccepted(event: EventData): Promise<void> {
   if (!brand?.email || !influencer) return
 
   const template = emailTemplates.notification(
-    brand.company || brand.full_name || "Brand",
+    brandProfile?.brand_name || brand.full_name || "Brand",
     "Collaboration Accepted",
     `Great news! ${profile?.full_name || influencer.full_name || "An influencer"} has accepted your invitation for the "${campaign.name}" campaign.`,
     `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/brand/campaigns/${campaign._id}`

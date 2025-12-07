@@ -32,8 +32,10 @@ function generateUniqueBrandId(): string {
 /**
  * POST /api/auth/register
  * Register a new user account
- * Brands and influencers require admin approval (PENDING status)
- * Clients and employees are activated immediately (ACTIVE status)
+ *
+ * Creates master user identity + matching portal profile
+ * - Brands and influencers: Start as INACTIVE (require admin approval)
+ * - Clients and employees: Start as ACTIVE (immediate access)
  *
  * RATE LIMIT: 3 requests per hour per IP
  */
@@ -59,23 +61,20 @@ async function registerHandler(req: Request) {
     const hashedPassword = await bcrypt.hash(validatedData.password, 10);
 
     // Determine status based on role
-    // Brand and Influencer accounts require admin approval for verification
+    // Brand and Influencer accounts require admin approval (INACTIVE until approved)
+    // Client and Employee accounts are activated immediately (ACTIVE)
     const requiresApproval = ["brand", "influencer"].includes(
       validatedData.role.toLowerCase()
     );
-    const status = requiresApproval ? "PENDING" : "ACTIVE";
+    const status = requiresApproval ? "INACTIVE" : "ACTIVE";
 
-    // Insert new user
+    // Create master user identity (clean - no portal-specific data)
     const result = await usersCollection.insertOne({
       full_name: validatedData.name,
       email: validatedData.email.toLowerCase(),
       password_hash: hashedPassword,
       role: validatedData.role.toLowerCase() as "admin" | "brand" | "influencer" | "client" | "employee",
-      status: status as "PENDING" | "ACTIVE",
-      verified: !requiresApproval,
-      verified_at: requiresApproval ? undefined : new Date(),
-      phone: validatedData.phone,
-      company: validatedData.company,
+      status: status as "ACTIVE" | "INACTIVE" | "SUSPENDED",
       profile_completed: false,
       created_at: new Date(),
       updated_at: new Date(),
@@ -85,27 +84,60 @@ async function registerHandler(req: Request) {
       throw new Error("Failed to create user account");
     }
 
-    // Auto-create brand profile for brand users
-    if (validatedData.role.toLowerCase() === "brand") {
-      try {
-        const brandProfilesCollection = await collections.brandProfiles();
-        const brandProfile = {
-          user_id: result.insertedId,
-          unique_brand_id: generateUniqueBrandId(),
-          total_campaigns: 0,
-          active_campaigns: 0,
-          total_spent: 0,
-          profile_completed: false,
-          created_at: new Date(),
-          updated_at: new Date(),
-        };
+    // Create matching portal profile based on role
+    const userId = result.insertedId;
+    const role = validatedData.role.toLowerCase();
 
-        await brandProfilesCollection.insertOne(brandProfile as any);
-      } catch (error) {
-        console.error("Failed to create brand profile:", error);
-        // Don't fail the registration if profile creation fails
-        // Profile will be auto-created on first login
+    try {
+      switch (role) {
+        case "brand":
+          const brandProfilesCollection = await collections.brandProfiles();
+          await brandProfilesCollection.insertOne({
+            user_id: userId,
+            unique_brand_id: generateUniqueBrandId(),
+            total_campaigns: 0,
+            active_campaigns: 0,
+            total_spent: 0,
+            profile_completed: false,
+            created_at: new Date(),
+            updated_at: new Date(),
+          } as any);
+          break;
+
+        case "influencer":
+          const influencerProfilesCollection = await collections.influencerProfiles();
+          await influencerProfilesCollection.insertOne({
+            user_id: userId,
+            profile_completed: false,
+            created_at: new Date(),
+            updated_at: new Date(),
+          } as any);
+          break;
+
+        case "employee":
+          const employeeProfilesCollection = await collections.employeeProfiles();
+          await employeeProfilesCollection.insertOne({
+            user_id: userId,
+            profile_completed: false,
+            created_at: new Date(),
+            updated_at: new Date(),
+          } as any);
+          break;
+
+        case "client":
+          const clientProfilesCollection = await collections.clientProfiles();
+          await clientProfilesCollection.insertOne({
+            user_id: userId,
+            profile_completed: false,
+            created_at: new Date(),
+            updated_at: new Date(),
+          } as any);
+          break;
       }
+    } catch (error) {
+      console.error(`Failed to create ${role} profile:`, error);
+      // Don't fail the registration if profile creation fails
+      // Profile will be auto-created on first login
     }
 
     // Return appropriate response based on approval status
@@ -114,7 +146,7 @@ async function registerHandler(req: Request) {
         message: "Account created successfully. Please wait for admin approval.",
         requiresApproval: true,
         redirectTo: "/auth/pending-approval",
-        userId: result.insertedId.toString(),
+        userId: userId.toString(),
       });
     }
 
@@ -122,7 +154,7 @@ async function registerHandler(req: Request) {
       message: "Account created successfully. You can now log in.",
       requiresApproval: false,
       redirectTo: "/login",
-      userId: result.insertedId.toString(),
+      userId: userId.toString(),
     });
   } catch (error) {
     return handleApiError(error);

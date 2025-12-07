@@ -1,56 +1,40 @@
 /**
- * Database Type Definitions
- * TypeScript interfaces for all MongoDB collections
+ * Database Type Definitions - REFACTORED
+ * Clean master identity table + portal-specific profiles
  */
 
 import { ObjectId } from "mongodb";
 
 // ============================================================================
-// USER TYPES
+// USER TYPES (MASTER IDENTITY TABLE)
 // ============================================================================
 
 export type UserRole = "admin" | "brand" | "influencer" | "client" | "employee";
-export type UserStatus = "PENDING" | "ACTIVE" | "REJECTED" | "SUSPENDED";
+export type UserStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED";
 
+/**
+ * User - Master Identity Table
+ * Stores ONLY authentication and role info
+ * Portal-specific data lives in BrandProfile, InfluencerProfile, etc.
+ */
 export interface User {
   _id: ObjectId;
-  full_name?: string;
+  full_name: string;
   email: string;
-  password_hash?: string;
+  password_hash: string;
   role: UserRole;
-
-  // Admin verification
   status: UserStatus;
-  verified: boolean;
-  verified_at?: Date;
-  approved_by?: ObjectId;
-  approved_at?: Date;
-  rejection_reason?: string;
-
-  // OAuth fields (Auth.js compatibility)
-  image?: string;
-  emailVerified?: Date;
-
-  // Additional info
-  phone?: string;
-  company?: string;
   profile_completed: boolean;
-
-  // Timestamps
   created_at: Date;
   updated_at: Date;
-  last_login?: Date;
 }
 
 export interface UserCreateInput {
-  full_name?: string;
+  full_name: string;
   email: string;
-  password_hash?: string;
+  password_hash: string;
   role: UserRole;
   status?: UserStatus;
-  verified?: boolean;
-  phone?: string;
-  company?: string;
   profile_completed?: boolean;
   created_at?: Date;
   updated_at?: Date;
@@ -99,8 +83,6 @@ export interface Campaign {
     positive: number;
     neutral: number;
     negative: number;
-    total_comments_analyzed: number;
-    last_analyzed?: Date;
   };
 
   created_at: Date;
@@ -112,21 +94,23 @@ export interface CampaignCreateInput {
   name: string;
   description?: string;
   objectives?: string[];
-  target_audience?: Campaign["target_audience"];
+  target_audience?: {
+    age_range?: { min: number; max: number };
+    gender?: string[];
+    locations?: string[];
+    interests?: string[];
+  };
   start_date?: Date;
   end_date?: Date;
   budget: number;
   spent_amount?: number;
   status?: CampaignStatus;
-  metrics?: Partial<Campaign["metrics"]>;
-  influencers?: ObjectId[];
-  sentiment_analysis?: Campaign["sentiment_analysis"];
   created_at?: Date;
   updated_at?: Date;
 }
 
 // ============================================================================
-// INFLUENCER PROFILE TYPES
+// INSTAGRAM INTEGRATION TYPES
 // ============================================================================
 
 export interface InstagramAccount {
@@ -149,11 +133,6 @@ export interface InstagramMetrics {
   reach?: number;
   impressions?: number;
   engagement_rate?: number;
-  website_clicks?: number;
-  email_contacts?: number;
-  phone_call_clicks?: number;
-  get_directions_clicks?: number;
-  text_message_clicks?: number;
 }
 
 export interface InstagramDemographics {
@@ -163,9 +142,13 @@ export interface InstagramDemographics {
   audience_locale?: Record<string, number>;
 }
 
+// ============================================================================
+// INFLUENCER PROFILE TYPES
+// ============================================================================
+
 export interface InfluencerProfile {
   _id: ObjectId;
-  user_id: ObjectId;
+  user_id: ObjectId; // References users._id
 
   // Basic Information
   full_name: string;
@@ -200,11 +183,22 @@ export interface InfluencerProfile {
   instagram_metrics?: InstagramMetrics;
   instagram_demographics?: InstagramDemographics;
 
-  // Financials (kept from original)
+  // Calculated Metrics (from recent posts)
+  calculated_metrics?: {
+    avg_likes: number;
+    avg_comments: number;
+    avg_reach: number;
+    engagement_rate_30_days: number;
+    followers_growth_rate: number;
+    posting_frequency: number; // posts per week
+    story_frequency: number; // stories per week
+  };
+
+  // Financials
   total_earnings: number;
   available_balance: number;
 
-  // Performance (kept from original)
+  // Performance
   completed_campaigns: number;
   rating: number;
   reviews_count: number;
@@ -219,24 +213,18 @@ export interface InfluencerProfile {
 
 export interface InfluencerProfileCreateInput {
   user_id: ObjectId;
-  full_name: string;
-  instagram_username?: string;
-  profile_picture?: string;
-  niche: string;
-  location: string;
+  full_name?: string;
+  niche?: string;
+  location?: string;
   followers?: number;
   following?: number;
   verified?: boolean;
   engagement_rate?: number;
   average_views_monthly?: number;
-  last_post_views?: number;
-  last_post_engagement?: number;
-  last_post_date?: Date;
   price_per_post?: number;
   availability?: string;
   languages?: string[];
   platforms?: string[];
-  brands_worked_with?: string[];
   total_earnings?: number;
   available_balance?: number;
   completed_campaigns?: number;
@@ -253,24 +241,25 @@ export interface InfluencerProfileCreateInput {
 
 export interface BrandProfile {
   _id: ObjectId;
-  user_id: ObjectId;
+  user_id: ObjectId; // References users._id
 
-  // Core Brand Information
-  brand_name: string;
-  brand_id: string; // Auto-generated unique identifier
-  contact_email: string;
-  representative_name: string;
-  niche: string;
-  industry: string;
-  location: string;
-
-  // Optional Information
+  // Brand-specific fields (moved from users)
+  brand_name?: string;
+  company?: string; // Moved from users
+  phone?: string; // Moved from users
+  representative_name?: string;
   website?: string;
+  industry?: string;
+  location?: string;
   company_description?: string;
-  preferred_platforms?: string[];
 
-  // Campaign Tracking
-  active_campaigns: any[]; // Array of campaign references
+  // Unique identifier
+  unique_brand_id?: string;
+
+  // Campaign tracking
+  total_campaigns: number;
+  active_campaigns: number;
+  total_spent: number;
 
   // Profile Status
   profile_completed: boolean;
@@ -282,17 +271,104 @@ export interface BrandProfile {
 
 export interface BrandProfileCreateInput {
   user_id: ObjectId;
-  brand_name: string;
-  brand_id: string;
-  contact_email: string;
-  representative_name: string;
-  niche: string;
-  industry: string;
-  location: string;
+  brand_name?: string;
+  company?: string;
+  phone?: string;
+  representative_name?: string;
   website?: string;
+  industry?: string;
+  location?: string;
   company_description?: string;
-  preferred_platforms?: string[];
-  active_campaigns?: any[];
+  unique_brand_id?: string;
+  total_campaigns?: number;
+  active_campaigns?: number;
+  total_spent?: number;
+  profile_completed?: boolean;
+  created_at?: Date;
+  updated_at?: Date;
+}
+
+// ============================================================================
+// EMPLOYEE PROFILE TYPES
+// ============================================================================
+
+export interface EmployeeProfile {
+  _id: ObjectId;
+  user_id: ObjectId; // References users._id
+
+  // Employee-specific fields
+  employee_id?: string;
+  department?: string;
+  position?: string;
+  phone?: string; // Moved from users
+  hire_date?: Date;
+  manager_id?: ObjectId;
+
+  // Performance
+  total_reports_submitted: number;
+  average_rating: number;
+
+  // Profile Status
+  profile_completed: boolean;
+
+  // Timestamps
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface EmployeeProfileCreateInput {
+  user_id: ObjectId;
+  employee_id?: string;
+  department?: string;
+  position?: string;
+  phone?: string;
+  hire_date?: Date;
+  manager_id?: ObjectId;
+  total_reports_submitted?: number;
+  average_rating?: number;
+  profile_completed?: boolean;
+  created_at?: Date;
+  updated_at?: Date;
+}
+
+// ============================================================================
+// CLIENT PROFILE TYPES
+// ============================================================================
+
+export interface ClientProfile {
+  _id: ObjectId;
+  user_id: ObjectId; // References users._id
+
+  // Client-specific fields
+  company?: string; // Moved from users
+  phone?: string; // Moved from users
+  industry?: string;
+  location?: string;
+  company_size?: string;
+
+  // Project tracking
+  total_projects: number;
+  active_projects: number;
+  total_paid: number;
+
+  // Profile Status
+  profile_completed: boolean;
+
+  // Timestamps
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface ClientProfileCreateInput {
+  user_id: ObjectId;
+  company?: string;
+  phone?: string;
+  industry?: string;
+  location?: string;
+  company_size?: string;
+  total_projects?: number;
+  active_projects?: number;
+  total_paid?: number;
   profile_completed?: boolean;
   created_at?: Date;
   updated_at?: Date;
@@ -353,61 +429,51 @@ export interface Project {
   client_id: ObjectId;
   name: string;
   description?: string;
-
   status: ProjectStatus;
-  priority?: "low" | "medium" | "high" | "urgent";
-
-  // Timeline
+  budget: number;
+  spent_amount: number;
   start_date?: Date;
   end_date?: Date;
-  estimated_completion?: Date;
-
-  // Budget
-  budget?: number;
-  spent?: number;
-
-  // Team
-  assigned_employees?: ObjectId[];
-  project_manager?: ObjectId;
-
-  // Progress
-  progress_percentage: number;
-  milestones?: Array<{
-    name: string;
-    description?: string;
-    due_date?: Date;
-    completed: boolean;
-    completed_at?: Date;
-  }>;
-
+  deliverables: string[];
+  team_members: ObjectId[];
   created_at: Date;
   updated_at: Date;
+}
+
+export interface ProjectCreateInput {
+  client_id: ObjectId;
+  name: string;
+  description?: string;
+  status?: ProjectStatus;
+  budget: number;
+  spent_amount?: number;
+  start_date?: Date;
+  end_date?: Date;
+  deliverables?: string[];
+  team_members?: ObjectId[];
+  created_at?: Date;
+  updated_at?: Date;
 }
 
 // ============================================================================
 // DAILY REPORT TYPES (For Employee Portal)
 // ============================================================================
 
+export type ReportStatus = "draft" | "submitted" | "approved" | "rejected";
+
 export interface DailyReport {
   _id: ObjectId;
   employee_id: ObjectId;
   date: Date;
-
-  // Work summary
-  tasks_completed: string[];
-  hours_worked: number;
-  projects_worked_on?: ObjectId[];
-
-  // Progress
-  achievements?: string;
+  projects_worked_on: string[];
+  summary: string;
   blockers?: string;
+  achievements?: string;
   next_day_plan?: string;
-
-  // Status
-  productivity_rating?: number; // 1-5
-  mood?: "excellent" | "good" | "neutral" | "poor";
-
-  submitted_at: Date;
+  total_hours: number;
+  status: ReportStatus;
+  approved_by?: ObjectId;
+  approved_at?: Date;
   created_at: Date;
   updated_at: Date;
 }
@@ -415,15 +481,13 @@ export interface DailyReport {
 export interface DailyReportCreateInput {
   employee_id: ObjectId;
   date: Date;
-  tasks_completed: string[];
-  hours_worked: number;
-  projects_worked_on?: ObjectId[];
-  achievements?: string;
+  projects_worked_on: string[];
+  summary: string;
   blockers?: string;
+  achievements?: string;
   next_day_plan?: string;
-  productivity_rating?: number;
-  mood?: DailyReport["mood"];
-  submitted_at?: Date;
+  total_hours: number;
+  status?: ReportStatus;
   created_at?: Date;
   updated_at?: Date;
 }
@@ -432,43 +496,23 @@ export interface DailyReportCreateInput {
 // TRANSACTION TYPES
 // ============================================================================
 
-export type TransactionType = "withdrawal" | "payment" | "refund" | "bonus" | "adjustment";
-export type TransactionStatus = "pending" | "processing" | "completed" | "failed" | "cancelled";
+export type TransactionType = "withdrawal" | "payment" | "refund" | "bonus";
+export type TransactionStatus = "pending" | "approved" | "rejected" | "completed" | "failed";
 
 export interface Transaction {
   _id: ObjectId;
   user_id: ObjectId;
   type: TransactionType;
   amount: number;
-
+  currency: string;
   status: TransactionStatus;
-
-  // Details
-  description?: string;
-  reference_id?: string; // External payment reference
-
-  // Related entities
+  payment_method?: string;
+  payment_details?: Record<string, any>;
+  reference_id?: string;
   campaign_id?: ObjectId;
-  collaboration_id?: ObjectId;
-
-  // Payment method
-  payment_method?: "bank_transfer" | "paypal" | "stripe" | "other";
-  payment_details?: {
-    account_number?: string;
-    account_name?: string;
-    bank_name?: string;
-    routing_number?: string;
-    paypal_email?: string;
-  };
-
-  // Processing
-  processed_at?: Date;
+  notes?: string;
   processed_by?: ObjectId;
-
-  // Failure
-  failure_reason?: string;
-  failed_at?: Date;
-
+  processed_at?: Date;
   created_at: Date;
   updated_at: Date;
 }
@@ -477,13 +521,13 @@ export interface TransactionCreateInput {
   user_id: ObjectId;
   type: TransactionType;
   amount: number;
+  currency?: string;
   status?: TransactionStatus;
-  description?: string;
+  payment_method?: string;
+  payment_details?: Record<string, any>;
   reference_id?: string;
   campaign_id?: ObjectId;
-  collaboration_id?: ObjectId;
-  payment_method?: Transaction["payment_method"];
-  payment_details?: Transaction["payment_details"];
+  notes?: string;
   created_at?: Date;
   updated_at?: Date;
 }
@@ -492,31 +536,36 @@ export interface TransactionCreateInput {
 // NOTIFICATION TYPES
 // ============================================================================
 
-export type NotificationType = "info" | "success" | "warning" | "error" | "alert";
+export type NotificationType =
+  | "campaign_invite"
+  | "payment_received"
+  | "report_approved"
+  | "account_approved"
+  | "message"
+  | "system";
 
 export interface Notification {
   _id: ObjectId;
   user_id: ObjectId;
-
   type: NotificationType;
   title: string;
   message: string;
-
-  // Status
   read: boolean;
   read_at?: Date;
-
-  // Action
   action_url?: string;
-  action_label?: string;
-
-  // Related entities
-  related_entity?: {
-    type: "campaign" | "collaboration" | "transaction" | "user" | "project";
-    id: ObjectId;
-  };
-
+  metadata?: Record<string, any>;
   created_at: Date;
+}
+
+export interface NotificationCreateInput {
+  user_id: ObjectId;
+  type: NotificationType;
+  title: string;
+  message: string;
+  read?: boolean;
+  action_url?: string;
+  metadata?: Record<string, any>;
+  created_at?: Date;
 }
 
 // ============================================================================
@@ -525,121 +574,105 @@ export interface Notification {
 
 export interface Analytics {
   _id: ObjectId;
-  entity_type: "campaign" | "influencer" | "brand" | "platform";
-  entity_id: ObjectId;
-
+  user_id: ObjectId;
   date: Date;
-
-  // Metrics
-  metrics: {
-    impressions?: number;
-    reach?: number;
-    engagement?: number;
-    clicks?: number;
-    conversions?: number;
-    revenue?: number;
-    cost?: number;
-    roi?: number;
-  };
-
-  // Breakdown
-  by_platform?: Record<string, number>;
-  by_demographic?: Record<string, number>;
-  by_region?: Record<string, number>;
-
+  page_views: number;
+  unique_visitors: number;
+  bounce_rate: number;
+  avg_session_duration: number;
+  top_pages: Array<{ url: string; views: number }>;
   created_at: Date;
+  updated_at: Date;
 }
 
 // ============================================================================
 // AUDIT LOG TYPES
 // ============================================================================
 
+export type AuditAction = "create" | "update" | "delete" | "login" | "logout" | "approve" | "reject";
+
 export interface AuditLog {
   _id: ObjectId;
-  user_id?: ObjectId;
-
-  action: string;
-  entity_type: string;
-  entity_id?: ObjectId;
-
-  // Request details
+  user_id: ObjectId;
+  action: AuditAction;
+  resource_type: string;
+  resource_id?: ObjectId;
+  changes?: Record<string, any>;
   ip_address?: string;
   user_agent?: string;
+  created_at: Date;
+}
 
-  // Changes
-  changes?: {
-    before?: any;
-    after?: any;
-  };
-
-  // Result
-  success: boolean;
-  error_message?: string;
-
-  timestamp: Date;
+export interface AuditLogCreateInput {
+  user_id: ObjectId;
+  action: AuditAction;
+  resource_type: string;
+  resource_id?: ObjectId;
+  changes?: Record<string, any>;
+  ip_address?: string;
+  user_agent?: string;
+  created_at?: Date;
 }
 
 // ============================================================================
 // PAYMENT TYPES
 // ============================================================================
 
+export type PaymentStatus = "pending" | "processing" | "completed" | "failed" | "refunded";
+
 export interface Payment {
   _id: ObjectId;
-  from_user_id: ObjectId;
-  to_user_id: ObjectId;
-
+  transaction_id: ObjectId;
+  user_id: ObjectId;
   amount: number;
   currency: string;
-
-  // Related
-  campaign_id?: ObjectId;
-  collaboration_id?: ObjectId;
-
-  // Status
-  status: "pending" | "completed" | "failed" | "refunded";
-
-  // Payment gateway
-  gateway: "stripe" | "paypal" | "bank_transfer" | "manual";
+  status: PaymentStatus;
+  payment_gateway?: string;
   gateway_transaction_id?: string;
-
-  // Timestamps
-  completed_at?: Date;
-  failed_at?: Date;
-  refunded_at?: Date;
-
+  payment_method?: string;
+  metadata?: Record<string, any>;
   created_at: Date;
   updated_at: Date;
 }
 
+export interface PaymentCreateInput {
+  transaction_id: ObjectId;
+  user_id: ObjectId;
+  amount: number;
+  currency: string;
+  status?: PaymentStatus;
+  payment_gateway?: string;
+  gateway_transaction_id?: string;
+  payment_method?: string;
+  metadata?: Record<string, any>;
+  created_at?: Date;
+  updated_at?: Date;
+}
+
 // ============================================================================
-// POST TYPES (Content Posts)
+// POST TYPES (Instagram/Social Media)
 // ============================================================================
+
+export interface PostMetrics {
+  likes: number;
+  comments: number;
+  saves?: number;
+  shares?: number;
+  reach?: number;
+  impressions?: number;
+  plays?: number; // for reels
+  engagement_rate: number;
+}
 
 export interface Post {
   _id: ObjectId;
-  influencer_id: ObjectId;
-  campaign_id?: ObjectId;
-
-  platform: "instagram" | "youtube" | "tiktok" | "twitter" | "facebook";
-  post_url: string;
-  post_type: "image" | "video" | "story" | "reel" | "carousel";
-
-  // Content
+  post_id: string; // Instagram media ID
+  user_id: ObjectId;
+  media_type: "IMAGE" | "VIDEO" | "CAROUSEL_ALBUM" | "STORY";
   caption?: string;
-  thumbnail_url?: string;
-
-  // Metrics
-  likes: number;
-  comments: number;
-  shares: number;
-  views: number;
-  engagement_rate: number;
-
-  // Analysis
-  sentiment?: "positive" | "neutral" | "negative";
-  sentiment_score?: number;
-
-  posted_at: Date;
+  permalink?: string;
+  timestamp: Date;
+  metrics: PostMetrics;
   created_at: Date;
   updated_at: Date;
 }
@@ -652,72 +685,55 @@ export interface FraudDetection {
   _id: ObjectId;
   entity_type: "user" | "campaign" | "transaction" | "influencer";
   entity_id: ObjectId;
-
+  fraud_score: number;
   is_fraud: boolean;
-  fraud_probability: number;
-
-  // Reasons
-  fraud_indicators: string[];
-  risk_score: number;
-
-  // Details
-  detection_method: "manual" | "ai" | "rule-based";
-  detected_by?: ObjectId;
-
-  // Action taken
-  action_taken?: "flagged" | "suspended" | "banned" | "cleared";
-  action_notes?: string;
-
+  severity: "low" | "medium" | "high" | "critical";
+  flags: string[];
+  data: Record<string, any>;
+  detected_by: "system" | "admin" | "ai";
   detected_at: Date;
-  reviewed_at?: Date;
-  reviewed_by?: ObjectId;
+  resolved: boolean;
+  resolved_by?: ObjectId;
+  resolved_at?: Date;
+  created_at: Date;
+}
+
+export interface FraudDetectionCreateInput {
+  entity_type: "user" | "campaign" | "transaction" | "influencer";
+  entity_id: ObjectId;
+  fraud_score: number;
+  is_fraud: boolean;
+  severity: "low" | "medium" | "high" | "critical";
+  flags: string[];
+  data: Record<string, any>;
+  detected_by: "system" | "admin" | "ai";
+  detected_at?: Date;
+  resolved?: boolean;
+  created_at?: Date;
 }
 
 // ============================================================================
-// HELPER TYPES
+// UTILITY TYPES
 // ============================================================================
 
-// For sanitizing ObjectIds to strings in API responses
-export type Sanitized<T> = {
-  [K in keyof T]: T[K] extends ObjectId
-    ? string
-    : T[K] extends ObjectId | undefined
-    ? string | undefined
-    : T[K] extends Date
-    ? string
-    : T[K] extends Date | undefined
-    ? string | undefined
-    : T[K] extends Array<infer U>
-    ? Array<Sanitized<U>>
-    : T[K] extends object
-    ? Sanitized<T[K]>
-    : T[K];
-};
-
-// For API responses with pagination
-export interface PaginatedResponse<T> {
-  items: T[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasNext: boolean;
-    hasPrev: boolean;
-  };
-}
-
-// API Response wrapper
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: {
-    message: string;
-    code?: string;
-    details?: any;
-  };
-  meta?: {
-    timestamp: string;
-    requestId?: string;
-  };
-}
+/**
+ * Sanitized type - removes sensitive fields and converts ObjectId to string
+ */
+export type Sanitized<T> = Omit<
+  {
+    [K in keyof T]: T[K] extends ObjectId
+      ? string
+      : T[K] extends Date
+      ? string
+      : T[K] extends Array<infer U>
+      ? U extends ObjectId
+        ? string[]
+        : U extends object
+        ? Sanitized<U>[]
+        : U[]
+      : T[K] extends object
+      ? Sanitized<T[K]>
+      : T[K];
+  },
+  "password_hash" | "payment_details"
+>;
