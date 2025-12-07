@@ -18,7 +18,7 @@ function getOpenAIClient() {
 }
 
 export interface InfluencerCriteria {
-  niche?: string[];
+  industry?: string[];
   minFollowers?: number;
   maxFollowers?: number;
   minEngagementRate?: number;
@@ -47,7 +47,7 @@ export async function parseInfluencerRequirements(
 Your job is to extract structured criteria from plain English requirements.
 
 Extract the following fields from the user's query:
-- niche: array of content categories (e.g., ["Fashion", "Beauty", "Lifestyle"])
+- industry: array of content industries - MUST be one or more of: Fitness, Food, Fashion, Family, Vlogging, Entertainment, Educational, Comedy, Music
 - minFollowers: minimum follower count (number)
 - maxFollowers: maximum follower count (number)
 - minEngagementRate: minimum engagement rate percentage (number, e.g., 3.5 for 3.5%)
@@ -67,13 +67,13 @@ Return the result as a JSON object. Use null for fields that aren't specified.
 
 Examples:
 Query: "I need a beauty influencer in Pakistan with at least 50k followers for a makeup campaign"
-Response: {"niche": ["Beauty"], "minFollowers": 50000, "location": ["Pakistan"], "campaignType": "Product Launch"}
+Response: {"industry": ["Fashion"], "minFollowers": 50000, "location": ["Pakistan"], "campaignType": "Product Launch"}
 
 Query: "Looking for tech YouTubers with 100k-500k subscribers and good engagement for a gadget review"
-Response: {"niche": ["Tech"], "platform": "youtube", "minFollowers": 100000, "maxFollowers": 500000, "minEngagementRate": 3, "campaignType": "Product Review"}
+Response: {"industry": ["Educational"], "platform": "youtube", "minFollowers": 100000, "maxFollowers": 500000, "minEngagementRate": 3, "campaignType": "Product Review"}
 
 Query: "Need female fashion influencers aged 20-30 in the US who speak English, budget is $500 per post"
-Response: {"niche": ["Fashion"], "gender": "female", "ageRange": "20-30", "location": ["United States"], "language": ["English"], "budget": 500}`;
+Response: {"industry": ["Fashion"], "gender": "female", "ageRange": "20-30", "location": ["United States"], "language": ["English"], "budget": 500}`;
 
     const client = getOpenAIClient();
     const response = await client.chat.completions.create({
@@ -123,9 +123,9 @@ Response: {"niche": ["Fashion"], "gender": "female", "ageRange": "20-30", "locat
 export function buildMongoFilter(criteria: InfluencerCriteria): Record<string, any> {
   const filter: Record<string, any> = {};
 
-  // Niche filter
-  if (criteria.niche && criteria.niche.length > 0) {
-    filter.niche = { $in: criteria.niche };
+  // Industry filter
+  if (criteria.industry && criteria.industry.length > 0) {
+    filter.industry = { $in: criteria.industry };
   }
 
   // Follower count filter (checking Instagram followers specifically)
@@ -189,10 +189,10 @@ export function calculateRelevanceScore(
   let score = 0;
   let totalWeight = 0;
 
-  // Niche match (weight: 25)
-  if (criteria.niche && criteria.niche.length > 0) {
+  // Industry match (weight: 25)
+  if (criteria.industry && criteria.industry.length > 0) {
     totalWeight += 25;
-    if (criteria.niche.includes(influencer.niche)) {
+    if (criteria.industry.includes(influencer.industry || influencer.niche)) {
       score += 25;
     }
   }

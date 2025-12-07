@@ -147,7 +147,7 @@ export default function InfluencerDashboard() {
 
   // Extract data from profile with fallbacks
   const displayName = session?.user?.full_name || profile?.full_name || session?.user?.name || "User"
-  const niche = profile?.niche || "Content Creator"
+  const industry = profile?.industry || profile?.niche || "Content Creator"
   const username = profile?.instagram_account?.username || ""
   const profilePicture = profile?.instagram_account?.profile_picture_url || ""
 
@@ -230,7 +230,7 @@ export default function InfluencerDashboard() {
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <h2 className="text-2xl font-bold">{displayName}</h2>
-                  <Badge variant="secondary">{niche}</Badge>
+                  <Badge variant="secondary">{industry}</Badge>
                 </div>
                 <p className="text-muted-foreground">
                   {username ? `@${username} • ` : ""}{formatNumber(followers)} followers

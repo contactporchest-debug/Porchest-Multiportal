@@ -49,7 +49,9 @@ import {
 // Form validation schema
 const profileFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100),
-  category: z.string().min(2, "Category is required").max(100),
+  industry: z.enum(["Fitness", "Food", "Fashion", "Family", "Vlogging", "Entertainment", "Educational", "Comedy", "Music"], {
+    required_error: "Please select an industry",
+  }),
   bio: z.string().min(10, "Bio must be at least 10 characters").max(500),
   country: z.string().min(2, "Country is required"),
   city: z.string().min(2, "City is required"),
@@ -77,6 +79,18 @@ const COUNTRIES = [
   "South Korea",
   "China",
   "Other",
+]
+
+const INDUSTRIES = [
+  "Fitness",
+  "Food",
+  "Fashion",
+  "Family",
+  "Vlogging",
+  "Entertainment",
+  "Educational",
+  "Comedy",
+  "Music",
 ]
 
 const LANGUAGES = [
@@ -112,7 +126,7 @@ export default function InfluencerProfileSetup() {
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       name: "",
-      category: "",
+      industry: undefined,
       bio: "",
       country: "",
       city: "",
@@ -160,7 +174,7 @@ export default function InfluencerProfileSetup() {
         // Update form with existing data
         form.reset({
           name: basicInfo.name || "",
-          category: basicInfo.category || "",
+          industry: basicInfo.industry || basicInfo.category || undefined,
           bio: basicInfo.bio || "",
           country: basicInfo.country || "",
           city: basicInfo.city || "",
@@ -196,7 +210,7 @@ export default function InfluencerProfileSetup() {
         body: JSON.stringify({
           basic_info: {
             name: values.name,
-            category: values.category,
+            industry: values.industry,
             bio: values.bio,
             country: values.country,
             city: values.city,
@@ -326,17 +340,28 @@ export default function InfluencerProfileSetup() {
 
                   <FormField
                     control={form.control}
-                    name="category"
+                    name="industry"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Category (Niche) *</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="e.g., Fashion, Travel, Tech, Fitness"
-                            {...field}
-                            className="border-orange-200 focus:border-[#FF7A00]"
-                          />
-                        </FormControl>
+                        <FormLabel>Industry *</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="border-orange-200 focus:border-[#FF7A00]">
+                              <SelectValue placeholder="Select your industry" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {INDUSTRIES.map((industry) => (
+                              <SelectItem key={industry} value={industry}>
+                                {industry}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -680,7 +705,7 @@ export default function InfluencerProfileSetup() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-[#FF7A00] mt-0.5">•</span>
-                  <span>Be specific about your niche and preferences</span>
+                  <span>Be specific about your industry and preferences</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-[#FF7A00] mt-0.5">•</span>

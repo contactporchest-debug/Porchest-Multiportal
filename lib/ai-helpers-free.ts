@@ -4,7 +4,8 @@
  */
 
 export interface InfluencerCriteria {
-  niche?: string[];
+  industry?: string[];
+  niche?: string[]; // Keep for backward compatibility during transition
   minFollowers?: number;
   maxFollowers?: number;
   minEngagementRate?: number;
@@ -22,9 +23,12 @@ export function parseRequirementsFree(query: string): InfluencerCriteria {
   const criteria: InfluencerCriteria = {};
   const lowerQuery = query.toLowerCase();
 
-  // Extract niche/categories
-  const niches = ["fashion", "beauty", "tech", "lifestyle", "fitness", "food", "travel", "gaming"];
-  criteria.niche = niches.filter(n => lowerQuery.includes(n));
+  // Extract industry/categories (using the 9 fixed industries)
+  const industries = ["fitness", "food", "fashion", "family", "vlogging", "entertainment", "educational", "comedy", "music"];
+  const foundIndustries = industries.filter(ind => lowerQuery.includes(ind));
+
+  // Capitalize first letter of each industry
+  criteria.industry = foundIndustries.map(ind => ind.charAt(0).toUpperCase() + ind.slice(1));
 
   // Extract follower counts
   const followerPatterns = [
@@ -110,7 +114,7 @@ export function parseRequirementsFree(query: string): InfluencerCriteria {
  *
  * Result:
  * {
- *   niche: ["fashion"],
+ *   industry: ["Fashion"],
  *   minFollowers: 50000,
  *   location: ["Pakistan"],
  *   language: ["Urdu"],

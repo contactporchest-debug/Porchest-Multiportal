@@ -83,10 +83,10 @@ async function recommendHandler(req: Request) {
         aiCriteria.platform = validatedData.platform;
       }
 
-      // Merge explicit categories with parsed niche
+      // Merge explicit categories with parsed industry
       if (validatedData.categories && validatedData.categories.length > 0) {
-        aiCriteria.niche = [
-          ...(aiCriteria.niche || []),
+        aiCriteria.industry = [
+          ...(aiCriteria.industry || []),
           ...validatedData.categories,
         ];
       }
@@ -100,7 +100,7 @@ async function recommendHandler(req: Request) {
       if (validatedData.budget) aiCriteria.budget = validatedData.budget;
       if (validatedData.platform) aiCriteria.platform = validatedData.platform;
       if (validatedData.categories && validatedData.categories.length > 0) {
-        aiCriteria.niche = [...(aiCriteria.niche || []), ...validatedData.categories];
+        aiCriteria.industry = [...(aiCriteria.industry || []), ...validatedData.categories];
       }
     }
 
@@ -154,7 +154,7 @@ async function recommendHandler(req: Request) {
           username: profile.instagram_account?.username || user.email?.split("@")[0],
           email: user.email,
           bio: profile.bio,
-          niche: profile.niche,
+          industry: profile.industry || profile.niche,
           location: profile.location,
           languages: profile.languages,
           profilePicture: profile.profile_picture,

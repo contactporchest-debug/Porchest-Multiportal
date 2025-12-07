@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { parseRequirementsFree } from "./ai-helpers-free";
 
 export interface ChatCriteria {
-  niche: string[];
+  industry: string[];
   platform: "instagram" | "youtube" | "tiktok" | null;
   locations: string[];
   min_followers: number | null;
@@ -28,7 +28,7 @@ ALSO output strict JSON in this exact format:
 {
 assistant_message: string,
 criteria: {
-niche: string[],
+industry: string[],
 platform: "instagram"|"youtube"|"tiktok"|null,
 locations: string[],
 min_followers: number|null,
@@ -91,7 +91,7 @@ export async function chatAndExtractGemini(
 
     // Ensure criteria has all required fields with defaults
     const criteria: ChatCriteria = {
-      niche: parsed.criteria.niche || [],
+      industry: parsed.criteria.industry || [],
       platform: parsed.criteria.platform || null,
       locations: parsed.criteria.locations || [],
       min_followers: parsed.criteria.min_followers ?? null,
@@ -179,9 +179,9 @@ export function chatAndExtractFallback(
   // Check for greetings first
   if (isGreeting(message)) {
     return {
-      assistant_message: "Hello! 👋 I'm here to help you find the perfect influencers for your brand campaign.\n\nTo get started, please tell me:\n• What niche or category? (e.g., Fashion, Tech, Beauty, Fitness)\n• Which location? (e.g., United States, Pakistan, India)\n• Follower range? (e.g., 50k-500k)\n• Your budget per post? (e.g., $500)\n• Preferred platform? (Instagram, YouTube, TikTok)",
+      assistant_message: "Hello! 👋 I'm here to help you find the perfect influencers for your brand campaign.\n\nTo get started, please tell me:\n• What industry? (Fitness, Food, Fashion, Family, Vlogging, Entertainment, Educational, Comedy, or Music)\n• Which location? (e.g., United States, Pakistan, India)\n• Follower range? (e.g., 50k-500k)\n• Your budget per post? (e.g., $500)\n• Preferred platform? (Instagram, YouTube, TikTok)",
       criteria_update: {
-        niche: [],
+        industry: [],
         platform: null,
         locations: [],
         min_followers: null,
@@ -194,7 +194,7 @@ export function chatAndExtractFallback(
       },
       needs_followup: true,
       followup_questions: [
-        "What niche or category are you interested in? (e.g., Fashion, Tech, Beauty)",
+        "What industry? (Fitness, Food, Fashion, Family, Vlogging, Entertainment, Educational, Comedy, or Music)",
         "Which location do you prefer?",
         "What's your ideal follower count range?",
         "What's your budget per post?",
@@ -208,7 +208,7 @@ export function chatAndExtractFallback(
 
   // Convert to ChatCriteria format
   const newCriteria: ChatCriteria = {
-    niche: parsed.niche || [],
+    industry: parsed.industry || parsed.niche || [],
     platform: (parsed.platform as any) || null,
     locations: parsed.location || [],
     min_followers: parsed.minFollowers || null,
@@ -230,7 +230,7 @@ export function chatAndExtractFallback(
   // Merge with current criteria - REPLACE arrays when update is non-empty
   const mergedCriteria: ChatCriteria = currentCriteria
     ? {
-        niche: newCriteria.niche.length > 0 ? newCriteria.niche : currentCriteria.niche,
+        industry: newCriteria.industry.length > 0 ? newCriteria.industry : currentCriteria.industry,
         platform: newCriteria.platform || currentCriteria.platform,
         locations: processedLocations.length > 0 ? processedLocations : currentCriteria.locations,
         min_followers: newCriteria.min_followers ?? currentCriteria.min_followers,
@@ -250,8 +250,8 @@ export function chatAndExtractFallback(
   let assistantMessage = "Got it! ";
   const parts: string[] = [];
 
-  if (mergedCriteria.niche.length > 0) {
-    parts.push(`I'll look for ${mergedCriteria.niche.join(", ")} influencers`);
+  if (mergedCriteria.industry.length > 0) {
+    parts.push(`I'll look for ${mergedCriteria.industry.join(", ")} influencers`);
   }
   if (mergedCriteria.platform) {
     parts.push(`on ${mergedCriteria.platform}`);
@@ -270,18 +270,18 @@ export function chatAndExtractFallback(
     assistantMessage += parts.join(" ") + ". ";
   } else {
     // No criteria found - ask for requirements
-    assistantMessage = "I'd love to help you find the perfect influencers! Please share your requirements:\n\n• What niche or category? (e.g., Fashion, Tech, Beauty, Fitness)\n• Which location?\n• Follower range?\n• Your budget per post?\n• Preferred platform? (Instagram, YouTube, TikTok)";
+    assistantMessage = "I'd love to help you find the perfect influencers! Please share your requirements:\n\n• What industry? (Fitness, Food, Fashion, Family, Vlogging, Entertainment, Educational, Comedy, or Music)\n• Which location?\n• Follower range?\n• Your budget per post?\n• Preferred platform? (Instagram, YouTube, TikTok)";
   }
 
-  // Check if we have enough criteria - require niche AND location
+  // Check if we have enough criteria - require industry AND location
   const hasEnoughCriteria =
-    mergedCriteria.niche.length > 0 && mergedCriteria.locations.length > 0;
+    mergedCriteria.industry.length > 0 && mergedCriteria.locations.length > 0;
 
   const needsFollowup = !hasEnoughCriteria;
   const followupQuestions: string[] = [];
 
-  if (mergedCriteria.niche.length === 0) {
-    followupQuestions.push("What niche or category are you interested in? (e.g., Fashion, Tech, Beauty)");
+  if (mergedCriteria.industry.length === 0) {
+    followupQuestions.push("What industry? (Fitness, Food, Fashion, Family, Vlogging, Entertainment, Educational, Comedy, or Music)");
   }
   if (mergedCriteria.locations.length === 0) {
     followupQuestions.push("Which location do you prefer?");

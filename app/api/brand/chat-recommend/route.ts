@@ -19,7 +19,7 @@ import { logger } from "@/lib/logger";
 
 // Validation schema for chat recommendation request
 const chatCriteriaSchema = z.object({
-  niche: z.array(z.string()).default([]),
+  industry: z.array(z.string()).default([]),
   platform: z.enum(["instagram", "youtube", "tiktok"]).nullable().default(null),
   locations: z.array(z.string()).default([]),
   min_followers: z.number().nullable().default(null),
@@ -94,7 +94,7 @@ async function chatRecommendHandler(req: Request) {
     // Merge criteria (stateless)
     const mergedCriteria: ChatCriteria = validatedData.criteria
       ? {
-          niche: chatResult.criteria_update.niche.length > 0 ? chatResult.criteria_update.niche : validatedData.criteria.niche,
+          industry: chatResult.criteria_update.industry.length > 0 ? chatResult.criteria_update.industry : validatedData.criteria.industry,
           platform: chatResult.criteria_update.platform || validatedData.criteria.platform,
           locations: chatResult.criteria_update.locations.length > 0 ? chatResult.criteria_update.locations : validatedData.criteria.locations,
           min_followers: chatResult.criteria_update.min_followers ?? validatedData.criteria.min_followers,
@@ -117,13 +117,13 @@ async function chatRecommendHandler(req: Request) {
 
     const hasEnoughCriteria =
       !chatResult.needs_followup &&
-      mergedCriteria.niche.length > 0 &&
+      mergedCriteria.industry.length > 0 &&
       mergedCriteria.locations.length > 0;
 
     if (hasEnoughCriteria) {
       // Convert ChatCriteria to InfluencerCriteria for buildMongoFilter
       const influencerCriteria = {
-        niche: mergedCriteria.niche.length > 0 ? mergedCriteria.niche : undefined,
+        industry: mergedCriteria.industry.length > 0 ? mergedCriteria.industry : undefined,
         platform: mergedCriteria.platform || undefined,
         location: mergedCriteria.locations.length > 0 ? mergedCriteria.locations : undefined,
         minFollowers: mergedCriteria.min_followers || undefined,
@@ -178,7 +178,7 @@ async function chatRecommendHandler(req: Request) {
             username: profile.instagram_account?.username || user.email?.split("@")[0],
             email: user.email,
             bio: profile.bio,
-            niche: profile.niche,
+            industry: profile.industry || profile.niche,
             location: profile.location,
             languages: profile.languages,
             profilePicture: profile.profile_picture,
