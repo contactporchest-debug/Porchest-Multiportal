@@ -146,6 +146,17 @@ export interface InstagramDemographics {
 // INFLUENCER PROFILE TYPES
 // ============================================================================
 
+export type Industry =
+  | "Fitness"
+  | "Food"
+  | "Fashion"
+  | "Family"
+  | "Vlogging"
+  | "Entertainment"
+  | "Educational"
+  | "Comedy"
+  | "Music";
+
 export interface InfluencerProfile {
   _id: ObjectId;
   user_id: ObjectId; // References users._id
@@ -154,7 +165,7 @@ export interface InfluencerProfile {
   full_name: string;
   instagram_username?: string;
   profile_picture?: string;
-  niche: string;
+  industry: Industry;
   location: string;
 
   // Social Media Metrics
@@ -214,7 +225,7 @@ export interface InfluencerProfile {
 export interface InfluencerProfileCreateInput {
   user_id: ObjectId;
   full_name?: string;
-  niche?: string;
+  industry?: Industry;
   location?: string;
   followers?: number;
   following?: number;

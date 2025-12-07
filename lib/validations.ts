@@ -194,11 +194,23 @@ export const platformSchema = z.enum([
   "facebook",
 ]);
 
+export const industrySchema = z.enum([
+  "Fitness",
+  "Food",
+  "Fashion",
+  "Family",
+  "Vlogging",
+  "Entertainment",
+  "Educational",
+  "Comedy",
+  "Music",
+]);
+
 export const influencerProfileSetupSchema = z.object({
   full_name: z.string().min(2, "Full name must be at least 2 characters").max(100).trim(),
   instagram_username: z.string().max(100).optional(),
   profile_picture: urlSchema,
-  niche: z.string().min(2, "Niche must be at least 2 characters").max(100).trim(),
+  industry: industrySchema,
   location: z.string().min(2, "Location must be at least 2 characters").max(200).trim(),
   followers: nonNegativeNumberSchema.optional(),
   following: nonNegativeNumberSchema.optional(),
@@ -219,7 +231,7 @@ export const updateInfluencerProfileSchema = z.object({
   full_name: z.string().min(2).max(100).optional(),
   instagram_username: z.string().max(100).optional(),
   profile_picture: urlSchema,
-  niche: z.string().min(2).max(100).optional(),
+  industry: industrySchema.optional(),
   location: z.string().min(2).max(200).optional(),
   followers: nonNegativeNumberSchema.optional(),
   following: nonNegativeNumberSchema.optional(),
@@ -242,7 +254,7 @@ export const updateInfluencerProfileSchema = z.object({
  */
 export const influencerBasicInfoSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100).trim(),
-  category: z.string().min(2, "Category must be at least 2 characters").max(100).trim(),
+  industry: industrySchema,
   bio: z.string().min(10, "Bio must be at least 10 characters").max(500).trim(),
   country: z.string().min(2, "Country must be at least 2 characters").max(100).trim(),
   city: z.string().min(2, "City must be at least 2 characters").max(100).trim(),

@@ -77,7 +77,7 @@ async function getProfileHandler(req: Request) {
       const defaultProfile = {
         user_id: user._id,
         full_name: user.full_name || "",
-        niche: "",
+        industry: "",
         bio: "",
         location: "",
         contact_email: user.email || "",
@@ -174,8 +174,8 @@ async function updateProfileHandler(req: Request) {
       return badRequestResponse("full_name is required")
     }
 
-    if (!body.niche) {
-      return badRequestResponse("niche is required")
+    if (!body.industry) {
+      return badRequestResponse("industry is required")
     }
 
     if (!body.location) {
@@ -195,7 +195,7 @@ async function updateProfileHandler(req: Request) {
     // Prepare update data
     const updateData: any = {
       full_name: body.full_name,
-      niche: body.niche,
+      industry: body.industry,
       bio: body.bio || "",
       location: body.location,
       contact_email: body.contact_email || body.email || "",
@@ -321,7 +321,7 @@ async function saveProfileHandler(req: Request) {
       const basicInfo = body.basic_info
 
       // Validate basic_info fields
-      if (!basicInfo.name || !basicInfo.category || !basicInfo.bio ||
+      if (!basicInfo.name || !basicInfo.industry || !basicInfo.bio ||
           !basicInfo.country || !basicInfo.city || !basicInfo.email ||
           !Array.isArray(basicInfo.languages) || basicInfo.languages.length === 0) {
         return badRequestResponse("All required fields must be provided in basic_info")
@@ -339,7 +339,7 @@ async function saveProfileHandler(req: Request) {
           user_id: user._id,
           basic_info: {
             name: basicInfo.name,
-            category: basicInfo.category,
+            industry: basicInfo.industry,
             bio: basicInfo.bio,
             country: basicInfo.country,
             city: basicInfo.city,
@@ -365,7 +365,7 @@ async function saveProfileHandler(req: Request) {
         const updateData: any = {
           basic_info: {
             name: basicInfo.name,
-            category: basicInfo.category,
+            industry: basicInfo.industry,
             bio: basicInfo.bio,
             country: basicInfo.country,
             city: basicInfo.city,

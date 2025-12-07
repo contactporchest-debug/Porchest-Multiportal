@@ -51,7 +51,7 @@ import { useSearchParams } from "next/navigation"
 
 interface BasicInfo {
   full_name: string
-  niche: string
+  industry: string
   bio: string
   location: string
   contact_email: string
@@ -97,7 +97,7 @@ export default function InfluencerProfileSetup() {
   // Basic Info (Manual Entry)
   const [basicInfo, setBasicInfo] = useState<BasicInfo>({
     full_name: "",
-    niche: "",
+    industry: "",
     bio: "",
     location: "",
     contact_email: "",
@@ -209,7 +209,7 @@ export default function InfluencerProfileSetup() {
         // Set basic info (manual fields)
         setBasicInfo({
           full_name: profile.full_name || "",
-          niche: profile.niche || "",
+          industry: profile.industry || profile.niche || "",
           bio: profile.bio || "",
           location: profile.location || "",
           contact_email: profile.contact_email || profile.email || "",
@@ -277,10 +277,10 @@ export default function InfluencerProfileSetup() {
       console.log("Saving basic info...", basicInfo)
 
       // Validate required fields
-      if (!basicInfo.full_name || !basicInfo.niche || !basicInfo.location || !basicInfo.contact_email) {
+      if (!basicInfo.full_name || !basicInfo.industry || !basicInfo.location || !basicInfo.contact_email) {
         toast({
           title: "Validation Error",
-          description: "Please fill in all required fields: Full Name, Niche, Location, and Contact Email",
+          description: "Please fill in all required fields: Full Name, Industry, Location, and Contact Email",
           variant: "destructive",
         })
         return
@@ -297,7 +297,7 @@ export default function InfluencerProfileSetup() {
 
       const payload = {
         full_name: basicInfo.full_name,
-        niche: basicInfo.niche,
+        industry: basicInfo.industry,
         bio: basicInfo.bio,
         location: basicInfo.location,
         contact_email: basicInfo.contact_email,
@@ -591,16 +591,28 @@ export default function InfluencerProfileSetup() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="niche">
-                  Niche/Category <span className="text-red-500">*</span>
+                <Label htmlFor="industry">
+                  Industry <span className="text-red-500">*</span>
                 </Label>
-                <Input
-                  id="niche"
-                  value={basicInfo.niche}
-                  onChange={(e) => setBasicInfo({ ...basicInfo, niche: e.target.value })}
-                  placeholder="Beauty, Fashion, Tech, Lifestyle, etc."
-                  required
-                />
+                <Select
+                  value={basicInfo.industry}
+                  onValueChange={(value) => setBasicInfo({ ...basicInfo, industry: value })}
+                >
+                  <SelectTrigger id="industry" className="border-orange-200 focus:border-[#FF7A00]">
+                    <SelectValue placeholder="Select your industry" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Fitness">Fitness</SelectItem>
+                    <SelectItem value="Food">Food</SelectItem>
+                    <SelectItem value="Fashion">Fashion</SelectItem>
+                    <SelectItem value="Family">Family</SelectItem>
+                    <SelectItem value="Vlogging">Vlogging</SelectItem>
+                    <SelectItem value="Entertainment">Entertainment</SelectItem>
+                    <SelectItem value="Educational">Educational</SelectItem>
+                    <SelectItem value="Comedy">Comedy</SelectItem>
+                    <SelectItem value="Music">Music</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2 md:col-span-2">
