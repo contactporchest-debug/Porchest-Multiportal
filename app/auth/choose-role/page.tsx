@@ -96,21 +96,49 @@ export default function ChooseRolePage() {
         body: JSON.stringify({ role }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to set role");
+      // Parse JSON response
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        throw new Error("Failed to parse server response");
       }
 
-      // Redirect to the appropriate portal
+      // Check if request was successful
+      if (!response.ok) {
+        // Extract error message from response
+        const errorMessage = data?.error || data?.message || `Server error: ${response.status}`;
+        throw new Error(errorMessage);
+      }
+
+      // Success - update session and redirect
       if (data.redirectUrl) {
+        // Force session update before redirecting
+        await sessionData.update();
+
+        // Small delay to ensure session is updated
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Redirect to the appropriate page
         router.push(data.redirectUrl);
       } else {
-        router.push("/portal");
+        throw new Error("No redirect URL provided by server");
       }
     } catch (err) {
       console.error("Error setting role:", err);
-      setError(err instanceof Error ? err.message : "Failed to set role");
+
+      // Extract error message safely
+      let errorMessage = "Failed to set role. Please try again.";
+
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === "string") {
+        errorMessage = err;
+      } else if (err && typeof err === "object" && "message" in err) {
+        errorMessage = String(err.message);
+      }
+
+      setError(errorMessage);
       setIsSubmitting(false);
       setSelectedRole(null);
     }
@@ -150,7 +178,7 @@ export default function ChooseRolePage() {
         {/* Error Message */}
         {error && (
           <div className="max-w-2xl mx-auto mb-8 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-800 text-center">{error}</p>
+            <p className="text-red-800 text-center font-medium">{error}</p>
           </div>
         )}
 
