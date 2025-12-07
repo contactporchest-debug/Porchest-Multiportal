@@ -18,8 +18,7 @@ export const authConfig: NextAuthConfig = {
           name: profile.name,
           email: profile.email,
           image: profile.picture,
-          role: "brand", // Default role for OAuth users
-          status: "INACTIVE", // Require admin approval (updated enum)
+          // No default role - new users will choose during onboarding
         };
       },
     }),
@@ -76,7 +75,7 @@ export const authConfig: NextAuthConfig = {
   ],
   callbacks: {
     async signIn({ user, account }) {
-      // For OAuth providers, check if user needs admin approval
+      // For OAuth providers, check user status and role
       if (account?.provider === "google") {
         const client = await clientPromise;
         const db = client.db("porchest_db");
@@ -85,26 +84,45 @@ export const authConfig: NextAuthConfig = {
           email: user.email,
         });
 
-        if (existingUser?.status === "INACTIVE") {
-          return "/auth/pending-approval";
-        }
+        // If user exists in DB, check their status
+        if (existingUser) {
+          // Check if user needs to choose a role (new Google users)
+          if (!existingUser.role) {
+            // User needs to select a role - will be handled in JWT callback
+            return true;
+          }
 
-        if (existingUser?.status !== "ACTIVE" && existingUser) {
-          return "/auth/account-inactive";
+          // Check if account is inactive (pending admin approval)
+          if (existingUser.status === "INACTIVE") {
+            return "/auth/pending-approval";
+          }
+
+          // Check if account is suspended
+          if (existingUser.status !== "ACTIVE") {
+            return "/auth/account-inactive";
+          }
         }
+        // If user doesn't exist in custom users collection yet, adapter will create it
+        // They'll need to choose a role (handled in JWT callback)
       }
 
       return true;
     },
     async redirect({ url, baseUrl }) {
-      // Always redirect to /portal after successful sign in
-      // The /portal page will handle role-based routing
-      if (url === baseUrl || url === `${baseUrl}/` || url.includes("/api/auth")) {
-        return `${baseUrl}/portal`;
+      // If user needs to choose a role, redirect to role selection page
+      // (This will be checked in the choose-role page itself using session)
+      if (url.includes("/auth/choose-role")) {
+        return url;
       }
 
-      // If signing in from a specific page, redirect to /portal
-      if (url.startsWith(baseUrl)) {
+      // If coming from set-role API with redirect URL, use it
+      if (url.startsWith(baseUrl) && !url.includes("/api/auth/callback")) {
+        return url;
+      }
+
+      // After successful sign in, redirect to /portal
+      // The /portal page will check if user needs to choose a role
+      if (url === baseUrl || url === `${baseUrl}/` || url.includes("/api/auth")) {
         return `${baseUrl}/portal`;
       }
 
@@ -113,23 +131,46 @@ export const authConfig: NextAuthConfig = {
     },
     async jwt({ token, user, trigger, session }) {
       if (user) {
-        token.role = user.role;
-        token.status = user.status;
-        token.id = user.id;
+        // Check if user has a role in database
+        try {
+          const client = await clientPromise;
+          const db = client.db("porchest_db");
+          const dbUser = await db.collection("users").findOne({
+            email: user.email,
+          });
 
-        // Fetch profile_completed status for brand users
-        if (user.role === "brand") {
-          try {
-            const client = await clientPromise;
-            const db = client.db("porchest_db");
-            const profile = await db.collection("brand_profiles").findOne({
-              user_id: new (await import("mongodb")).ObjectId(user.id as string)
-            });
-            token.profileCompleted = profile?.profile_completed ?? false;
-          } catch (error) {
-            console.error("Error fetching profile_completed:", error);
-            token.profileCompleted = false;
+          // If user doesn't have a role, they need to choose one
+          if (!dbUser?.role) {
+            token.needsRole = true;
+            token.role = null;
+            token.status = null;
+            token.id = user.id;
+          } else {
+            // User has a role, populate token normally
+            token.needsRole = false;
+            token.role = dbUser.role;
+            token.status = dbUser.status;
+            token.id = user.id || dbUser._id.toString();
+
+            // Fetch profile_completed status for users with portal profiles
+            if (dbUser.role === "brand") {
+              try {
+                const profile = await db.collection("brand_profiles").findOne({
+                  user_id: new (await import("mongodb")).ObjectId(token.id as string)
+                });
+                token.profileCompleted = profile?.profile_completed ?? false;
+              } catch (error) {
+                console.error("Error fetching profile_completed:", error);
+                token.profileCompleted = false;
+              }
+            }
           }
+        } catch (error) {
+          console.error("Error in JWT callback:", error);
+          token.needsRole = false;
+          token.role = user.role || null;
+          token.status = user.status || null;
+          token.id = user.id;
         }
       }
 
@@ -161,6 +202,7 @@ export const authConfig: NextAuthConfig = {
         session.user.status = token.status as string;
         session.user.id = token.id as string;
         session.user.profileCompleted = token.profileCompleted as boolean;
+        session.user.needsRole = token.needsRole as boolean;
       }
       return session;
     },

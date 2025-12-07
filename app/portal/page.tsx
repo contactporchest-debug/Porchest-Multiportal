@@ -21,8 +21,14 @@ export default async function PortalRouterPage() {
       redirect("/login");
     }
 
+    // Check if user needs to choose a role (new Google OAuth users)
+    // @ts-ignore - needsRole is a custom field added to the session
+    if (user.needsRole || !user.role) {
+      redirect("/auth/choose-role");
+    }
+
     // Get the appropriate portal path based on user role
-    const portalPath = getPortalPath(user.role || "brand");
+    const portalPath = getPortalPath(user.role);
 
     // Redirect to the role-specific portal
     redirect(portalPath);
