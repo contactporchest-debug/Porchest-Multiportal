@@ -19,7 +19,7 @@ export const authConfig: NextAuthConfig = {
           email: profile.email,
           image: profile.picture,
           role: "brand", // Default role for OAuth users
-          status: "PENDING", // Require admin approval
+          status: "INACTIVE", // Require admin approval (updated enum)
         };
       },
     }),
@@ -45,8 +45,8 @@ export const authConfig: NextAuthConfig = {
           throw new Error("Invalid credentials");
         }
 
-        // Check if account is pending admin approval
-        if (user.status === "PENDING") {
+        // Check if account is inactive (pending admin approval)
+        if (user.status === "INACTIVE") {
           throw new Error("Your account is awaiting admin verification");
         }
 
@@ -85,7 +85,7 @@ export const authConfig: NextAuthConfig = {
           email: user.email,
         });
 
-        if (existingUser?.status === "PENDING") {
+        if (existingUser?.status === "INACTIVE") {
           return "/auth/pending-approval";
         }
 
@@ -169,7 +169,7 @@ export const authConfig: NextAuthConfig = {
     signIn: "/login",
     signOut: "/auth/logout",
     error: "/auth/error",
-    newUser: "/auth/welcome",
+    // Removed newUser: "/auth/welcome" - causes 404, let redirect callback handle new users
   },
   session: {
     strategy: "jwt",
