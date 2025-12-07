@@ -22,13 +22,21 @@ export async function middleware(req: NextRequest) {
 
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
 
-  // If user is logged in and trying to access login/signup, redirect to their portal
+  // If user is logged in and trying to access login/signup, redirect appropriately
   if (session?.user && (pathname === "/login" || pathname === "/signup")) {
     const role = session.user.role?.toLowerCase();
-    // Defensive check: if role is undefined, redirect to /portal for role detection
-    if (!role) {
-      return NextResponse.redirect(new URL("/portal", req.url));
+
+    // Check if user needs to choose a role (new Google OAuth users)
+    // @ts-ignore - needsRole is a custom field
+    if (!role || session.user.needsRole) {
+      // Prevent redirect loop - only redirect if not already on choose-role
+      if (pathname !== "/auth/choose-role") {
+        return NextResponse.redirect(new URL("/auth/choose-role", req.url));
+      }
+      return NextResponse.next();
     }
+
+    // User has a role, redirect to their portal
     return NextResponse.redirect(new URL(`/${role}`, req.url));
   }
 
@@ -44,13 +52,27 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Check if user needs to choose a role (before checking status)
+  const userRole = session.user.role?.toLowerCase();
+  // @ts-ignore - needsRole is a custom field
+  if (!userRole || session.user.needsRole) {
+    // Prevent redirect loop - only redirect if not already on choose-role
+    if (pathname !== "/auth/choose-role") {
+      return NextResponse.redirect(new URL("/auth/choose-role", req.url));
+    }
+    return NextResponse.next();
+  }
+
   // Check if user account is active
   if (session.user.status !== "ACTIVE") {
-    return NextResponse.redirect(new URL("/auth/pending-approval", req.url));
+    // Prevent redirect loop - only redirect if not already on pending-approval
+    if (pathname !== "/auth/pending-approval") {
+      return NextResponse.redirect(new URL("/auth/pending-approval", req.url));
+    }
+    return NextResponse.next();
   }
 
   // Role-based route protection
-  const userRole = session.user.role?.toLowerCase();
   const roleBasedRoutes = [
     { path: "/brand", role: "brand" },
     { path: "/influencer", role: "influencer" },
@@ -62,10 +84,6 @@ export async function middleware(req: NextRequest) {
   for (const route of roleBasedRoutes) {
     if (pathname.startsWith(route.path) && userRole !== route.role) {
       // User trying to access wrong portal, redirect to their portal
-      // Defensive check: if userRole is undefined, redirect to /portal
-      if (!userRole) {
-        return NextResponse.redirect(new URL("/portal", req.url));
-      }
       return NextResponse.redirect(new URL(`/${userRole}`, req.url));
     }
   }
@@ -85,8 +103,10 @@ export async function middleware(req: NextRequest) {
     // Use !== true to catch both false and undefined values
     const profileCompleted = session.user.profileCompleted;
     if (profileCompleted !== true) {
-      // Redirect to profile setup if not completed
-      return NextResponse.redirect(new URL("/brand/profile-setup", req.url));
+      // Prevent redirect loop
+      if (pathname !== "/brand/profile-setup") {
+        return NextResponse.redirect(new URL("/brand/profile-setup", req.url));
+      }
     }
   }
 
@@ -105,8 +125,10 @@ export async function middleware(req: NextRequest) {
     // Use !== true to catch both false and undefined values
     const profileCompleted = session.user.profileCompleted;
     if (profileCompleted !== true) {
-      // Redirect to profile setup if not completed
-      return NextResponse.redirect(new URL("/influencer/profile", req.url));
+      // Prevent redirect loop
+      if (pathname !== "/influencer/profile") {
+        return NextResponse.redirect(new URL("/influencer/profile", req.url));
+      }
     }
   }
 
@@ -117,11 +139,12 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
+     * - api/auth (NextAuth API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder files
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.jpg$|.*\\.svg$|.*\\.ico$).*)",
+    "/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.jpg$|.*\\.svg$|.*\\.ico$).*)",
   ],
 };
