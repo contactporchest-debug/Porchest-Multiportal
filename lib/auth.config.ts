@@ -241,10 +241,11 @@ export const authConfig: NextAuthConfig = {
      * @returns Updated token with custom fields
      */
     async jwt({ token, user, trigger, session }) {
-      // ALWAYS fetch from DB if token is missing role or needsRole is set
-      // This ensures returning users with existing roles get proper token data
+      // ALWAYS fetch from DB on every sign-in or when role is missing
+      // DB is source of truth - don't trust stale token
       const shouldFetchFromDB =
-        user || // Initial sign-in
+        user || // Initial sign-in (first time)
+        trigger === "signIn" || // Every sign-in (returning users)
         trigger === "update" || // Explicit session update
         !token.role || // Token missing role
         token.needsRole === true; // Token flagged as needing role
@@ -264,11 +265,12 @@ export const authConfig: NextAuthConfig = {
             });
 
             if (dbUser) {
-              // Update token with fresh DB data
-              token.needsRole = !dbUser.role;
+              // Force-set token from DB (DB is source of truth)
               token.role = dbUser.role || null;
-              token.status = dbUser.status || null;
-              token.id = (user?.id || token.id || dbUser._id.toString()) as string;
+              token.status = dbUser.status || "INACTIVE";
+              token.needsRole = !dbUser.role;
+              token.profileCompleted = !!dbUser.profile_completed;
+              token.id = dbUser._id.toString();
 
               // Fetch profile_completed status for brand users
               if (dbUser.role === "brand") {
@@ -281,14 +283,12 @@ export const authConfig: NextAuthConfig = {
                   console.error("Error fetching brand profile:", error);
                   token.profileCompleted = false;
                 }
-              } else {
-                token.profileCompleted = false;
               }
             } else if (user) {
               // New user, no DB record yet (shouldn't happen with adapter)
               token.needsRole = true;
               token.role = null;
-              token.status = null;
+              token.status = "INACTIVE";
               token.id = user.id;
               token.profileCompleted = false;
             }
@@ -299,8 +299,9 @@ export const authConfig: NextAuthConfig = {
           if (user) {
             token.needsRole = !user.role;
             token.role = user.role || null;
-            token.status = user.status || null;
+            token.status = user.status || "INACTIVE";
             token.id = user.id;
+            token.profileCompleted = false;
           }
         }
       }

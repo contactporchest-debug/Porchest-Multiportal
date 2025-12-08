@@ -106,9 +106,20 @@ export async function middleware(req: NextRequest) {
   const userRole = (session.user?.role || (session as any).user?.role)?.toLowerCase();
   // @ts-ignore - needsRole is a custom field
   const needsRole = session.user?.needsRole ?? (session as any).user?.needsRole ?? false;
+  const userStatus = session.user?.status || (session as any).user?.status;
 
+  // If user is on /auth/choose-role but already has a role, redirect them away
+  if (pathname === "/auth/choose-role" && userRole && needsRole === false) {
+    // Brand/Influencer with INACTIVE status go to pending approval
+    if ((userRole === "brand" || userRole === "influencer") && userStatus === "INACTIVE") {
+      return NextResponse.redirect(new URL("/auth/pending-approval", req.url));
+    }
+    // All other roles go to their portal
+    return NextResponse.redirect(new URL(`/${userRole}`, req.url));
+  }
+
+  // If no role or needsRole is true, redirect to choose-role (unless already there)
   if (!userRole || needsRole === true) {
-    // Prevent redirect loop - only redirect if not already on choose-role
     if (pathname !== "/auth/choose-role") {
       return NextResponse.redirect(new URL("/auth/choose-role", req.url));
     }
