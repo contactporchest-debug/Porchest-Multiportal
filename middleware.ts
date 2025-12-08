@@ -119,13 +119,23 @@ export async function middleware(req: NextRequest) {
    * Account Status Check
    *
    * Check if user's account is active.
-   * Inactive accounts are pending admin approval.
-   * Suspended accounts cannot access the platform.
+   * Brand/Influencer with INACTIVE status need admin approval.
+   * Other roles with non-ACTIVE status cannot access the platform.
    */
-  if (session.user.status !== "ACTIVE") {
-    // Prevent redirect loop - only redirect if not already on pending-approval
+  const userStatus = session.user.status;
+
+  // Brand/Influencer with INACTIVE status go to pending approval
+  if ((userRole === "brand" || userRole === "influencer") && userStatus === "INACTIVE") {
     if (pathname !== "/auth/pending-approval") {
       return NextResponse.redirect(new URL("/auth/pending-approval", req.url));
+    }
+    return NextResponse.next();
+  }
+
+  // All roles must have ACTIVE status to proceed (except INACTIVE brand/influencer handled above)
+  if (userStatus !== "ACTIVE") {
+    if (pathname !== "/auth/account-inactive") {
+      return NextResponse.redirect(new URL("/auth/account-inactive", req.url));
     }
     return NextResponse.next();
   }

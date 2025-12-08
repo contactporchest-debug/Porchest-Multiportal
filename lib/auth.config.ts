@@ -241,78 +241,34 @@ export const authConfig: NextAuthConfig = {
      * @returns Updated token with custom fields
      */
     async jwt({ token, user, trigger, session }) {
-      // When user signs in (user object is available), populate the token
-      if (user) {
-        // Check if user has a role in database
+      // ALWAYS fetch from DB if token is missing role or needsRole is set
+      // This ensures returning users with existing roles get proper token data
+      const shouldFetchFromDB =
+        user || // Initial sign-in
+        trigger === "update" || // Explicit session update
+        !token.role || // Token missing role
+        token.needsRole === true; // Token flagged as needing role
+
+      if (shouldFetchFromDB) {
         try {
           const client = await clientPromise;
           const db = client.db("porchest_db");
 
-          // Fetch the latest user data from MongoDB
-          const dbUser = await db.collection("users").findOne({
-            email: user.email,
-          });
+          // Get email from user object (sign-in) or token (existing session)
+          const userEmail = (user?.email || token.email) as string;
 
-          // If user doesn't have a role, they need to choose one (new Google OAuth users)
-          if (!dbUser?.role) {
-            token.needsRole = true; // Flag to indicate role selection is required
-            token.role = null;
-            token.status = null;
-            token.id = user.id;
-          } else {
-            // User has a role, populate token with all necessary data
-            token.needsRole = false;
-            token.role = dbUser.role; // User's role: brand, influencer, admin, client, employee
-            token.status = dbUser.status; // Account status: ACTIVE, INACTIVE, SUSPENDED
-            token.id = user.id || dbUser._id.toString();
-
-            // Fetch profile_completed status for brand users
-            // This determines if they've completed their onboarding profile setup
-            if (dbUser.role === "brand") {
-              try {
-                const profile = await db.collection("brand_profiles").findOne({
-                  user_id: new (await import("mongodb")).ObjectId(token.id as string)
-                });
-                token.profileCompleted = profile?.profile_completed ?? false;
-              } catch (error) {
-                console.error("Error fetching profile_completed:", error);
-                token.profileCompleted = false;
-              }
-            }
-          }
-        } catch (error) {
-          console.error("Error in JWT callback:", error);
-          // Fallback: use data from user object if database query fails
-          token.needsRole = false;
-          token.role = user.role || null;
-          token.status = user.status || null;
-          token.id = user.id;
-        }
-      }
-
-      // Re-fetch user data from database when session is updated
-      // This ensures role changes are reflected immediately in the session
-      // Triggered when session.update() is called from the client
-      if (trigger === "update") {
-        try {
-          const client = await clientPromise;
-          const db = client.db("porchest_db");
-
-          // Get user's email from token
-          const userEmail = token.email as string;
           if (userEmail) {
-            // Re-fetch user from database to get the latest data
+            // Fetch the latest user data from MongoDB
             const dbUser = await db.collection("users").findOne({
               email: userEmail,
             });
 
             if (dbUser) {
-              // Update token with latest user data from DB
-              // This is important when user role or status changes
+              // Update token with fresh DB data
               token.needsRole = !dbUser.role;
               token.role = dbUser.role || null;
               token.status = dbUser.status || null;
-              token.id = token.id || dbUser._id.toString();
+              token.id = (user?.id || token.id || dbUser._id.toString()) as string;
 
               // Fetch profile_completed status for brand users
               if (dbUser.role === "brand") {
@@ -325,48 +281,27 @@ export const authConfig: NextAuthConfig = {
                   console.error("Error fetching brand profile:", error);
                   token.profileCompleted = false;
                 }
+              } else {
+                token.profileCompleted = false;
               }
+            } else if (user) {
+              // New user, no DB record yet (shouldn't happen with adapter)
+              token.needsRole = true;
+              token.role = null;
+              token.status = null;
+              token.id = user.id;
+              token.profileCompleted = false;
             }
           }
         } catch (error) {
-          console.error("Error re-fetching user data on session update:", error);
-        }
-      }
-
-      // If token still has no role (not initial sign-in, not update), fetch from DB
-      // This handles cases where JWT exists but role was just added to DB
-      if (!user && trigger !== "update" && (!token.role || token.needsRole)) {
-        try {
-          const client = await clientPromise;
-          const db = client.db("porchest_db");
-
-          const userEmail = token.email as string;
-          if (userEmail) {
-            const dbUser = await db.collection("users").findOne({
-              email: userEmail,
-            });
-
-            if (dbUser && dbUser.role) {
-              token.needsRole = false;
-              token.role = dbUser.role;
-              token.status = dbUser.status || null;
-              token.id = token.id || dbUser._id.toString();
-
-              if (dbUser.role === "brand") {
-                try {
-                  const profile = await db.collection("brand_profiles").findOne({
-                    user_id: new (await import("mongodb")).ObjectId(token.id as string)
-                  });
-                  token.profileCompleted = profile?.profile_completed ?? false;
-                } catch (error) {
-                  console.error("Error fetching brand profile:", error);
-                  token.profileCompleted = false;
-                }
-              }
-            }
+          console.error("Error fetching user data in JWT callback:", error);
+          // On error, preserve existing token or set defaults
+          if (user) {
+            token.needsRole = !user.role;
+            token.role = user.role || null;
+            token.status = user.status || null;
+            token.id = user.id;
           }
-        } catch (error) {
-          console.error("Error fetching role from DB:", error);
         }
       }
 
