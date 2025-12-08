@@ -247,6 +247,47 @@ export function calculateAllMetrics(posts: Post[], currentFollowers: number): Ca
 // ============================================================================
 
 /**
+ * Safe divide that returns null if denominator is 0 or either value is null/undefined
+ * Prevents fake zeros and division by zero errors
+ */
+export function safeDivide(
+  numerator: number | null | undefined,
+  denominator: number | null | undefined,
+  decimals: number = 2
+): number | null {
+  if (numerator == null || denominator == null || denominator === 0) {
+    return null
+  }
+  const result = numerator / denominator
+  return Number(result.toFixed(decimals))
+}
+
+/**
+ * Safe percentage calculation (numerator / denominator * 100)
+ * Returns null if calculation is not possible
+ */
+export function safePercentage(
+  numerator: number | null | undefined,
+  denominator: number | null | undefined,
+  decimals: number = 2
+): number | null {
+  const divided = safeDivide(numerator, denominator, decimals + 2)
+  if (divided === null) return null
+  return Number((divided * 100).toFixed(decimals))
+}
+
+/**
+ * Get value or null (never return 0 for missing data)
+ */
+export function valueOrNull(value: any): number | null {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+  const num = typeof value === 'number' ? value : parseFloat(value)
+  return isNaN(num) ? null : num
+}
+
+/**
  * Format large numbers (e.g., 1500 -> "1.5K", 1500000 -> "1.5M")
  */
 export function formatNumber(num: number): string {

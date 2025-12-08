@@ -13,11 +13,20 @@ import {
 } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
 import { withRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit";
+import {
+  getInstagramBusinessAccount,
+  getAllMediaWithInsights,
+  getAccountInsights,
+} from "@/lib/utils/meta-api";
+import {
+  safeDivide,
+  safePercentage,
+  valueOrNull,
+} from "@/lib/utils/calculations";
 
 /**
  * POST /api/influencer/instagram/sync
- * Syncs Instagram metrics for the logged-in influencer
- * Fetches latest insights and updates the profile
+ * Comprehensive Instagram metrics sync with media insights and calculated metrics
  */
 async function syncInstagramMetrics(req: Request) {
   try {
@@ -70,321 +79,310 @@ async function syncInstagramMetrics(req: Request) {
 
     const { access_token, instagram_business_account_id } = profile.instagram_account;
 
-    // Fetch basic account info
-    const accountUrl = new URL(`https://graph.facebook.com/v18.0/${instagram_business_account_id}`);
-    accountUrl.searchParams.set("fields", "id,username,profile_picture_url,followers_count,follows_count,media_count");
-    accountUrl.searchParams.set("access_token", access_token);
-
-    const accountResponse = await fetch(accountUrl.toString());
-    const accountData = await accountResponse.json();
-
-    // Log raw account response for debugging
-    logger.info("Instagram Account API Response", {
-      status: accountResponse.status,
-      ok: accountResponse.ok,
-      data: accountData,
-      instagram_business_account_id,
-    });
-
-    if (!accountResponse.ok) {
-      logger.error("Failed to fetch Instagram account data", {
-        accountData,
-        error: accountData.error,
-        message: accountData.error?.message || "Unknown error",
-      });
+    if (!instagram_business_account_id) {
       return Response.json(
         {
           success: false,
-          error: { message: "Failed to fetch Instagram data. Please reconnect your account." },
+          error: { message: "Instagram business account ID not found" },
         },
         { status: 400 }
       );
     }
 
-    // Fetch insights (last 30 days)
-    const since = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000); // 30 days ago
+    logger.info("Starting Instagram sync", {
+      userId: user._id.toString(),
+      instagram_business_account_id,
+    });
+
+    // =========================================================================
+    // STEP 1: Fetch Account-Level Data
+    // =========================================================================
+
+    const accountData = await getInstagramBusinessAccount(
+      access_token,
+      instagram_business_account_id
+    );
+
+    logger.info("Instagram Account Data", {
+      username: accountData.username,
+      followers: accountData.followers_count,
+      media: accountData.media_count,
+    });
+
+    // =========================================================================
+    // STEP 2: Fetch Account Insights (Last 30 Days Daily Metrics)
+    // =========================================================================
+
+    const since = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
     const until = Math.floor(Date.now() / 1000);
 
-    const insightsUrl = new URL(`https://graph.facebook.com/v18.0/${instagram_business_account_id}/insights`);
-    insightsUrl.searchParams.set("metric", "impressions,reach,profile_views,website_clicks,email_contacts,phone_call_clicks,get_directions_clicks,text_message_clicks");
-    insightsUrl.searchParams.set("period", "day");
-    insightsUrl.searchParams.set("since", since.toString());
-    insightsUrl.searchParams.set("until", until.toString());
-    insightsUrl.searchParams.set("access_token", access_token);
+    const insightsUrl = `https://graph.facebook.com/v18.0/${instagram_business_account_id}/insights`;
+    const insightsParams = new URLSearchParams({
+      metric: "impressions,reach,profile_views,website_clicks",
+      period: "day",
+      since: since.toString(),
+      until: until.toString(),
+      access_token: access_token,
+    });
 
-    const insightsResponse = await fetch(insightsUrl.toString());
+    const insightsResponse = await fetch(`${insightsUrl}?${insightsParams.toString()}`);
     const insightsData = await insightsResponse.json();
 
-    // Log raw insights response for debugging - THIS IS CRITICAL
     logger.info("Instagram Insights API Response", {
       status: insightsResponse.status,
       ok: insightsResponse.ok,
-      url: insightsUrl.toString().replace(access_token, "***REDACTED***"),
       dataCount: insightsData.data?.length || 0,
-      data: insightsData,
-      error: insightsData.error,
+      hasError: !!insightsData.error,
     });
 
-    // If insights response has errors, log detailed diagnostic info
     if (!insightsResponse.ok || insightsData.error) {
-      logger.error("Instagram Insights API Error - Check Permissions!", {
+      logger.error("Instagram Insights API Error", {
         error: insightsData.error,
-        errorMessage: insightsData.error?.message || "No error message",
-        errorCode: insightsData.error?.code,
-        errorType: insightsData.error?.type,
-        instagram_business_account_id,
-        hint: "This usually means missing permissions. Required: instagram_basic, instagram_manage_insights, pages_read_engagement",
+        hint: "Check permissions: instagram_basic, instagram_manage_insights, pages_read_engagement",
       });
     }
 
-    // Process insights
-    let metrics: any = {
-      followers_count: accountData.followers_count || 0,
-      follows_count: accountData.follows_count || 0,
-      media_count: accountData.media_count || 0,
-    };
-
-    // Build time-series data for charts
-    let insightsHistory: any[] = [];
+    // Process daily insights into time-series data
+    const dateMap = new Map<string, any>();
+    let totalImpressions = 0;
+    let totalReach = 0;
+    let totalProfileViews = 0;
+    let totalWebsiteClicks = 0;
 
     if (insightsResponse.ok && insightsData.data) {
-      // Create a map to organize data by date
-      const dateMap = new Map<string, any>();
-
       insightsData.data.forEach((insight: any) => {
         if (insight.values && insight.values.length > 0) {
-          // Sum up values for the period
-          const total = insight.values.reduce((sum: number, v: any) => sum + (v.value || 0), 0);
+          // Aggregate total for 30 days
+          const total = insight.values.reduce((sum: number, v: any) =>
+            sum + (valueOrNull(v.value) ?? 0), 0
+          );
 
           switch (insight.name) {
             case "impressions":
-              metrics.impressions = total;
+              totalImpressions = total;
               break;
             case "reach":
-              metrics.reach = total;
+              totalReach = total;
               break;
             case "profile_views":
-              metrics.profile_views = total;
+              totalProfileViews = total;
               break;
             case "website_clicks":
-              metrics.website_clicks = total;
-              break;
-            case "email_contacts":
-              metrics.email_contacts = total;
-              break;
-            case "phone_call_clicks":
-              metrics.phone_call_clicks = total;
-              break;
-            case "get_directions_clicks":
-              metrics.get_directions_clicks = total;
-              break;
-            case "text_message_clicks":
-              metrics.text_message_clicks = total;
+              totalWebsiteClicks = total;
               break;
           }
 
-          // Build time-series data
+          // Build daily time-series data
           insight.values.forEach((v: any) => {
             if (v.end_time) {
-              const date = v.end_time.split('T')[0]; // Extract date
+              const date = v.end_time.split('T')[0];
               if (!dateMap.has(date)) {
                 dateMap.set(date, {
                   date,
-                  followers: accountData.followers_count || 0,
+                  followers: accountData.followers_count,
                 });
               }
               const entry = dateMap.get(date);
-
-              switch (insight.name) {
-                case "impressions":
-                  entry.impressions = v.value || 0;
-                  break;
-                case "reach":
-                  entry.reach = v.value || 0;
-                  break;
-                case "profile_views":
-                  entry.views = v.value || 0;
-                  break;
-                case "website_clicks":
-                  entry.clicks = v.value || 0;
-                  break;
-              }
+              entry[insight.name] = valueOrNull(v.value);
             }
           });
         }
       });
-
-      // Convert map to array and sort by date
-      insightsHistory = Array.from(dateMap.values())
-        .sort((a, b) => a.date.localeCompare(b.date))
-        .map(entry => {
-          const totalEng = (entry.impressions || 0) + (entry.reach || 0);
-          const engRate = entry.followers > 0 ? (totalEng / entry.followers) * 100 : 0;
-
-          return {
-            ...entry,
-            interactions: (entry.impressions || 0) + (entry.reach || 0),
-            visits: entry.views || 0,
-            follows: 0, // Not available in basic insights
-            engagement_rate: parseFloat(engRate.toFixed(2)),
-          };
-        });
     }
 
-    // Calculate engagement rate (simplified)
-    const totalEngagement = (metrics.impressions || 0) + (metrics.reach || 0);
-    const engagementRate = accountData.followers_count > 0
-      ? ((totalEngagement / accountData.followers_count) / 30) * 100
-      : 0;
+    // =========================================================================
+    // STEP 3: Fetch Media + Media Insights
+    // =========================================================================
 
-    metrics.engagement_rate = parseFloat(engagementRate.toFixed(2));
-
-    // Fetch demographics (audience insights)
-    const demoUrl = new URL(`https://graph.facebook.com/v18.0/${instagram_business_account_id}/insights`);
-    demoUrl.searchParams.set("metric", "audience_city,audience_country,audience_gender_age,audience_locale");
-    demoUrl.searchParams.set("period", "lifetime");
-    demoUrl.searchParams.set("access_token", access_token);
-
-    const demoResponse = await fetch(demoUrl.toString());
-    const demoData = await demoResponse.json();
-
-    // Log demographics response
-    logger.info("Instagram Demographics API Response", {
-      status: demoResponse.status,
-      ok: demoResponse.ok,
-      dataCount: demoData.data?.length || 0,
-      data: demoData,
-      error: demoData.error,
-    });
-
-    let demographics: any = {};
-
-    if (demoResponse.ok && demoData.data) {
-      demoData.data.forEach((insight: any) => {
-        if (insight.values && insight.values.length > 0) {
-          const value = insight.values[0].value || {};
-
-          switch (insight.name) {
-            case "audience_city":
-              demographics.audience_city = value;
-              break;
-            case "audience_country":
-              demographics.audience_country = value;
-              break;
-            case "audience_gender_age":
-              demographics.audience_gender_age = value;
-              break;
-            case "audience_locale":
-              demographics.audience_locale = value;
-              break;
-          }
-        }
-      });
-    }
-
-    // Merge history - get existing history and merge with new data
-    const existingHistory = profile.instagram_insights_history || [];
-    const existingHistoryMap = new Map(
-      existingHistory.map((entry: any) => [entry.date, entry])
+    logger.info("Fetching media with insights...");
+    const mediaWithInsights = await getAllMediaWithInsights(
+      instagram_business_account_id,
+      access_token,
+      50 // Last 50 posts
     );
 
-    // Merge new history with existing - field-level merge to preserve valid values
-    insightsHistory.forEach(newEntry => {
-      const existingEntry = existingHistoryMap.get(newEntry.date);
+    logger.info("Media fetched", {
+      count: mediaWithInsights.length,
+    });
 
-      if (existingEntry) {
-        // Merge at field level - only overwrite if new value is valid (not 0, null, or undefined)
-        const mergedEntry = { ...existingEntry };
+    // Calculate media aggregates
+    let totalLikes = 0;
+    let totalComments = 0;
+    let totalMediaReach = 0;
+    let totalMediaImpressions = 0;
+    let totalSaved = 0;
+    let totalEngagement = 0;
+    let mediaWithReachCount = 0;
+    let mediaWithImpressionsCount = 0;
 
-        Object.keys(newEntry).forEach(key => {
-          const newValue = newEntry[key];
-          const existingValue = existingEntry[key];
+    mediaWithInsights.forEach((media) => {
+      totalLikes += valueOrNull(media.like_count) ?? 0;
+      totalComments += valueOrNull(media.comments_count) ?? 0;
 
-          // Keep new value if it's truthy OR if existing value doesn't exist
-          // This prevents overwriting good data (100) with zeros (0)
-          if (newValue || !existingValue) {
-            mergedEntry[key] = newValue;
-          }
-          // For engagement_rate and date, always use new value since they could be 0 legitimately
-          if (key === 'engagement_rate' || key === 'date') {
-            mergedEntry[key] = newValue;
-          }
-        });
+      if (media.insights) {
+        const reach = valueOrNull(media.insights.reach);
+        const impressions = valueOrNull(media.insights.impressions);
+        const saved = valueOrNull(media.insights.saved);
+        const engagement = valueOrNull(media.insights.engagement);
 
-        existingHistoryMap.set(newEntry.date, mergedEntry);
-      } else {
-        // New date entry, just add it
-        existingHistoryMap.set(newEntry.date, newEntry);
+        if (reach !== null) {
+          totalMediaReach += reach;
+          mediaWithReachCount++;
+        }
+        if (impressions !== null) {
+          totalMediaImpressions += impressions;
+          mediaWithImpressionsCount++;
+        }
+        if (saved !== null) {
+          totalSaved += saved;
+        }
+        if (engagement !== null) {
+          totalEngagement += engagement;
+        }
       }
     });
 
-    // Convert back to array, sort by date, and keep only last 90 days
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 90);
-    const cutoffStr = cutoffDate.toISOString().split('T')[0];
+    const avgLikes = mediaWithInsights.length > 0 ?
+      Math.round(totalLikes / mediaWithInsights.length) : null;
+    const avgComments = mediaWithInsights.length > 0 ?
+      Math.round(totalComments / mediaWithInsights.length) : null;
+    const avgReach = mediaWithReachCount > 0 ?
+      Math.round(totalMediaReach / mediaWithReachCount) : null;
+    const avgImpressions = mediaWithImpressionsCount > 0 ?
+      Math.round(totalMediaImpressions / mediaWithImpressionsCount) : null;
 
-    const mergedHistory = Array.from(existingHistoryMap.values())
-      .filter(entry => entry.date >= cutoffStr)
-      .sort((a, b) => a.date.localeCompare(b.date));
+    // =========================================================================
+    // STEP 4: Calculate Derived Metrics
+    // =========================================================================
 
-    // Safe update - only set fields that have valid values
+    // Engagement rate based on account insights
+    const engagementRate30Days = safePercentage(
+      totalEngagement || (totalImpressions + totalReach),
+      totalReach
+    );
+
+    // Engagement rate per post (based on media)
+    const totalInteractions = totalLikes + totalComments + totalSaved;
+    const avgEngagementRate = safePercentage(
+      totalInteractions,
+      totalMediaReach || (accountData.followers_count * mediaWithInsights.length)
+    );
+
+    // Posting frequency (posts per day over last 30 days)
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const recentPosts = mediaWithInsights.filter((m) =>
+      new Date(m.timestamp).getTime() > thirtyDaysAgo
+    );
+    const postingFrequency = safeDivide(recentPosts.length, 30);
+
+    // Followers growth rate (requires history)
+    const existingHistory = profile.instagram_insights_history || [];
+    let followersGrowthRate = null;
+    if (existingHistory.length > 0) {
+      const oldestSnapshot = existingHistory[0];
+      const oldestFollowers = valueOrNull(oldestSnapshot.followers);
+      const currentFollowers = accountData.followers_count;
+
+      if (oldestFollowers && oldestFollowers > 0) {
+        followersGrowthRate = safePercentage(
+          currentFollowers - oldestFollowers,
+          oldestFollowers
+        );
+      }
+    }
+
+    // =========================================================================
+    // STEP 5: Prepare Snapshot for History
+    // =========================================================================
+
+    const snapshot = {
+      date: new Date(),
+      period_days: 30,
+      impressions_30d: valueOrNull(totalImpressions),
+      reach_30d: valueOrNull(totalReach),
+      profile_views_30d: valueOrNull(totalProfileViews),
+      website_clicks_30d: valueOrNull(totalWebsiteClicks),
+      engagement_rate_30d: engagementRate30Days,
+      followers_count: valueOrNull(accountData.followers_count),
+      follows_count: valueOrNull(accountData.follows_count),
+      media_count: valueOrNull(accountData.media_count),
+    };
+
+    logger.info("Snapshot prepared", snapshot);
+
+    // =========================================================================
+    // STEP 6: Update Database with $push + $slice
+    // =========================================================================
+
     const updateFields: any = {
       "instagram_account.last_synced_at": new Date(),
-      instagram_insights_history: mergedHistory,
       updated_at: new Date(),
     };
 
-    // Only update metrics if they have values
-    if (metrics.followers_count) updateFields["instagram_metrics.followers_count"] = metrics.followers_count;
-    if (metrics.follows_count) updateFields["instagram_metrics.follows_count"] = metrics.follows_count;
-    if (metrics.media_count) updateFields["instagram_metrics.media_count"] = metrics.media_count;
-    if (metrics.impressions !== undefined) updateFields["instagram_metrics.impressions"] = metrics.impressions;
-    if (metrics.reach !== undefined) updateFields["instagram_metrics.reach"] = metrics.reach;
-    if (metrics.profile_views !== undefined) updateFields["instagram_metrics.profile_views"] = metrics.profile_views;
-    if (metrics.website_clicks !== undefined) updateFields["instagram_metrics.website_clicks"] = metrics.website_clicks;
-    if (metrics.email_contacts !== undefined) updateFields["instagram_metrics.email_contacts"] = metrics.email_contacts;
-    if (metrics.phone_call_clicks !== undefined) updateFields["instagram_metrics.phone_call_clicks"] = metrics.phone_call_clicks;
-    if (metrics.get_directions_clicks !== undefined) updateFields["instagram_metrics.get_directions_clicks"] = metrics.get_directions_clicks;
-    if (metrics.text_message_clicks !== undefined) updateFields["instagram_metrics.text_message_clicks"] = metrics.text_message_clicks;
-    if (metrics.engagement_rate !== undefined) updateFields["instagram_metrics.engagement_rate"] = metrics.engagement_rate;
+    // Update instagram_metrics (current/latest values)
+    const metricsToUpdate: any = {};
+    if (accountData.followers_count != null) metricsToUpdate.followers_count = accountData.followers_count;
+    if (accountData.follows_count != null) metricsToUpdate.follows_count = accountData.follows_count;
+    if (accountData.media_count != null) metricsToUpdate.media_count = accountData.media_count;
+    if (totalImpressions) metricsToUpdate.impressions = totalImpressions;
+    if (totalReach) metricsToUpdate.reach = totalReach;
+    if (totalProfileViews) metricsToUpdate.profile_views = totalProfileViews;
+    if (totalWebsiteClicks) metricsToUpdate.website_clicks = totalWebsiteClicks;
+    if (engagementRate30Days != null) metricsToUpdate.engagement_rate = engagementRate30Days;
 
-    if (Object.keys(demographics).length > 0) updateFields.instagram_demographics = demographics;
-    if (accountData.username) updateFields.instagram_username = accountData.username;
-    if (accountData.profile_picture_url) updateFields.profile_picture = accountData.profile_picture_url;
-    if (accountData.followers_count) updateFields.followers = accountData.followers_count;
-    if (accountData.follows_count) updateFields.following = accountData.follows_count;
-    if (metrics.engagement_rate !== undefined) updateFields.engagement_rate = metrics.engagement_rate;
-
-    // Log what we're about to store in DB
-    logger.info("Storing Instagram data to MongoDB", {
-      userId: user._id.toString(),
-      historyEntries: mergedHistory.length,
-      historyDateRange: mergedHistory.length > 0 ? {
-        from: mergedHistory[0]?.date,
-        to: mergedHistory[mergedHistory.length - 1]?.date,
-      } : null,
-      sampleHistoryEntry: mergedHistory[mergedHistory.length - 1] || null,
-      metrics,
-      demographics: Object.keys(demographics),
-      updateFields: Object.keys(updateFields),
+    Object.keys(metricsToUpdate).forEach(key => {
+      updateFields[`instagram_metrics.${key}`] = metricsToUpdate[key];
     });
 
-    // Update profile
+    // Update calculated_metrics
+    const calculatedMetrics: any = {};
+    if (avgLikes != null) calculatedMetrics.avg_likes = avgLikes;
+    if (avgComments != null) calculatedMetrics.avg_comments = avgComments;
+    if (avgReach != null) calculatedMetrics.avg_reach = avgReach;
+    if (avgImpressions != null) calculatedMetrics.avg_impressions = avgImpressions;
+    if (avgEngagementRate != null) calculatedMetrics.avg_engagement_rate = avgEngagementRate;
+    if (engagementRate30Days != null) calculatedMetrics.engagement_rate_30_days = engagementRate30Days;
+    if (followersGrowthRate != null) calculatedMetrics.followers_growth_rate = followersGrowthRate;
+    if (postingFrequency != null) calculatedMetrics.posting_frequency = postingFrequency;
+
+    Object.keys(calculatedMetrics).forEach(key => {
+      updateFields[`calculated_metrics.${key}`] = calculatedMetrics[key];
+    });
+
+    // Update profile fields
+    if (accountData.username) updateFields.instagram_username = accountData.username;
+    if (accountData.profile_picture_url) updateFields.profile_picture = accountData.profile_picture_url;
+    if (accountData.followers_count != null) updateFields.followers = accountData.followers_count;
+    if (accountData.follows_count != null) updateFields.following = accountData.follows_count;
+    if (engagementRate30Days != null) updateFields.engagement_rate = engagementRate30Days;
+
+    // Use $set for regular fields and $push with $slice for history
     await influencerProfilesCollection.updateOne(
       { user_id: user._id },
-      { $set: updateFields }
+      {
+        $set: updateFields,
+        $push: {
+          instagram_insights_history: {
+            $each: [snapshot],
+            $slice: -90, // Keep last 90 entries
+          },
+        },
+      }
     );
 
     logger.info("Instagram metrics synced successfully", {
       userId: user._id.toString(),
       followers: accountData.followers_count,
-      metrics,
+      historyCount: (existingHistory.length + 1),
+      metrics: metricsToUpdate,
+      calculated: calculatedMetrics,
     });
 
     return successResponse({
       message: "Instagram metrics synced successfully",
-      metrics,
-      demographics,
+      metrics: metricsToUpdate,
+      calculated_metrics: calculatedMetrics,
+      media_count: mediaWithInsights.length,
     });
   } catch (error) {
     return handleApiError(error);
