@@ -32,6 +32,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { CustomLineChart } from "@/components/charts/line-chart"
 import { CustomAreaChart } from "@/components/charts/area-chart"
 import { CustomBarChart } from "@/components/charts/bar-chart"
+import { CustomPieChart } from "@/components/charts/pie-chart"
 import { Sparkline } from "@/components/charts/sparkline"
 
 export default function InsightsDashboard() {
@@ -182,6 +183,22 @@ export default function InsightsDashboard() {
     ...item,
     date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
   }))
+
+  // Prepare gender demographics data
+  const demographics = profile.instagram_demographics || {}
+  const genderData: Array<{ name: string; value: number }> = []
+
+  if (demographics.audience_gender_age) {
+    const genderCounts: any = { M: 0, F: 0, U: 0 }
+    Object.entries(demographics.audience_gender_age).forEach(([key, value]: [string, any]) => {
+      const gender = key.split('.')[0] // Extract M, F, or U from "M.25-34"
+      genderCounts[gender] = (genderCounts[gender] || 0) + (value || 0)
+    })
+
+    if (genderCounts.M > 0) genderData.push({ name: 'Male', value: genderCounts.M })
+    if (genderCounts.F > 0) genderData.push({ name: 'Female', value: genderCounts.F })
+    if (genderCounts.U > 0) genderData.push({ name: 'Unknown', value: genderCounts.U })
+  }
 
   return (
     <PortalLayout
@@ -399,21 +416,23 @@ export default function InsightsDashboard() {
               </CardContent>
             </Card>
 
-            {/* Content Interactions (BarChart) */}
+            {/* Awareness Funnel (BarChart) */}
             <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
                   <MousePointerClick className="h-5 w-5 text-blue-400" />
-                  Content Interactions
+                  Awareness Funnel
                 </CardTitle>
-                <CardDescription className="text-gray-400">Total impressions + reach</CardDescription>
+                <CardDescription className="text-gray-400">Impressions → Reach → Profile Views (last 10 days)</CardDescription>
               </CardHeader>
               <CardContent>
                 <CustomBarChart
-                  data={chartData}
+                  data={chartData.slice(-10)}
                   xKey="date"
                   bars={[
-                    { key: "interactions", color: "#60a5fa", name: "Interactions" }
+                    { key: "impressions", color: "#60a5fa", name: "Impressions" },
+                    { key: "reach", color: "#a78bfa", name: "Reach" },
+                    { key: "views", color: "#fb923c", name: "Profile Views" }
                   ]}
                   height={250}
                 />
@@ -462,27 +481,67 @@ export default function InsightsDashboard() {
               </CardContent>
             </Card>
 
-            {/* Impressions vs Reach (LineChart with multiple lines) */}
+            {/* Followers Growth (LineChart) */}
             <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-pink-400" />
-                  Impressions vs Reach
+                  <UserPlus className="h-5 w-5 text-pink-400" />
+                  Followers Growth
                 </CardTitle>
-                <CardDescription className="text-gray-400">Comparison of key metrics</CardDescription>
+                <CardDescription className="text-gray-400">Follower count over time (last 30 days)</CardDescription>
               </CardHeader>
               <CardContent>
                 <CustomLineChart
                   data={chartData}
                   xKey="date"
                   lines={[
-                    { key: "impressions", color: "#60a5fa", name: "Impressions" },
-                    { key: "reach", color: "#ec4899", name: "Reach" }
+                    { key: "followers", color: "#ec4899", name: "Followers" }
                   ]}
                   height={250}
                 />
               </CardContent>
             </Card>
+
+            {/* Engagement Rate Trend (AreaChart) */}
+            <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-green-400" />
+                  Engagement Rate Trend
+                </CardTitle>
+                <CardDescription className="text-gray-400">Daily engagement rate percentage</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <CustomAreaChart
+                  data={chartData}
+                  xKey="date"
+                  areas={[
+                    { key: "engagement_rate", color: "#10b981", name: "Engagement %" }
+                  ]}
+                  height={250}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Audience Gender Demographics (PieChart) */}
+            {genderData.length > 0 && (
+              <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Users className="h-5 w-5 text-purple-400" />
+                    Audience Gender
+                  </CardTitle>
+                  <CardDescription className="text-gray-400">Gender distribution of your audience</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <CustomPieChart
+                    data={genderData}
+                    colors={["#60a5fa", "#ec4899", "#a78bfa"]}
+                    height={250}
+                  />
+                </CardContent>
+              </Card>
+            )}
           </div>
         ) : (
           <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">

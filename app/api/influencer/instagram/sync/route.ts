@@ -154,7 +154,10 @@ async function syncInstagramMetrics(req: Request) {
             if (v.end_time) {
               const date = v.end_time.split('T')[0]; // Extract date
               if (!dateMap.has(date)) {
-                dateMap.set(date, { date });
+                dateMap.set(date, {
+                  date,
+                  followers: accountData.followers_count || 0,
+                });
               }
               const entry = dateMap.get(date);
 
@@ -180,12 +183,18 @@ async function syncInstagramMetrics(req: Request) {
       // Convert map to array and sort by date
       insightsHistory = Array.from(dateMap.values())
         .sort((a, b) => a.date.localeCompare(b.date))
-        .map(entry => ({
-          ...entry,
-          interactions: (entry.impressions || 0) + (entry.reach || 0),
-          visits: entry.views || 0,
-          follows: 0, // Not available in basic insights
-        }));
+        .map(entry => {
+          const totalEng = (entry.impressions || 0) + (entry.reach || 0);
+          const engRate = entry.followers > 0 ? (totalEng / entry.followers) * 100 : 0;
+
+          return {
+            ...entry,
+            interactions: (entry.impressions || 0) + (entry.reach || 0),
+            visits: entry.views || 0,
+            follows: 0, // Not available in basic insights
+            engagement_rate: parseFloat(engRate.toFixed(2)),
+          };
+        });
     }
 
     // Calculate engagement rate (simplified)
@@ -230,23 +239,58 @@ async function syncInstagramMetrics(req: Request) {
       });
     }
 
+    // Merge history - get existing history and merge with new data
+    const existingHistory = profile.instagram_insights_history || [];
+    const existingHistoryMap = new Map(
+      existingHistory.map((entry: any) => [entry.date, entry])
+    );
+
+    // Merge new history with existing, preferring new data
+    insightsHistory.forEach(newEntry => {
+      existingHistoryMap.set(newEntry.date, newEntry);
+    });
+
+    // Convert back to array, sort by date, and keep only last 90 days
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - 90);
+    const cutoffStr = cutoffDate.toISOString().split('T')[0];
+
+    const mergedHistory = Array.from(existingHistoryMap.values())
+      .filter(entry => entry.date >= cutoffStr)
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Safe update - only set fields that have valid values
+    const updateFields: any = {
+      "instagram_account.last_synced_at": new Date(),
+      instagram_insights_history: mergedHistory,
+      updated_at: new Date(),
+    };
+
+    // Only update metrics if they have values
+    if (metrics.followers_count) updateFields["instagram_metrics.followers_count"] = metrics.followers_count;
+    if (metrics.follows_count) updateFields["instagram_metrics.follows_count"] = metrics.follows_count;
+    if (metrics.media_count) updateFields["instagram_metrics.media_count"] = metrics.media_count;
+    if (metrics.impressions !== undefined) updateFields["instagram_metrics.impressions"] = metrics.impressions;
+    if (metrics.reach !== undefined) updateFields["instagram_metrics.reach"] = metrics.reach;
+    if (metrics.profile_views !== undefined) updateFields["instagram_metrics.profile_views"] = metrics.profile_views;
+    if (metrics.website_clicks !== undefined) updateFields["instagram_metrics.website_clicks"] = metrics.website_clicks;
+    if (metrics.email_contacts !== undefined) updateFields["instagram_metrics.email_contacts"] = metrics.email_contacts;
+    if (metrics.phone_call_clicks !== undefined) updateFields["instagram_metrics.phone_call_clicks"] = metrics.phone_call_clicks;
+    if (metrics.get_directions_clicks !== undefined) updateFields["instagram_metrics.get_directions_clicks"] = metrics.get_directions_clicks;
+    if (metrics.text_message_clicks !== undefined) updateFields["instagram_metrics.text_message_clicks"] = metrics.text_message_clicks;
+    if (metrics.engagement_rate !== undefined) updateFields["instagram_metrics.engagement_rate"] = metrics.engagement_rate;
+
+    if (Object.keys(demographics).length > 0) updateFields.instagram_demographics = demographics;
+    if (accountData.username) updateFields.instagram_username = accountData.username;
+    if (accountData.profile_picture_url) updateFields.profile_picture = accountData.profile_picture_url;
+    if (accountData.followers_count) updateFields.followers = accountData.followers_count;
+    if (accountData.follows_count) updateFields.following = accountData.follows_count;
+    if (metrics.engagement_rate !== undefined) updateFields.engagement_rate = metrics.engagement_rate;
+
     // Update profile
     await influencerProfilesCollection.updateOne(
       { user_id: user._id },
-      {
-        $set: {
-          "instagram_account.last_synced_at": new Date(),
-          instagram_metrics: metrics,
-          instagram_demographics: demographics,
-          instagram_insights_history: insightsHistory,
-          instagram_username: accountData.username,
-          profile_picture: accountData.profile_picture_url || profile.profile_picture,
-          followers: accountData.followers_count || 0,
-          following: accountData.follows_count || 0,
-          engagement_rate: metrics.engagement_rate || 0,
-          updated_at: new Date(),
-        },
-      }
+      { $set: updateFields }
     );
 
     logger.info("Instagram metrics synced successfully", {
