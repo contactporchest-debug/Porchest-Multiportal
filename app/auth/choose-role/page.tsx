@@ -113,11 +113,9 @@ export default function ChooseRolePage() {
 
       // Success - update session and redirect
       if (data.redirectUrl) {
-        // Force session update before redirecting
+        // Force session update to refresh JWT with new role from DB
+        // This triggers the jwt callback with trigger="update"
         await sessionData.update();
-
-        // Small delay to ensure session is updated
-        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Redirect to the appropriate page
         router.push(data.redirectUrl);
