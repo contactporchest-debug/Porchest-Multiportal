@@ -133,7 +133,7 @@ export async function middleware(req: NextRequest) {
    * Brand/Influencer with INACTIVE status need admin approval.
    * Other roles with non-ACTIVE status cannot access the platform.
    */
-  const userStatus = session.user.status;
+  // userStatus already declared above at line 109 with optional chaining
 
   // Brand/Influencer with INACTIVE status go to pending approval
   if ((userRole === "brand" || userRole === "influencer") && userStatus === "INACTIVE") {
