@@ -64,13 +64,30 @@ export default function ChooseRolePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Redirect if user already has a role
+  // Auto-redirect if user already has a role (stale token case)
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
       // @ts-ignore - needsRole is a custom field
-      if (!session.user.needsRole && session.user.role) {
-        // User already has a role, redirect to their portal
-        router.push("/portal");
+      const hasRole = session.user.role && !session.user.needsRole;
+
+      if (hasRole) {
+        // User already has a role - redirect immediately without calling set-role
+        const role = session.user.role.toLowerCase();
+        // @ts-ignore - status is a custom field
+        const userStatus = session.user.status;
+
+        // Brand/Influencer with INACTIVE status go to pending approval
+        if ((role === "brand" || role === "influencer") && userStatus === "INACTIVE") {
+          router.push("/auth/pending-approval");
+        }
+        // Employee/Client go directly to their portal
+        else if (role === "employee" || role === "client") {
+          router.push(`/${role}`);
+        }
+        // Any other role goes to their portal
+        else {
+          router.push(`/${role}`);
+        }
       }
     }
   }, [status, session, router]);
