@@ -78,8 +78,20 @@ async function syncInstagramMetrics(req: Request) {
     const accountResponse = await fetch(accountUrl.toString());
     const accountData = await accountResponse.json();
 
+    // Log raw account response for debugging
+    logger.info("Instagram Account API Response", {
+      status: accountResponse.status,
+      ok: accountResponse.ok,
+      data: accountData,
+      instagram_business_account_id,
+    });
+
     if (!accountResponse.ok) {
-      logger.error("Failed to fetch Instagram account data", { accountData });
+      logger.error("Failed to fetch Instagram account data", {
+        accountData,
+        error: accountData.error,
+        message: accountData.error?.message || "Unknown error",
+      });
       return Response.json(
         {
           success: false,
@@ -102,6 +114,28 @@ async function syncInstagramMetrics(req: Request) {
 
     const insightsResponse = await fetch(insightsUrl.toString());
     const insightsData = await insightsResponse.json();
+
+    // Log raw insights response for debugging - THIS IS CRITICAL
+    logger.info("Instagram Insights API Response", {
+      status: insightsResponse.status,
+      ok: insightsResponse.ok,
+      url: insightsUrl.toString().replace(access_token, "***REDACTED***"),
+      dataCount: insightsData.data?.length || 0,
+      data: insightsData,
+      error: insightsData.error,
+    });
+
+    // If insights response has errors, log detailed diagnostic info
+    if (!insightsResponse.ok || insightsData.error) {
+      logger.error("Instagram Insights API Error - Check Permissions!", {
+        error: insightsData.error,
+        errorMessage: insightsData.error?.message || "No error message",
+        errorCode: insightsData.error?.code,
+        errorType: insightsData.error?.type,
+        instagram_business_account_id,
+        hint: "This usually means missing permissions. Required: instagram_basic, instagram_manage_insights, pages_read_engagement",
+      });
+    }
 
     // Process insights
     let metrics: any = {
@@ -214,6 +248,15 @@ async function syncInstagramMetrics(req: Request) {
     const demoResponse = await fetch(demoUrl.toString());
     const demoData = await demoResponse.json();
 
+    // Log demographics response
+    logger.info("Instagram Demographics API Response", {
+      status: demoResponse.status,
+      ok: demoResponse.ok,
+      dataCount: demoData.data?.length || 0,
+      data: demoData,
+      error: demoData.error,
+    });
+
     let demographics: any = {};
 
     if (demoResponse.ok && demoData.data) {
@@ -245,9 +288,34 @@ async function syncInstagramMetrics(req: Request) {
       existingHistory.map((entry: any) => [entry.date, entry])
     );
 
-    // Merge new history with existing, preferring new data
+    // Merge new history with existing - field-level merge to preserve valid values
     insightsHistory.forEach(newEntry => {
-      existingHistoryMap.set(newEntry.date, newEntry);
+      const existingEntry = existingHistoryMap.get(newEntry.date);
+
+      if (existingEntry) {
+        // Merge at field level - only overwrite if new value is valid (not 0, null, or undefined)
+        const mergedEntry = { ...existingEntry };
+
+        Object.keys(newEntry).forEach(key => {
+          const newValue = newEntry[key];
+          const existingValue = existingEntry[key];
+
+          // Keep new value if it's truthy OR if existing value doesn't exist
+          // This prevents overwriting good data (100) with zeros (0)
+          if (newValue || !existingValue) {
+            mergedEntry[key] = newValue;
+          }
+          // For engagement_rate and date, always use new value since they could be 0 legitimately
+          if (key === 'engagement_rate' || key === 'date') {
+            mergedEntry[key] = newValue;
+          }
+        });
+
+        existingHistoryMap.set(newEntry.date, mergedEntry);
+      } else {
+        // New date entry, just add it
+        existingHistoryMap.set(newEntry.date, newEntry);
+      }
     });
 
     // Convert back to array, sort by date, and keep only last 90 days
@@ -286,6 +354,20 @@ async function syncInstagramMetrics(req: Request) {
     if (accountData.followers_count) updateFields.followers = accountData.followers_count;
     if (accountData.follows_count) updateFields.following = accountData.follows_count;
     if (metrics.engagement_rate !== undefined) updateFields.engagement_rate = metrics.engagement_rate;
+
+    // Log what we're about to store in DB
+    logger.info("Storing Instagram data to MongoDB", {
+      userId: user._id.toString(),
+      historyEntries: mergedHistory.length,
+      historyDateRange: mergedHistory.length > 0 ? {
+        from: mergedHistory[0]?.date,
+        to: mergedHistory[mergedHistory.length - 1]?.date,
+      } : null,
+      sampleHistoryEntry: mergedHistory[mergedHistory.length - 1] || null,
+      metrics,
+      demographics: Object.keys(demographics),
+      updateFields: Object.keys(updateFields),
+    });
 
     // Update profile
     await influencerProfilesCollection.updateOne(

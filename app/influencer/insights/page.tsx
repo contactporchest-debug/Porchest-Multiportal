@@ -178,11 +178,28 @@ export default function InsightsDashboard() {
   const viewsChange = calculateChange(insightsHistory, "views")
   const clicksChange = calculateChange(insightsHistory, "clicks")
 
-  // Format chart data
-  const chartData = insightsHistory.map((item: any) => ({
+  // Format chart data - use history if available, otherwise fall back to creating one entry from metrics
+  let chartData = insightsHistory.map((item: any) => ({
     ...item,
     date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
   }))
+
+  // Fallback: if no history data, create a single data point from current metrics
+  if (chartData.length === 0 && metrics.followers_count) {
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    chartData = [{
+      date: today,
+      followers: metrics.followers_count || 0,
+      impressions: metrics.impressions || 0,
+      reach: metrics.reach || 0,
+      views: metrics.profile_views || 0,
+      clicks: metrics.website_clicks || 0,
+      interactions: (metrics.impressions || 0) + (metrics.reach || 0),
+      visits: metrics.profile_views || 0,
+      follows: 0,
+      engagement_rate: metrics.engagement_rate || 0,
+    }]
+  }
 
   // Prepare gender demographics data
   const demographics = profile.instagram_demographics || {}
