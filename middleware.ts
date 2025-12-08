@@ -62,11 +62,12 @@ export async function middleware(req: NextRequest) {
    * redirect them based on their role or to role selection.
    */
   if (session?.user && (pathname === "/login" || pathname === "/signup")) {
-    const role = session.user.role?.toLowerCase();
+    const role = (session.user?.role || (session as any).user?.role)?.toLowerCase();
+    // @ts-ignore - needsRole is a custom field added in auth.config.ts
+    const needsRole = session.user?.needsRole ?? (session as any).user?.needsRole ?? false;
 
     // Check if user needs to choose a role (new Google OAuth users)
-    // @ts-ignore - needsRole is a custom field added in auth.config.ts
-    if (!role || session.user.needsRole) {
+    if (!role || needsRole === true) {
       // Prevent redirect loop - only redirect if not already on choose-role
       if (pathname !== "/auth/choose-role") {
         return NextResponse.redirect(new URL("/auth/choose-role", req.url));
@@ -101,9 +102,12 @@ export async function middleware(req: NextRequest) {
    * New Google OAuth users don't have a role yet.
    * Redirect them to choose a role before accessing any portal.
    */
-  const userRole = session.user.role?.toLowerCase();
+  // Safely read role from session - handle both session.user.role and potential nested structures
+  const userRole = (session.user?.role || (session as any).user?.role)?.toLowerCase();
   // @ts-ignore - needsRole is a custom field
-  if (!userRole || session.user.needsRole) {
+  const needsRole = session.user?.needsRole ?? (session as any).user?.needsRole ?? false;
+
+  if (!userRole || needsRole === true) {
     // Prevent redirect loop - only redirect if not already on choose-role
     if (pathname !== "/auth/choose-role") {
       return NextResponse.redirect(new URL("/auth/choose-role", req.url));

@@ -333,9 +333,48 @@ export const authConfig: NextAuthConfig = {
         }
       }
 
+      // If token still has no role (not initial sign-in, not update), fetch from DB
+      // This handles cases where JWT exists but role was just added to DB
+      if (!user && trigger !== "update" && (!token.role || token.needsRole)) {
+        try {
+          const client = await clientPromise;
+          const db = client.db("porchest_db");
+
+          const userEmail = token.email as string;
+          if (userEmail) {
+            const dbUser = await db.collection("users").findOne({
+              email: userEmail,
+            });
+
+            if (dbUser && dbUser.role) {
+              token.needsRole = false;
+              token.role = dbUser.role;
+              token.status = dbUser.status || null;
+              token.id = token.id || dbUser._id.toString();
+
+              if (dbUser.role === "brand") {
+                try {
+                  const profile = await db.collection("brand_profiles").findOne({
+                    user_id: new (await import("mongodb")).ObjectId(token.id as string)
+                  });
+                  token.profileCompleted = profile?.profile_completed ?? false;
+                } catch (error) {
+                  console.error("Error fetching brand profile:", error);
+                  token.profileCompleted = false;
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching role from DB:", error);
+        }
+      }
+
       // Merge any additional session data passed from session.update() call
+      // IMPORTANT: Only merge non-role fields to avoid overwriting fresh DB data
       if (trigger === "update" && session) {
-        token = { ...token, ...session };
+        const { role, needsRole, status, ...otherSessionData } = session as any;
+        token = { ...token, ...otherSessionData };
       }
 
       return token; // Return the updated token
