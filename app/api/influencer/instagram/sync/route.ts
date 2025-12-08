@@ -110,7 +110,13 @@ async function syncInstagramMetrics(req: Request) {
       media_count: accountData.media_count || 0,
     };
 
+    // Build time-series data for charts
+    let insightsHistory: any[] = [];
+
     if (insightsResponse.ok && insightsData.data) {
+      // Create a map to organize data by date
+      const dateMap = new Map<string, any>();
+
       insightsData.data.forEach((insight: any) => {
         if (insight.values && insight.values.length > 0) {
           // Sum up values for the period
@@ -142,8 +148,44 @@ async function syncInstagramMetrics(req: Request) {
               metrics.text_message_clicks = total;
               break;
           }
+
+          // Build time-series data
+          insight.values.forEach((v: any) => {
+            if (v.end_time) {
+              const date = v.end_time.split('T')[0]; // Extract date
+              if (!dateMap.has(date)) {
+                dateMap.set(date, { date });
+              }
+              const entry = dateMap.get(date);
+
+              switch (insight.name) {
+                case "impressions":
+                  entry.impressions = v.value || 0;
+                  break;
+                case "reach":
+                  entry.reach = v.value || 0;
+                  break;
+                case "profile_views":
+                  entry.views = v.value || 0;
+                  break;
+                case "website_clicks":
+                  entry.clicks = v.value || 0;
+                  break;
+              }
+            }
+          });
         }
       });
+
+      // Convert map to array and sort by date
+      insightsHistory = Array.from(dateMap.values())
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map(entry => ({
+          ...entry,
+          interactions: (entry.impressions || 0) + (entry.reach || 0),
+          visits: entry.views || 0,
+          follows: 0, // Not available in basic insights
+        }));
     }
 
     // Calculate engagement rate (simplified)
@@ -196,6 +238,7 @@ async function syncInstagramMetrics(req: Request) {
           "instagram_account.last_synced_at": new Date(),
           instagram_metrics: metrics,
           instagram_demographics: demographics,
+          instagram_insights_history: insightsHistory,
           instagram_username: accountData.username,
           profile_picture: accountData.profile_picture_url || profile.profile_picture,
           followers: accountData.followers_count || 0,
