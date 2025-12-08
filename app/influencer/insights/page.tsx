@@ -157,6 +157,7 @@ export default function InsightsDashboard() {
   }
 
   const metrics = profile.instagram_metrics || {}
+  const calculatedMetrics = profile.calculated_metrics || {}
   const instagramAccount = profile.instagram_account || {}
   const insightsHistory = profile.instagram_insights_history || []
 
@@ -164,40 +165,56 @@ export default function InsightsDashboard() {
     ? new Date(instagramAccount.last_synced_at).toLocaleString()
     : "Never"
 
-  // Calculate percentage changes (comparing last 7 days vs previous 7 days)
-  const calculateChange = (data: any[], key: string) => {
-    if (!data || data.length < 14) return 0
-    const recent = data.slice(-7).reduce((sum, d) => sum + (d[key] || 0), 0)
-    const previous = data.slice(-14, -7).reduce((sum, d) => sum + (d[key] || 0), 0)
-    if (previous === 0) return 0
-    return ((recent - previous) / previous) * 100
+  // Helper to display metric value or fallback
+  const displayMetric = (value: any, fallback: string = "N/A"): string => {
+    if (value === null || value === undefined) return fallback
+    if (typeof value === 'number') return value.toLocaleString()
+    return String(value)
   }
 
-  const impressionsChange = calculateChange(insightsHistory, "impressions")
-  const reachChange = calculateChange(insightsHistory, "reach")
-  const viewsChange = calculateChange(insightsHistory, "views")
-  const clicksChange = calculateChange(insightsHistory, "clicks")
+  const displayPercentage = (value: any, decimals: number = 2): string => {
+    if (value === null || value === undefined) return "N/A"
+    return typeof value === 'number' ? value.toFixed(decimals) + '%' : 'N/A'
+  }
 
-  // Format chart data - use history if available, otherwise fall back to creating one entry from metrics
-  let chartData = insightsHistory.map((item: any) => ({
-    ...item,
-    date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-  }))
+  // Calculate percentage changes based on history snapshots
+  const calculateChange = (data: any[], key: string) => {
+    if (!data || data.length < 2) return 0
+    const latest = data[data.length - 1]
+    const previous = data[data.length - 2]
+    const latestValue = latest[key] ?? 0
+    const previousValue = previous[key] ?? 0
+    if (previousValue === 0) return 0
+    return ((latestValue - previousValue) / previousValue) * 100
+  }
 
-  // Fallback: if no history data, create a single data point from current metrics
-  if (chartData.length === 0 && metrics.followers_count) {
+  const impressionsChange = calculateChange(insightsHistory, "impressions_30d")
+  const reachChange = calculateChange(insightsHistory, "reach_30d")
+  const viewsChange = calculateChange(insightsHistory, "profile_views_30d")
+  const clicksChange = calculateChange(insightsHistory, "website_clicks_30d")
+
+  // Format chart data - map snapshots to chart-friendly format
+  let chartData = insightsHistory.map((snapshot: any) => ({
+    date: new Date(snapshot.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    followers: snapshot.followers_count ?? null,
+    impressions: snapshot.impressions_30d ?? null,
+    reach: snapshot.reach_30d ?? null,
+    views: snapshot.profile_views_30d ?? null,
+    clicks: snapshot.website_clicks_30d ?? null,
+    engagement_rate: snapshot.engagement_rate_30d ?? null,
+  })).filter((item: any) => item.followers !== null || item.impressions !== null)
+
+  // Fallback: if no history, create single point from current metrics
+  if (chartData.length === 0 && metrics.followers_count != null) {
     const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     chartData = [{
       date: today,
-      followers: metrics.followers_count || 0,
-      impressions: metrics.impressions || 0,
-      reach: metrics.reach || 0,
-      views: metrics.profile_views || 0,
-      clicks: metrics.website_clicks || 0,
-      interactions: (metrics.impressions || 0) + (metrics.reach || 0),
-      visits: metrics.profile_views || 0,
-      follows: 0,
-      engagement_rate: metrics.engagement_rate || 0,
+      followers: metrics.followers_count,
+      impressions: metrics.impressions ?? null,
+      reach: metrics.reach ?? null,
+      views: metrics.profile_views ?? null,
+      clicks: metrics.website_clicks ?? null,
+      engagement_rate: metrics.engagement_rate ?? null,
     }]
   }
 
@@ -254,15 +271,15 @@ export default function InsightsDashboard() {
                   </div>
                   <div className="grid grid-cols-3 gap-6">
                     <div>
-                      <p className="text-2xl font-bold">{(metrics.followers_count || 0).toLocaleString()}</p>
+                      <p className="text-2xl font-bold">{displayMetric(metrics.followers_count, "0")}</p>
                       <p className="text-sm opacity-80">Followers</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{(metrics.follows_count || 0).toLocaleString()}</p>
+                      <p className="text-2xl font-bold">{displayMetric(metrics.follows_count, "0")}</p>
                       <p className="text-sm opacity-80">Following</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{(metrics.media_count || 0).toLocaleString()}</p>
+                      <p className="text-2xl font-bold">{displayMetric(metrics.media_count, "0")}</p>
                       <p className="text-sm opacity-80">Posts</p>
                     </div>
                   </div>
@@ -293,7 +310,7 @@ export default function InsightsDashboard() {
                 <Eye className="h-4 w-4 text-blue-400" />
                 <p className="text-xs text-gray-400">Impressions (30d)</p>
               </div>
-              <p className="text-2xl font-bold text-white mb-1">{(metrics.impressions || 0).toLocaleString()}</p>
+              <p className="text-2xl font-bold text-white mb-1">{displayMetric(metrics.impressions, "0")}</p>
               {impressionsChange !== 0 && (
                 <div className={`flex items-center gap-1 text-xs ${impressionsChange > 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {impressionsChange > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
@@ -312,7 +329,7 @@ export default function InsightsDashboard() {
                 <Users className="h-4 w-4 text-purple-400" />
                 <p className="text-xs text-gray-400">Reach (30d)</p>
               </div>
-              <p className="text-2xl font-bold text-white mb-1">{(metrics.reach || 0).toLocaleString()}</p>
+              <p className="text-2xl font-bold text-white mb-1">{displayMetric(metrics.reach, "0")}</p>
               {reachChange !== 0 && (
                 <div className={`flex items-center gap-1 text-xs ${reachChange > 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {reachChange > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
@@ -331,7 +348,7 @@ export default function InsightsDashboard() {
                 <TrendingUp className="h-4 w-4 text-green-400" />
                 <p className="text-xs text-gray-400">Engagement Rate</p>
               </div>
-              <p className="text-2xl font-bold text-white mb-1">{metrics.engagement_rate?.toFixed(2) || "0.00"}%</p>
+              <p className="text-2xl font-bold text-white mb-1">{displayPercentage(metrics.engagement_rate)}</p>
               <p className="text-xs text-gray-400">Average</p>
               <div className="mt-2 h-[30px]"></div>
             </CardContent>
@@ -343,7 +360,7 @@ export default function InsightsDashboard() {
                 <BarChart3 className="h-4 w-4 text-orange-400" />
                 <p className="text-xs text-gray-400">Profile Views (30d)</p>
               </div>
-              <p className="text-2xl font-bold text-white mb-1">{(metrics.profile_views || 0).toLocaleString()}</p>
+              <p className="text-2xl font-bold text-white mb-1">{displayMetric(metrics.profile_views, "0")}</p>
               {viewsChange !== 0 && (
                 <div className={`flex items-center gap-1 text-xs ${viewsChange > 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {viewsChange > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
@@ -362,7 +379,7 @@ export default function InsightsDashboard() {
                 <Globe className="h-4 w-4 text-cyan-400" />
                 <p className="text-xs text-gray-400">Link Clicks (30d)</p>
               </div>
-              <p className="text-2xl font-bold text-white mb-1">{(metrics.website_clicks || 0).toLocaleString()}</p>
+              <p className="text-2xl font-bold text-white mb-1">{displayMetric(metrics.website_clicks, "0")}</p>
               {clicksChange !== 0 && (
                 <div className={`flex items-center gap-1 text-xs ${clicksChange > 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {clicksChange > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
