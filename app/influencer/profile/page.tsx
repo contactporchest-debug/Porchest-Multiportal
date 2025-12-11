@@ -533,13 +533,18 @@ export default function InfluencerProfileSetup() {
     setBasicInfo({ ...basicInfo, brand_preferences: basicInfo.brand_preferences.filter((p) => p !== pref) })
   }
 
-  const formatNumber = (num: number) => {
+  // Safety helper for converting values to strings
+  const safeStr = (v: any, fallback = "—") => v === null || v === undefined ? fallback : String(v)
+
+  const formatNumber = (num: number | null | undefined) => {
+    if (num === null || num === undefined || isNaN(num)) return "0"
     if (num >= 1000000) return (num / 1000000).toFixed(1) + "M"
     if (num >= 1000) return (num / 1000).toFixed(1) + "K"
     return num.toString()
   }
 
-  const formatPercentage = (num: number) => {
+  const formatPercentage = (num: number | null | undefined) => {
+    if (num === null || num === undefined || isNaN(num)) return "0%"
     return num.toFixed(2) + "%"
   }
 
@@ -941,9 +946,9 @@ export default function InfluencerProfileSetup() {
                           <CheckCircle className="h-5 w-5 text-green-600" />
                           <span className="font-semibold text-green-900">Instagram Connected</span>
                         </div>
-                        <p className="text-sm text-green-800 mb-1">@{instagramAccount.username}</p>
+                        <p className="text-sm text-green-800 mb-1">@{instagramAccount?.username ?? "—"}</p>
                         <p className="text-xs text-green-600">
-                          Last synced: {new Date(instagramAccount.last_synced_at).toLocaleDateString()}
+                          Last synced: {instagramAccount?.last_synced_at ? new Date(instagramAccount.last_synced_at).toLocaleDateString() : "—"}
                         </p>
                       </div>
 
@@ -996,9 +1001,9 @@ export default function InfluencerProfileSetup() {
                     <Instagram className="h-8 w-8 text-purple-600" />
                     <div>
                       <p className="font-medium text-green-900">Connected</p>
-                      <p className="text-sm text-green-700">@{instagramAccount.username}</p>
+                      <p className="text-sm text-green-700">@{instagramAccount?.username ?? "—"}</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        Last synced: {new Date(instagramAccount.last_synced_at).toLocaleString()}
+                        Last synced: {instagramAccount?.last_synced_at ? new Date(instagramAccount.last_synced_at).toLocaleString() : "—"}
                       </p>
                     </div>
                   </div>
@@ -1151,11 +1156,11 @@ export default function InfluencerProfileSetup() {
                           <>
                             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                               <span className="text-sm font-medium">Posting Frequency</span>
-                              <span className="text-lg font-bold text-blue-600">{calculatedMetrics.posting_frequency.toFixed(1)} / week</span>
+                              <span className="text-lg font-bold text-blue-600">{(calculatedMetrics.posting_frequency ?? 0).toFixed(1)} / week</span>
                             </div>
                             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                               <span className="text-sm font-medium">Story Frequency</span>
-                              <span className="text-lg font-bold text-purple-600">{calculatedMetrics.story_frequency.toFixed(1)} / week</span>
+                              <span className="text-lg font-bold text-purple-600">{(calculatedMetrics.story_frequency ?? 0).toFixed(1)} / week</span>
                             </div>
                           </>
                         )}
@@ -1316,7 +1321,7 @@ export default function InfluencerProfileSetup() {
                           {calculatedMetrics && (
                             <>
                               <li>• {formatPercentage(calculatedMetrics.engagement_rate_30_days)} average engagement rate</li>
-                              <li>• {calculatedMetrics.posting_frequency.toFixed(1)} posts per week average</li>
+                              <li>• {(calculatedMetrics.posting_frequency ?? 0).toFixed(1)} posts per week average</li>
                             </>
                           )}
                         </ul>
@@ -1354,7 +1359,7 @@ export default function InfluencerProfileSetup() {
                         </CardHeader>
                         <CardContent>
                           <p className="text-2xl font-bold text-purple-600">
-                            {calculatedMetrics ? calculatedMetrics.posting_frequency.toFixed(1) : "N/A"}
+                            {calculatedMetrics ? (calculatedMetrics.posting_frequency ?? 0).toFixed(1) : "N/A"}
                           </p>
                           <p className="text-xs text-gray-500">Posts per Week</p>
                         </CardContent>
